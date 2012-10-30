@@ -1,8 +1,9 @@
-/*
- * EMClusteringDemo.cpp
+/**
+ * @file EMClusteringDemo.cpp
+ * Illustrates how to perform color-based clustering using OpenCV's Expectation-Maximization (EM) model.
  *
- *  Created on: Oct 20, 2012
- *      Author: Arpan
+ * @date Oct 20, 2012
+ * @author Arpan
  */
 
 #include "util.hpp"

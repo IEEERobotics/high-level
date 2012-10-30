@@ -1,8 +1,9 @@
-/*
- * util.hpp
+/**
+ * @date util.hpp
+ * Useful macros, constants and functions (inline and templated functions only).
  *
- *  Created on: Oct 19, 2012
- *      Author: Arpan
+ * @date Oct 19, 2012
+ * @author Arpan
  */
 
 #ifndef UTIL_HPP_
@@ -46,7 +47,6 @@ const char fileExtSep = '.';
 const string image_file_exts("bmp jpg jpeg png tiff");
 
 // Global variables and objects
-
 
 // General utility functions
 /**

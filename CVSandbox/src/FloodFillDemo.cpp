@@ -1,9 +1,10 @@
-/*
- * FloodFillDemo.cpp
+/**
+ * @file FloodFillDemo.cpp
+ * Interactive demo application illustrating the use of OpenCV floodFill() method.
  * Based on OpenCV sample ffilldemo.cpp
  *
- *  Created on: Oct 21, 2012
- *      Author: Arpan
+ * @date Oct 21, 2012
+ * @author Arpan
  */
 
 #include "util.hpp"
@@ -69,7 +70,6 @@ void FloodFill_onMouse( int event, int x, int y, int, void* )
     imshow("image", dst);
     cout << area << " pixels were repainted\n";
 }
-
 
 int FloodFillDemo( int argc, char** argv )
 {

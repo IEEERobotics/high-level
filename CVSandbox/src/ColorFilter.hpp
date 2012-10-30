@@ -13,6 +13,9 @@
 
 #define HUE_MAX 180
 
+/**
+ * Performs hue/saturation-based color filtering, accounting for hue wrap-around.
+ */
 class ColorFilter: public FrameProcessor {
 public:
 	class Color {

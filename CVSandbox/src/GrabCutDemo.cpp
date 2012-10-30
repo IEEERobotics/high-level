@@ -1,9 +1,10 @@
-/*
- * GrabCutDemo.cpp
+/**
+ * @file GrabCutDemo.cpp
+ * Interactive demo application for GrabCut segmentation algorithm.
  * Based on OpenCV sample grabcut.cpp
  *
- *  Created on: Oct 20, 2012
- *      Author: Arpan
+ * @date Oct 20, 2012
+ * @author Arpan
  */
 
 #include "util.hpp"

@@ -18,6 +18,9 @@
 #define DO_BLOB_DETECTION
 #define DO_GLOBAL_HISTOGRAM
 
+/**
+ * Performs image filtering and connected-component analysis to detect and track blobs across frames.
+ */
 class BlobDetector: public FrameProcessor {
 public:
 	class Blob {

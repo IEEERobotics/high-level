@@ -21,8 +21,12 @@
 #define RUN_FRAME_PROCESSOR // run a custom frame-by-frame processor; specify class name in FRAME_PROCESSOR
 #define FRAME_PROCESSOR BlobDetector //ColorFilter
 
-// Usage: CVSandbox [image/video file]
-// Opens image/video file if passed in, or tries to open camera for live input
+/**
+ * Execute one of several demo/sandbox CV programs.
+ *
+ * Usage: CVSandbox [image/video file]
+ * Opens image/video file if passed in, or tries to open camera for live input.
+ */
 int main(int argc, char* argv[]) {
 	// Demo programs (simply call-through to respective "main-like" function)
 #if defined(RUN_GRAB_CUT_DEMO)

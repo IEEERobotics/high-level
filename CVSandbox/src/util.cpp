@@ -1,24 +1,9 @@
-/*
- * util.cpp
+/**
+ * @file util.cpp
+ * Useful macros, constants and functions (non-inline and non-templated).
  *
- *  Created on: Oct 23, 2012
- *      Author: Arpan
+ * @date Oct 23, 2012
+ * @author Arpan
  */
 
 #include "util.hpp"
-
-/*string getFileName(const string& filePath) {
-	static const char filePathSep = '/';
-	string::size_type pos = filePath.find_last_of(filePathSep);
-	if(pos != string::npos)
-		return filePath.substr(pos + 1);
-	return "";
-}
-
-string getFileExtension(const string& fileName) {
-	static const char fileExtSep = '.';
-	string::size_type pos = fileName.find_last_of(fileExtSep);
-	if(pos != string::npos)
-		return fileName.substr(pos + 1);
-	return "";
-}*/

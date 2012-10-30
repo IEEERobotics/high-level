@@ -1,10 +1,15 @@
 /**
+ * @file SimpleBlobs.cpp
+ * Finds blobs in an image using a simple implementation of connected-component analysis; utilizes OpenCV's floodFill() method.
  * Based on: http://nghiaho.com/?p=1102
+ *
+ * @date Oct 20, 2012
+ * @author Arpan
  */
 
 #include "util.hpp"
 
-void FindBlobs(const Mat &imageIn, vector < vector<Point2i> > &blobs);
+void FindBlobs(const Mat &imageIn, vector<vector<Point2i> > &blobs);
 
 int SimpleBlobsDemo(int argc, char **argv) {
 	const int minSaturation = 64;

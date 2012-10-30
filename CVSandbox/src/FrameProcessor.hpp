@@ -12,6 +12,7 @@
 
 /**
  * Base class for sequential frame-by-frame processing applications.
+ * Derived classes need only override the process() method, and sometimes initialize().
  */
 class FrameProcessor {
 public:
