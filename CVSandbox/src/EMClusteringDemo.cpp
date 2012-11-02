@@ -10,6 +10,8 @@
 #include <opencv2/ml/ml.hpp>
 
 int EMClusteringDemo(int argc, char** argv) {
+	// TODO Update EM clustering demo for new OpenCV version (2.4.2)
+#ifdef CV_2_2
 	if(argc < 2)
 		return -1;
 
@@ -29,7 +31,7 @@ int EMClusteringDemo(int argc, char** argv) {
 	Mat labels;
 	Mat img = imageIn; // Mat::zeros( Size( 500, 500 ), CV_8UC3 );
 	Mat sample( 1, 5, CV_32FC1 );
-	CvEM em_model;
+	EM em_model;
 	CvEMParams params;
 
 	samples = samples.reshape(5, 0);
@@ -122,7 +124,7 @@ int EMClusteringDemo(int argc, char** argv) {
 	imshow("Input", img);
 	imshow("EM-clustering result", imageOut);
 	waitKey(0);
-
+#endif /* CV_2_2 */
 	return 0;
 }
 
