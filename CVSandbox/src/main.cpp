@@ -19,7 +19,9 @@
 //#define RUN_FLOOD_FILL_DEMO
 //#define RUN_SIMPLE_BLOBS_DEMO
 #define RUN_FRAME_PROCESSOR // run a custom frame-by-frame processor; specify class name in FRAME_PROCESSOR
-#define FRAME_PROCESSOR BlobDetector //ColorFilter
+#ifndef FRAME_PROCESSOR // if FRAME_PROCESSOR is not already defined, e.g. as -D flag, pick a default here
+#define FRAME_PROCESSOR ColorFilter //BlobDetector
+#endif /* ifndef FRAME_PROCESSOR */
 
 /**
  * Execute one of several demo/sandbox CV programs.

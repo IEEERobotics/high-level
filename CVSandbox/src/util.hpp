@@ -1,8 +1,8 @@
 /**
- * @date util.hpp
+ * @file util.hpp
  * Useful macros, constants and functions (inline and templated functions only).
  *
- * @date Oct 19, 2012
+ * @date Nov 1, 2012
  * @author Arpan
  */
 
@@ -11,11 +11,19 @@
 
 // Standard C++ includes
 #include <iostream>
+#include <string>
+#include <sstream>
+#include <cmath>
+
+#ifdef BOOST
+// Boost includes
+#include <boost/filesystem.hpp>
+#endif
 
 // OpenCV includes
 #include <opencv2/opencv.hpp>
 
-// Selected OpenCV version identifiers (major, minor only)
+// OpenCV version (major, minor only)
 #if CV_MAJOR_VERSION == 2
 	#if CV_MINOR_VERSION == 4
 		#define CV_2_4
@@ -26,9 +34,35 @@
 	#endif
 #endif
 
-// Pre-processor flags and constants
+// Common namespaces
+using namespace std;
+using namespace cv;
 
-// Pre-processor macros
+// Pre-processor constants
+#define WHITESPACE " \t\n\r" ///< Default set of whitespace characters used by *trim() functions
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#define M_SQRT2 1.41421356237309504880
+#define M_SQRTPI 1.77245385090551602792981
+#endif
+#define DEG2RAD (M_PI / 180.0) //< Value of 1 degree in radians
+#define FLOAT_EPSILON 1.0e-05 //< like DBL_EPSILON (deprecated; use FLT_EPSILON)
+
+#define XML_FILE_HEADER "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+#define XML_CDATA_BEGIN "<![CDATA["
+#define XML_CDATA_END "]]>"
+
+// Typed global constants
+const double ticks_per_sec = getTickFrequency();
+const double M_SQRT_TWOPI = M_SQRT2 * 1.77245385090551602792981; //M_SQRTPI;
+
+const char filePathSep = '/';
+const char fileExtSep = '.';
+const string image_file_exts("bmp jpg jpeg png tiff");
+
+extern Mat emptyMat; ///< used to return an empty image (Mat) when a reference has to be returned
+
+// Macros
 #define STRINGIFY(value) #value
 
 #ifdef DEBUG
@@ -37,18 +71,105 @@
 #	define IFDEBUG(stmt)
 #endif
 
-// Common namespaces
-using namespace std;
-using namespace cv;
+#define DUMPOUT(var) cout << #var << " = " << var;
+#define DM(var) << #var << " = " << var << ", "
+#define DME(var) << #var << " = " << var
+#define DUMPM(stuff) cout##stuff << endl;
 
-// Global constants
-const char filePathSep = '/';
-const char fileExtSep = '.';
-const string image_file_exts("bmp jpg jpeg png tiff");
+#define DOUT cout
+#define DVAR(var) << #var << " = " << var << ", "
+#define DEND << endl;
+#define DVAREND(var) << #var << " = " << var << endl;
 
-// Global variables and objects
+#define VECLOOPBEGIN(type, var, vec) \
+	/* Note: vec will be evaluated twice if it is a function/operation! */ \
+	for(vector<type >::iterator var##_it = (vec).begin(); var##_it != (vec).end(); var##_it++) { \
+		type& var = *var##_it;
+#define VECLOOPEND }
+
+#define CONSTVECLOOPBEGIN(type, var, vec) \
+	/* Note: vec will be evaluated twice if it is a function/operation! */ \
+	for(vector<type >::const_iterator var##_it = (vec).begin(); var##_it != (vec).end(); var##_it++) { \
+		type const& var = *var##_it;
+#define CONSTVECLOOPEND }
+
+#define LISTLOOPBEGIN(type, var, lst) \
+	/* Note: lst will be evaluated twice if it is a function/operation! */ \
+	for(list<type >::iterator var##_it = (lst).begin(); var##_it != (lst).end(); var##_it++) { \
+		type& var = *var##_it;
+#define LISTLOOPEND }
+
+#define CONSTLISTLOOPBEGIN(type, var, lst) \
+	/* Note: lst will be evaluated twice if it is a function/operation! */ \
+	for(list<type >::const_iterator var##_it = (lst).begin(); var##_it != (lst).end(); var##_it++) { \
+		type const& var = *var##_it;
+#define CONSTLISTLOOPEND }
+
+#define MATLOOPBEGIN(type, image, width, height, xstep, ystep) \
+	/* Note: image will be evaluated multiple times if it is a function/operation! Better use an object. */ \
+	for(int y = 0; y < (height); y += (ystep)) { \
+		for(int x = 0; x < (width); x += (xstep)) { \
+			type& pixelValue = (image).at<type>(y, x);
+#define MATLOOPEND } }
+
+#define MATROWLOOPBEGIN(height, ystep) for(int y = 0; y < (height); y += (ystep)) {
+#define MATROWLOOPEND }
+
+#define MATCOLLOOPBEGIN(width, xstep) for(int x = 0; x < (width); x += (xstep)) {
+#define MATCOLLOOPEND }
+
+#define MATLOOPGETPIXEL(type, var, image) type& var = (image).at<type>(y, x);
+
+#define NAMEDWINDOW(name, arg) (void)0
+#define IMSHOW(window, image) (void)0
+#define WAITKEY(delay) (void)0
+#ifdef GUI
+#	undef NAMEDWINDOW
+#	define NAMEDWINDOW(name, arg) namedWindow(name, arg)
+#	undef IMSHOW
+#	define IMSHOW(window, image) imshow(window, image)
+#	undef WAITKEY
+#	define WAITKEY(delay) waitKey(delay)
+#endif
 
 // General utility functions
+/**
+ * Trims leading whitespaces. Does not modify original string.
+ */
+inline string ltrim(const string& str) {
+	if(!str.empty()) {
+		string::size_type startpos = str.find_first_not_of(WHITESPACE); // leading whitespace
+		if(startpos != string::npos) {
+		    return str.substr(startpos);
+		}
+		else
+			return ""; // all characters are whitespace!
+	}
+	return str;
+}
+
+/**
+ * Trims trailing whitespaces. Does not modify original string.
+ */
+inline string rtrim(const string& str) {
+	if(!str.empty()) {
+		string::size_type endpos = str.find_last_not_of(WHITESPACE); // trailing whitespace
+		if(endpos != string::npos) {
+		    return str.substr(0, endpos + 1);
+		}
+		else
+			return ""; // all characters are whitespace!
+	}
+	return str;
+}
+
+/**
+ * Trims leading and trailing whitespaces. Does not modify original string.
+ */
+inline string trim(const string& str) {
+	return ltrim(rtrim(str));
+}
+
 /**
  * Generic toString() function for types with the stream operator << overloaded.
  * Note: This will generate compile time errors if the stream operator << is not overloaded for the type T.
@@ -99,6 +220,22 @@ inline string toString<Scalar>(const Scalar& value) {
 	return sstrm.str();
 }
 
+// Command-line processing functions
+/**
+ * Returns command line argument at position specified by pos, or defaultValue if argument array isn't long enough.
+ */
+inline string getCLArg(int argc, char* argv[], int pos, string defaultValue="") {
+	if(argc > pos)
+		return argv[pos];
+	else
+		return defaultValue;
+}
+
+/**
+ * Processes command line arguments and creates a key-value map in options. If options is non-empty, only the arguments specified as its keys are read, otherwise all arguments are read. Returns true if parsing was successful.
+ */
+bool parseCommandline(int argc, char *argv[], map<string, string>& options);
+
 // File system utility functions
 /**
  * Extracts complete file name (with extension, if any), given a file path.
@@ -144,8 +281,28 @@ inline bool isStaticImageFile(const string& fileName) {
 	return false;
 }
 
+#ifdef BOOST
+/**
+ * Returns the filename (sans path) and extension of a given complete filepath, separated into an STL pair. Uses Boost library.
+ */
+inline pair<string, string> getFilenameParts(const string& filepath) {
+	boost::filesystem::path myPath(filepath);
+	return make_pair(myPath.stem().string(), myPath.extension().string());
+}
+#endif
 
 // OpenCV utility functions
+/**
+ * Returns the slope of a straight line, given delta values (along X and Y axes)
+ */
+inline double slopeFromDelta(const Point& delta) {
+	return (delta.y == 0
+			? 0.0
+			: (delta.x == 0
+				? (delta.y > 0 ? 1 : -1) * numeric_limits<double>::infinity()
+				: double(delta.y) / delta.x));
+}
+
 /**
  * Draws a polygon outline on an image, given its vertex coordinates.
  */
@@ -161,6 +318,34 @@ inline void drawRotatedRect(Mat& imageOut, const RotatedRect& rotatedRect, const
 	Point2f rectPoints[4];
 	rotatedRect.points(rectPoints);
 	drawPolygon(imageOut, rectPoints, 4, color, thickness);
+}
+
+/**
+ * Pauses program and lets OpenCV handle window events. Use WAITKEY() directly for pausing without a prompt.
+ */
+inline int pauseKey(const string& prompt = "", int delay = 0) {
+	cout << (prompt.empty() ? "Press any key to continue..." : prompt) << endl;
+#ifdef GUI
+	return WAITKEY(delay);
+#else
+	cout << "[Non-GUI mode - type a single character and press enter]: ";
+	char ch;
+	cin >> ch;
+	return ((int) ch); // Note: -1 signals no key was pressed, apt for a no GUI mode?
+#endif
+}
+
+/**
+ * Normalizes a floating-point image to 0..255 range and converts it to 8-bit unsigned image, suitable for display purposes.
+ */
+inline Mat toDisplayImage(const Mat& image) {
+	CV_Assert(image.channels() == 1); // due to the min-max normalization, this only works on single-channel images
+
+	Mat imageNormalized;
+	normalize(image, imageNormalized, 0, 255, NORM_MINMAX);
+	Mat image8U;
+	imageNormalized.convertTo(image8U, CV_8U);
+	return image8U;
 }
 
 #endif /* UTIL_HPP_ */
