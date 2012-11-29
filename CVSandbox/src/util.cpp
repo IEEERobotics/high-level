@@ -10,7 +10,7 @@
 
 Mat emptyMat = Mat();
 
-inline bool parseCommandline(int argc, char *argv[], map<string, string>& options) {
+bool parseCommandline(int argc, char *argv[], map<string, string>& options) {
 	vector<string> args(argv + 1, argv + argc);
 	bool acceptAll = options.empty();
 

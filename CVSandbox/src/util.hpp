@@ -15,9 +15,14 @@
 #include <sstream>
 #include <cmath>
 
-#ifdef BOOST
 // Boost includes
-#include <boost/filesystem.hpp>
+#ifdef BOOST
+#	include <boost/filesystem.hpp>
+#endif
+
+// Android includes
+#ifdef ANDROID
+#	include <android/log.h>
 #endif
 
 // OpenCV includes
@@ -60,6 +65,7 @@ const char filePathSep = '/';
 const char fileExtSep = '.';
 const string image_file_exts("bmp jpg jpeg png tiff");
 
+extern RNG& rng; ///< thread-local Random Number Generator from OpenCV
 extern Mat emptyMat; ///< used to return an empty image (Mat) when a reference has to be returned
 
 // Macros
@@ -67,8 +73,42 @@ extern Mat emptyMat; ///< used to return an empty image (Mat) when a reference h
 
 #ifdef DEBUG
 #	define IFDEBUG(stmt) stmt
+#	ifndef LOG_DEBUG
+#		define LOG_DEBUG
+#	endif
 #else
 #	define IFDEBUG(stmt)
+#endif
+
+#define LOGI(tag, text) (void)0;
+#define LOGD(tag, text) (void)0;
+#define LOGE(tag, text) (void)0;
+#ifdef ANDROID
+#	ifdef LOG_INFO
+#		undef LOGI
+#		define LOGI(tag, text) __android_log_write(ANDROID_LOG_INFO, tag, text);
+#	endif
+#	ifdef LOG_DEBUG
+#		undef LOGD
+#		define LOGD(tag, text) __android_log_write(ANDROID_LOG_DEBUG, tag, text);
+#	endif
+#	ifdef LOG_ERROR
+#		undef LOGE
+#		define LOGE(tag, text) __android_log_write(ANDROID_LOG_ERROR, tag, text);
+#	endif
+#else
+#	ifdef LOG_INFO
+#		undef LOGI
+#		define LOGI(tag, text) cout << tag << "::" << text << endl;
+#	endif
+#	ifdef LOG_DEBUG
+#		undef LOGD
+#		define LOGD(tag, text) cout << tag << "::" << text << endl;
+#	endif
+#	ifdef LOG_ERROR
+#		undef LOGE
+#		define LOGE(tag, text) cerr << tag << "::" << text << endl;
+#	endif
 #endif
 
 #define DUMPOUT(var) cout << #var << " = " << var;
@@ -274,7 +314,7 @@ inline string getFileExtension(const string& fileName) {
 inline bool isStaticImageFile(const string& fileName) {
 	string ext = getFileExtension(fileName);
 	if(ext.length() > 0) {
-		IFDEBUG(cout << "isStaticImageFile(\"" << filename << "\"): ext = \"" << ext << "\"" << endl;)
+		IFDEBUG(cout << "isStaticImageFile(\"" << fileName << "\"): ext = \"" << ext << "\"" << endl;)
 		if(image_file_exts.find(ext) != string::npos)
 			return true;
 	}
