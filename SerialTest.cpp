@@ -25,6 +25,8 @@ using namespace std;
 int main()
 {
     SerialCommands sc;
+    cout<<sizeof(move_data)<<endl;
+    cout<<sizeof(arm_rotate_data)<<endl;
     sc.init();
     sc.move(45,20);
     sc.arm_rotate(45);

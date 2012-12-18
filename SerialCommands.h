@@ -32,20 +32,20 @@ typedef struct move_data
     char cmd;
     int heading; //heading in degrees with respect to the arena reference frame?
     int distance;  //distance to move in cms
-} move_data;
+}__attribute__((packed)) move_data;
 
 typedef struct arm_rotate_data
 {
     char cmd;
     int angle; //angle to rotate in degrees
 
-} arm_rotate_data;
+}__attribute__((packed)) arm_rotate_data;
 
 typedef struct get_sensor_data
 {
     char cmd;
     int num;        //number of samples to receive
-}get_sensor_data;
+}__attribute__((packed)) get_sensor_data;
 
 /*define structures to receive*/
 struct ss
@@ -54,7 +54,8 @@ char resp;
 int USS_arr[USS_NUM];
 int heading;
 int servo_arr[SERVO_NUM];
-};/*__attribute_packed__;*/
+}__attribute__((packed));
+
 typedef struct ss sensor_values;
 
 
@@ -64,7 +65,7 @@ struct async
 
 char resp;
 int USS_arr[4];
-};
+}__attribute__((packed));
 
 typedef struct async async;
 
