@@ -1,0 +1,6 @@
+blue	medium	2	2
+green	medium	2	4
+yellow	medium	2	6
+red	medium	2	8
+orange	medium	2	10
+brown	medium	2	12

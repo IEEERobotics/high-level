@@ -1,0 +1,6 @@
+blue	large	3	2
+yellow	large	3	4
+green	large	3	6
+brown	large	3	8
+red	large	3	10
+orange	large	3	12
