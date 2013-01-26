@@ -80,6 +80,7 @@ def main():
         # ** Process keyboard events with inter-frame delay
         key = cv2.waitKey(delay)
         if key != -1:
+            key &= 0xff # cv2.waitKey() returns an unexpectedly large number for a key-press, with the useful value in the last 8 bits
             ch = chr(key) if 0 <= key <= 255 else None
             #print "main(): key = {0}, ch = {1}".format(key, ch)
             if key == 0x1b or ch == ('q'):
