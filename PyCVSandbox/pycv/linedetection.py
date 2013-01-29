@@ -5,8 +5,9 @@ For usage, see pycv.main module.
 
 import numpy as np
 import cv2
-import pycv.base as base
-import pycv.main as main
+from util import Enum
+from base import FrameProcessor
+from main import main
 
 class Line:
     """Represents a line in 2D space."""
@@ -29,13 +30,24 @@ class Line:
         cv2.line(imageOut, dispPt1, dispPt2, (0, 255, 0), 2)
 
 
-class LineDetector(base.FrameProcessor):
+class LineDetector(FrameProcessor):
     """Detects thick white lines."""
 
+    State = Enum(['INIT', 'ACTIVE', 'DONE', 'FAILED'])
+    MIN_GOOD_FRAMES = 5
+    MAX_BAD_FRAMES = 15
+    
+    def __init__(self):
+        FrameProcessor.__init__(self)
+        self.debug = True
+        self.state = LineDetector.State.INIT
+    
     def initialize(self, imageIn, timeNow):
         self.image = imageIn
         self.imageSize = (self.image.shape[1], self.image.shape[0]) # (width, height)
         self.imageOut = self.image.copy()
+        self.goodFrames = 0
+        self.badFrames = 0
         print "LineDetector.initialize(): Image size = " + str(self.imageSize)
         
         # Define corner template
@@ -47,7 +59,10 @@ class LineDetector(base.FrameProcessor):
         
         # TODO Define T template
         
+        self.state = LineDetector.State.ACTIVE
+        
     def process(self, imageIn, timeNow):
+        #self.logd("process", "[{0}]".format(LineDetector.State.toString(self.state)));
         self.image = imageIn
         self.imageOut = self.image.copy()
         
@@ -92,6 +107,9 @@ class LineDetector(base.FrameProcessor):
         cv2.circle(self.imageOut, bestLocCorrected, 25, (255, 255, 0), 2)
         linePt2 = bestLocCorrected
         
+        # TODO Abstract out bestLoc finding to a separate function to promote code reuse and extensibility
+        # TODO Use corresponding value as a certainty measure
+        
         # * Find a line passing through corners found
         self.primaryLine = Line(linePt1, linePt2)
         self.primaryLine.renderTo(self.imageOut)
@@ -100,11 +118,12 @@ class LineDetector(base.FrameProcessor):
         # * TODO Convolve T template to find T junctions, and line passing through them
         # * TODO Test which is more robust (corners vs T junctions) and pick one method
         
+        # TODO Set state based on whether a consistent line was found or not (goodFrames >= MIN_GOOD_FRAMES);
+        #   if too many frames have passed (badFrames > MAX_BAD_FRAMES), signal failure
+        
         return True, self.imageOut
 
 
 # Run a LineDetector instance using pycv.main.main()
 if __name__ == "__main__":
-    main.MyProcessor = LineDetector
-    main.showFPS = False
-    main.main()
+    main(LineDetector)

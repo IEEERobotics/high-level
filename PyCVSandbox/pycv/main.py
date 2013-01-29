@@ -5,23 +5,17 @@ Usage: main.py [<image filename>]
 
 import sys
 import cv2
-import pycv.base as base
+from util import KeyCode
+from base import FrameProcessor
 
-# Script parameters
-MyProcessor = base.FrameProcessor # which FrameProcessor to run
-delay = 20 # inter-frame delay
-showFPS = False # show fps?
-
-def main():
+def main(processorType=FrameProcessor, delay=20, showInput=True, showOutput=True, showFPS=False):
     """Run a FrameProcessor on a static image (repeatedly) or on frames from a camera."""
     # TODO Accept video file as input
-    
-    # * Declare global (module) variables for proper write access
-    global showFPS
     
     # * Initialize flags
     isOkay = False
     isStaticImage = False
+    showKeys = False
     
     # * Read input image, if specified
     if len(sys.argv) >= 2:
@@ -29,7 +23,8 @@ def main():
         print "main(): Reading image: \"" + imageInFilename + "\""
         frame = cv2.imread(imageInFilename)
         if frame is not None:
-            cv2.imshow("Input", frame)
+            if showInput:
+              cv2.imshow("Input", frame)
             isStaticImage = True
             isOkay = True
         else:
@@ -46,7 +41,7 @@ def main():
         return
     
     # * Create FrameProcessor object, initialize supporting variables
-    processor = MyProcessor()
+    processor = processorType()
     fresh = True
     
     # * Processing loop
@@ -63,7 +58,8 @@ def main():
         # ** If not static image, read frame from camera
         if not isStaticImage:
             _, frame = camera.read()
-            cv2.imshow("Input", frame)
+            if showInput:
+                cv2.imshow("Input", frame)
         
         # ** Initialize FrameProcessor, if required
         if(fresh):
@@ -72,7 +68,7 @@ def main():
         
         # ** Process frame
         keepRunning, imageOut = processor.process(frame, timeNow)
-        if imageOut is not None:
+        if showOutput and imageOut is not None:
             cv2.imshow("Output", imageOut)
         if not keepRunning:
             break
@@ -80,13 +76,31 @@ def main():
         # ** Process keyboard events with inter-frame delay
         key = cv2.waitKey(delay)
         if key != -1:
-            key &= 0xff # cv2.waitKey() returns an unexpectedly large number for a key-press, with the useful value in the last 8 bits
-            ch = chr(key) if 0 <= key <= 255 else None
-            #print "main(): key = {0}, ch = {1}".format(key, ch)
-            if key == 0x1b or ch == ('q'):
+            keyCode = key & 0x00007f  # key code is in the last 8 bits, pick 7 bits for correct ASCII interpretation (8th bit indicates 
+            keyChar = chr(keyCode) if not (key & KeyCode.SPECIAL) else None # if keyCode is normal, convert to char (str)
+            
+            if showKeys:
+                print "main(): " + KeyCode.describeKey(key)
+                #print "main(): key = {key:#06x}, keyCode = {keyCode}, keyChar = {keyChar}".format(key=key, keyCode=keyCode, keyChar=keyChar)
+            
+            if keyCode == 0x1b or keyChar == 'q':
                 break
-            elif ch == 'f':
+            elif keyChar == 'f':
                 showFPS = not showFPS
+            elif keyChar == 'k':
+                showKeys = not showKeys
+            elif keyChar == 'i':
+                showInput = not showInput
+                if not showInput:
+                    cv2.destroyWindow("Input")
+            elif keyChar == 'o':
+                showOutput = not showOutput
+                if not showOutput:
+                    cv2.destroyWindow("Output")
+            elif not processor.onKeyPress(key, keyChar):
+                break
+        
+        # TODO Implement pause on SPACE
         
         # ** Timing: Save timestamp for fps calculation
         timeLast = timeNow
