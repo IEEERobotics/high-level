@@ -70,7 +70,6 @@ def cvtColorBGR2CMYK_(imageBGR):
   imageBGRScaled = imageBGR / 255.0  # scale to [0,1] range
   B, G, R = cv2.split(imageBGRScaled)  # split channels
   I = np.ones((imageBGRScaled.shape[0], imageBGRScaled.shape[1]))  # identity matrix
-  print np.max(I), np.min(I)
   K = I - imageBGRScaled.max(axis=2) - 0.001  # -0.001 is to prevent divide by zero in later steps
   C = (I - R- K) / (I - K)
   M = (I - G- K) / (I - K)
