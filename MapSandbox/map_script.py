@@ -9,7 +9,7 @@ import map2txt
 def main():
 	
 	#print("main1")
-	
+
 	#Make map
 	Map = CV_Map.mk_map()
 	#output map to text
