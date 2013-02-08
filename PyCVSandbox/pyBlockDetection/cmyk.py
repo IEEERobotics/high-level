@@ -75,7 +75,38 @@ def process(img):
 	rectList = drawRects(img, ctrs)
 	
 	for i in range(len(rectList)):
-		print rectList[i]
+		#print rectList[i]
+		rec = np.asarray(cv.GetSubRect(cv.fromarray(imgBlocks),rectList[i][0]))
+		cv2.imshow(str(i), rec)
+		#print rec.shape
+		rh,rw,rc = rec.shape
+		print rec[rh/2][rw/2][0],rec[rh/2][rw/2][1],rec[rh/2][rw/2][2]
+		Cfinal, Mfinal, Yfinal, Kfinal = util.cvtColorBGR2CMYK_(rec)
+		print Cfinal[rh/2][rw/2],Mfinal[rh/2][rw/2],Yfinal[rh/2][rw/2],Kfinal[rh/2][rw/2]
+		hsv = cv2.cvtColor(rec, cv.CV_BGR2HSV)
+		print hsv[rh/2][rw/2][0],hsv[rh/2][rw/2][1],hsv[rh/2][rw/2][2]
+		#cv2.imshow('hsv'+str(i),hsv)
+		print "***********************"
+		
+		#brown, orange, maroon
+		destr = cv2.inRange(rec,  np.array((50, 85, 150)),  np.array((255, 255, 255)));
+		cv2.imshow("dR"+str(i), destr)
+		#orange
+		destg = cv2.inRange(rec,  np.array((10, 150, 200)),  np.array((255, 255, 255)));
+		cv2.imshow("dG"+str(i), destg)
+		#brown,
+		destb = cv2.inRange(rec,  np.array((100, 100, 150)),  np.array((255, 255, 255)));
+		cv2.imshow("dB"+str(i), destb)
+		#blue
+		destl = cv2.inRange(rec,  np.array((140, 10, 10)),  np.array((255, 255, 255)));
+		cv2.imshow("dl"+str(i), destl)
+		#green, brown, blue
+		deste = cv2.inRange(rec,  np.array((0, 10, 10)),  np.array((255, 255, 255)));
+		cv2.imshow("de"+str(i), deste)
+		#cv2.imshow("CF"+str(i),Cfinal)
+		#cv2.imshow("MF"+str(i),Mfinal)
+		#cv2.imshow("YF"+str(i),Yfinal)
+		#cv2.imshow("KF"+str(i),Kfinal)
 	
 	#Process the CMYK of imgBlocks
 	#The processing is necessary to find the color of the blocks.
