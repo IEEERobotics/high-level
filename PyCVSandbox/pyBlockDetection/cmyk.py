@@ -8,7 +8,7 @@ import random
 def getUniformBackGround(img, K):
 	K1 = np.uint8(K*255)
 	invK = 255 - K1
-	_,bw = cv2.threshold(invK, 77, 255, cv2.THRESH_BINARY)
+	_,bw = cv2.threshold(invK, 77, 255, cv2.THRESH_BINARY) # 77 = 0.3 default , 50 - low light
 	bw3 = cv2.merge([bw, bw, bw])
 	imgNoBgnd = cv2.bitwise_and(img, bw3) #final in matlab
 	
@@ -50,6 +50,12 @@ def drawRects(img, ctrs):
 			cv2.fillConvexPoly(img, ct, clr)
 			cv2.rectangle(img, (x+w/2-3,y), (x+w/2+3,y+h), (255,255,255), -1)
 			cv2.rectangle(img, (x,y+h/2-3), (x+w,y+h/2+3), (255,255,255), -1)
+			
+			rotRect = cv2.minAreaRect(ct)
+			box = cv2.cv.BoxPoints(rotRect)
+			box = np.int0(box)
+			print box
+			cv2.drawContours(img, [box], 0, (0,0,255),2)
 			#cv2.imshow("asdsdasdadasdasd",img)
 			#key = cv2.waitKey(1000)
 			i = i + 1
@@ -62,20 +68,24 @@ def drawRects(img, ctrs):
 def process(img):
 	C, M, Y, K = util.cvtColorBGR2CMYK_(img) #convert to CMYK
 	imgNoBgnd = getUniformBackGround(img, K) #get uniform background
-	whiteLines = getWhiteLines(C, M, Y, K) #get only white lines
+	invWhiteLines = getWhiteLines(C, M, Y, K) #get only white lines
 	
 	#remove white lines from image
-	white3 = cv2.merge([whiteLines, whiteLines, whiteLines])
-	imgBlocks = cv2.bitwise_and(imgNoBgnd, white3)
-	
+	invWhite3 = cv2.merge([invWhiteLines, invWhiteLines, invWhiteLines])
+	imgBlocks = cv2.bitwise_and(imgNoBgnd, invWhite3)
+	cv2.imshow("White Lines", invWhiteLines)
 	#find the blocks in imgBlocks
 	imgray = cv2.cvtColor(imgBlocks,cv.CV_RGB2GRAY);
 	_,imbw = cv2.threshold(imgray, 20, 255, cv2.THRESH_BINARY_INV)
 	ctrs = cv2.findContours(imbw, cv2.RETR_LIST , cv2.CHAIN_APPROX_SIMPLE);
-	rectList = drawRects(img, ctrs)
+	rectList = drawRects(img, ctrs) #img
 	
 	for i in range(len(rectList)):
-		#print rectList[i]
+		#print rectList[i][1]
+		#(x,y),(w,h),t = rectList[i][1]
+		#print x,y,w,h,t
+		#x,y,w,h = rectList[i][0]
+		
 		rec = np.asarray(cv.GetSubRect(cv.fromarray(imgBlocks),rectList[i][0]))
 		cv2.imshow(str(i), rec)
 		#print rec.shape
