@@ -19,6 +19,8 @@ from numpy.linalg import norm
 from probability import gaussian 
 from random import gauss  
 
+from robot import *
+
 size = (100, 100)
 
 class ParticlePlotter(HasTraits):
@@ -26,19 +28,30 @@ class ParticlePlotter(HasTraits):
     qplot = Instance(QuiverPlot)
     #vsize = Range(low = -20.0, high = 20.0, value = 1.0)
     vsize = Int(10)
+
+    # the associated robot object which our particles are simulating
+    #   provides: x,y range and sensors list
+    robot = Instance(Robot)
     
-    numpts = Int(500)
+    numpts = 0  # set in init
     theta = Array
     vectors = Property(Array, depends_on=["vsize", "theta"])
     vector_ds = MultiArrayDataSource()
 
-    sensed = Array
-    prob = Array    # probability measure
+    prob = Array    # probability measurement, "weight"
+    sensed = []
 
     # this defines the default view when configure_traits is called
     traits_view = View(Item('qplot', editor=ComponentEditor(size=size), show_label=False),
                        Item('vsize'), 
                        resizable=True)
+
+    def __init__(self, robot, n = 100):
+      # need to move the logic out of the GUI class and into its own particles class
+      self.numpts = n
+      self.sensed = zeros((robot.num_sensors,self.numpts))  # modeled sensor data
+      self.robot = robot
+
 
     # update particles based on movement model, predicting new pose
     #   ? how do we handle moving off map?  or into any wall?
@@ -68,29 +81,46 @@ class ParticlePlotter(HasTraits):
       self.vector_ds.set_data(self.vectors)
       self.qplot.request_redraw()
       
-
-    def sense(self, mapdata):
+    def sense(self, rel_theta, mapdata):
       x = self.qplot.index.get_data()
       y = self.qplot.value.get_data()
-      theta = self.theta
-      print "Particle sense:"
+      data = zeros(self.numpts)
+      #print "rel theta: ", rel_theta
+      sense_theta = [ ((t + pi + rel_theta) % (2*pi) - pi) for t in self.theta]
+      #print "Thetas: ",
+      #print " ".join(["%0.2f" % s for s in sense_theta])
       for i in range(self.numpts):
         # the logic here is currently a duplicate of that for robot.sense(), but in 
         #   reality, robot.sense() will pull actual sensor data from the sensors (not a model)
-        wx,wy = wall(x[i],y[i],theta[i],mapdata)
+        wx,wy = wall(x[i],y[i],sense_theta[i],mapdata)
         # add gaussian noise to (otherwise exact) distance calculation?
-        self.sensed[i] = norm( [x[i]-wx, y[i]-wy] )
-        print "  %0.2f, %0.2f @ %0.2f = %0.2f" % (x[i], y[i], theta[i], self.sensed[i])
+        data[i] = norm( [x[i]-wx, y[i]-wy] )
+      return data
 
+    def sense_all(self, mapdata):
+      x = self.qplot.index.get_data()
+      y = self.qplot.value.get_data()
+      for s in self.robot.sensors:
+        # get the full set of particle senses for this sensor
+        self.sensed[s.index] = self.sense(s.angle, mapdata)
+      for i in range(self.numpts):
+        print "  %0.2f, %0.2f @ %0.2f = " % (x[i], y[i], self.theta[i]),
+        print ", ".join( [ "%s: %0.2f" % (s.name, self.sensed[s.index,i]) for s in self.robot.sensors ])
+
+    # Currently assumes self.sensed and measured have both been updated
     def resample(self, measured):
       x = self.qplot.index.get_data()
       y = self.qplot.value.get_data()
       theta = self.theta
-      print "Particle weights:"
+      print "Updating particle weights:"
       # create an array of particle weights to use as resampling probability
       for i in range(self.numpts):
-        self.prob[i] = 1.0 * gaussian(self.sensed[i], 1.0, measured)  # 1.0 is noise param... need to tweak
-        print "  %0.2f, %0.2f @ %0.2f = %0.2f -> %0.2e" % (x[i], y[i], theta[i], self.sensed[i], self.prob[i]) 
+        self.prob[i] = 1.0
+        for s in self.robot.sensors:
+          # compare measured input of sensor versus the particle's value, adjusting prob accordingly
+          #   TODO: refine 1.0 noise parameter to something meaningful
+          self.prob[i] *= gaussian(self.sensed[s.index][i], 1.0, measured[s.index])
+        print "  %0.2f, %0.2f @ %0.2f = %0.2e" % (x[i], y[i], theta[i], self.prob[i]) 
 
       # resample (x, y, theta) using wheel resampler
       new = []
@@ -103,11 +133,11 @@ class ParticlePlotter(HasTraits):
           beta -= self.prob[cur]
           cur = (cur+1) % self.numpts
           #print "b: %0.2f, cur: %d, prob = %0.2f" % (beta, cur, self.prob[cur])
-        new.append((x[cur], y[cur], theta[cur], self.sensed[cur], self.prob[cur]))
+        new.append((x[cur], y[cur], theta[cur], self.prob[cur]))
       print "Resampled:"
       for i in range(self.numpts):
-        #print "  %0.2f, %0.2f @ %0.2f" % new[i]
-        print "  %0.2f, %0.2f @ %0.2f = %0.2f -> %0.2e" % new[i]
+        print "  %0.2f, %0.2f @ %+0.2f = " % (x[i], y[i], self.theta[i]),
+        print ", ".join( [ "%s: %0.2f" % (s.name, self.sensed[s.index,i]) for s in self.robot.sensors ])
       self.qplot.index.set_data( [e[0] for e in new] )
       self.qplot.value.set_data( [e[1] for e in new] )
       self.theta = [e[2] for e in new]
@@ -140,10 +170,11 @@ class ParticlePlotter(HasTraits):
       return array( zip(cos(self.theta), sin(self.theta)) ) * self.vsize
 
     # ?? dynamic instantiation of qplot verus setting up in init?
+    #  robot param is the robot we are modeling -- source of params
     def _qplot_default(self):
 
-      xsize = 11.0  # should be init param
-      ysize = 9.0
+      xsize = self.robot.xmax
+      ysize = self.robot.ymax
 
       # Create starting points for the vectors.
       x = sort(random(self.numpts)) * xsize # sorted for axis tick calculation?

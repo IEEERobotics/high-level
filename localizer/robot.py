@@ -16,19 +16,43 @@ from traitsui.api import Item, View, Group
 from chaco.api import ArrayDataSource, MultiArrayDataSource, DataRange1D, \
         LinearMapper, ScatterPlot, QuiverPlot, Plot, ArrayPlotData, LinePlot
 
+from sensors import *
+
 class MapPlot(HasTraits):
     plot = Instance(Plot)
 
 class Robot(HasTraits):
-    x = Range(0,11.0)  # need to init this range from a param to init
-    y = Range(0,9.0)
-    theta = Range(-pi,pi)
+
+    # need to get these from the map, move to init function
+    xmax = 11.0
+    ymax = 9.0 
+
+    x = Range(0,xmax)
+    y = Range(0,ymax)
+    theta = Range(-pi,pi)  # change this to 0 - 2pi to simplify calcs? 
+
+    num_sensors = 3
+    FORWARD, LEFT, RIGHT = range(num_sensors)  
+    sensors = []
+    sensors.append(Sensor(FORWARD,'F',0.0))
+    sensors.append(Sensor(LEFT,'L',pi/2))
+    sensors.append(Sensor(RIGHT,'R',-pi/2))
+
+    def sense_all(self, mapdata):
+      print "Robot sense:"
+      sensed = []
+      for s in self.sensors:
+        val = self.sense(s.angle, mapdata)
+        print "  Sensor %s @ %+0.2f : %0.2f" % (s.name, s.angle, val)
+        sensed.append(val)
+      return sensed
 
     # a simulator stub of the robot's sensors
     #   currently a very simple model -- straightline distance to closest wall
-    def sense(self, mapdata):
+    def sense(self, rel_theta, mapdata):
+      sense_theta = ((self.theta + pi + rel_theta) % (2*pi)) - pi
       # TODO: this needs to sense in a 30(?) degree arc, not just straight ahead
-      wx,wy = wall(self.x,self.y,self.theta,mapdata)
+      wx,wy = wall(self.x,self.y,sense_theta,mapdata)
       # mimic sensor by calculating euclidian distance + noise
       return norm([self.x - wx, self.y - wy]) + gauss(0,0.25)
 
