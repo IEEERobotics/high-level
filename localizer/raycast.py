@@ -1,65 +1,56 @@
 from numpy import clip, sin, cos, sign
 from numpy.linalg import norm
 
-testmap = [[1,1,1,1,1,1,1,1,1,1,1,1],
-          [1,0,0,0,0,0,0,0,0,0,0,1],
-          [1,0,0,0,0,0,0,0,0,0,0,1],
-          [1,0,0,0,0,0,0,0,0,0,0,1],
-          [1,0,0,0,0,0,0,0,0,0,0,1],
-          [1,0,0,0,0,0,0,0,0,0,0,1],
-          [1,0,0,0,0,0,0,0,0,0,0,1],
-          [1,0,0,0,0,0,0,0,0,0,0,1],
-          [1,0,0,0,0,0,0,0,0,0,0,1],
-          [1,1,1,1,1,1,1,1,1,1,1,1]]
-testmap.reverse()
-
-
-def calc_line(x,y,theta,mapx,mapy):
-  maxlen = norm([mapy,mapx])
-  xoff = int(x + maxlen * cos(theta))
-  yoff = int(y + maxlen * sin(theta))
-  x = clip(x,0,mapx-1)
-  y = clip(y,0,mapy-1)
-  return bresen(x,y,xoff,yoff)
-
 def wall(x,y,theta,mapdata):
-  mapy = len(mapdata)
-  mapx = len(mapdata[0])
-  xpath,ypath = calc_line(x,y,theta,mapx,mapy)
+  #print "wall: (%0.2f,%0.2f) @ %0.2f" % (x,y,theta)
+  # note: maplen_xy will be one more than the hightest integer coord (eg 0-10 -> maplen=11)
+  maplen_y = len(mapdata)
+  maplen_x = len(mapdata[0])
+  xpath,ypath = calc_line(x,y,theta,maplen_x,maplen_y)
+  # it would problably be faster to do the checking right in the line algorithm
   for i in range(len(xpath)):
     if mapdata[ypath[i]][xpath[i]] == 1:
       return xpath[i],ypath[i]
   return -1,-1
 
-def bresen(x0,y0, x1, y1):
+# x_len, y_len are the lengths of the entire grid
+def calc_line(x,y,theta,x_len,y_len):
+  maxlen = norm([x_len,y_len])
+  # find stright line coordinates far enough to be off the map
+  xoff = int(x + maxlen * cos(theta))
+  yoff = int(y + maxlen * sin(theta))
+  #x = clip(x,0,mapx-1)
+  #y = clip(y,0,mapy-1)
+  return bresen(x,y,xoff,yoff, x_len-1,y_len-1)
 
+def bresen(x0,y0, x1, y1, xmax, ymax):
   xdata = []
   ydata = []
  
   # TODO: use the subpixel value instead of ints
   x0 = int(x0)
   y0 = int(y0)
+  #print "bresen: (%d,%d) - (%d,%d) max: (%d,%d)" % (x0, y0, x1, y1, xmax, ymax)
 
   dx = x1 - x0
   dy = y1 - y0
   xmod = sign(dx)
   ymod = sign(dy)
   dx = abs(dx)
-  dy =abs(dy)
+  dy = abs(dy)
 
   # algorithm assumes dx >= dy, so swap if necessary
   if( dx < dy ):
-    ydata,xdata = bresen(y0,x0,y1,x1)
+    ydata,xdata = bresen(y0,x0,y1,x1,ymax,xmax)
     return xdata,ydata
 
   # TODO: preset this error term based on subpixel offset instead
   D = 2*dy - dx
-  xdata.append(x0); ydata.append(y0)
 
+  x = x0
   y = y0
-
-  for x in range(x0+xmod, x1+xmod, xmod):
-    #print D
+  while (0 < x < xmax) and (0 < y < ymax): 
+    x+=xmod
     if D > 0:
       y = y+ymod  # +1 or -1 dep on direction
       xdata.append(x); ydata.append(y)

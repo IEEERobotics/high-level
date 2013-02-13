@@ -11,11 +11,12 @@ from traits.api import String, Button
 from traitsui.api import InstanceEditor
 from chaco.api import OverlayPlotContainer
 
-particle_count = 100
+particle_count = 500
 
 class Container(HasTraits):
     container = Instance(OverlayPlotContainer)
-    robot = DelegatesTo('rplot')   # assigned during init
+    robot = DelegatesTo('rplotter')   # assigned during init
+    particles = DelegatesTo('pplotter')   # assigned during init
     output = String('Push the button!')
     sense = Button()
     update = Button()
@@ -23,7 +24,7 @@ class Container(HasTraits):
     move_theta = Float(0.5)
     move_dist = Float(0.5)
     
-    particle_count = Int(100)  # not yet used
+    particle_count = Int(10)  # not yet used
     noise_sensor = Float(0.5)
     noise_forward = Float(0.5)
     noise_turn = Float(0.1)
@@ -38,6 +39,10 @@ class Container(HasTraits):
       measured = self.robot.sense_all(map2d)
       self.particles.sense_all(map2d)
       self.particles.resample(measured)
+      x = self.particles.x.mean()
+      y = self.particles.y.mean()
+      theta = self.particles.theta.mean()  # TODO: average individual vector components NOT theta!
+      self.output = "Guess: X: %0.2f Y: %0.2f: Theta: %0.2f" % (x,y,theta)
 
     def _move_fired(self):
       print "Move!"
@@ -45,9 +50,12 @@ class Container(HasTraits):
       self.particles.move(self.move_theta, self.move_dist)
 
       # do we want to resample every move?
-      measured = self.robot.sense_all(map2d)
-      self.particles.sense_all(map2d)
-      self.particles.resample(measured)
+      self._update_fired() 
+      #measured = self.robot.sense_all(map2d)
+      #self.particles.sense_all(map2d)
+      #self.particles.resample(measured)
+
+      self.pplotter.do_redraw()
 
     traits_view = View(
                        Item('robot', editor=InstanceEditor(), style='custom'),
@@ -64,28 +72,23 @@ class Container(HasTraits):
 
     def __init__(self):
         robot = Robot(x = 6.0, y = 5.0, theta = 0.0)
-        rplot = RobotPlot(robot = robot)
-        self.particles = ParticlePlotter(robot = robot, n = particle_count)
+        rplotter = RobotPlotter(robot = robot)
+        particles = Particles(robot, particle_count)
+        pplotter = ParticlePlotter(robot = robot, particles = particles)
         m = MapPlot(mapdata = map2d)
+
         c = OverlayPlotContainer()
         c.add(m.plot)
-        c.add(self.particles.qplot)
-        c.add(rplot.plot)
+        c.add(pplotter.qplot)
+        c.add(rplotter.plot)
+
         self.container = c
-        self.rplot = rplot
+        self.pplotter = pplotter
+        self.rplotter = rplotter
 
 if __name__ == "__main__":
-    map2d = [[1,1,1,1,1,1,1,1,1,1,1,1],
-          [1,0,0,0,0,0,0,0,0,0,0,1],
-          [1,0,1,1,0,0,0,0,0,0,0,1],
-          [1,0,1,1,0,0,0,0,0,0,0,1],
-          [1,0,0,0,0,0,0,0,0,0,0,1],
-          [1,0,0,0,0,0,0,0,0,0,0,1],
-          [1,0,0,0,0,0,0,1,1,1,1,1],
-          [1,0,0,0,0,0,0,0,0,0,0,1],
-          [1,0,0,0,0,0,0,0,0,0,0,1],
-          [1,1,1,1,1,1,1,1,1,1,1,1]]
-    map2d.reverse()
 
-    c = Container()
-    c.configure_traits()
+  map2d = loadmap('test.map')
+
+  c = Container()
+  c.configure_traits()

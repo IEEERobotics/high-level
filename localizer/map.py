@@ -7,6 +7,17 @@ from chaco.api import ScatterPlot, ArrayDataSource, DataRange1D, LinearMapper, \
 from enable.api import ComponentEditor, Component
 from numpy import array
 
+import csv
+
+# loads map into 2d list:
+#   [y][x] are map coordinates
+#   [0][0] is bottom left corner
+def loadmap(filename):
+  mapdata = list( csv.reader(open(filename, 'r')))
+  mapdata = [ [int(x) for x in y] for y in mapdata  ]  # convert string to ints
+  mapdata.reverse()
+  return mapdata
+
 class MapPlot(HasTraits):
 
   plot = Instance(Component)
@@ -63,17 +74,7 @@ class MapPlot(HasTraits):
 
 
 if __name__ == "__main__":
-  map2d = [[1,1,1,1,1,1,1,1,1,1,1,1],
-          [1,0,0,0,0,0,0,0,0,0,0,1],
-          [1,0,1,1,0,0,0,0,0,0,0,1],
-          [1,0,1,1,0,0,0,0,0,0,0,1],
-          [1,0,0,0,0,0,0,0,0,0,0,1],
-          [1,0,0,0,0,0,0,0,0,0,0,1],
-          [1,0,0,0,0,0,0,0,0,0,0,1],
-          [1,0,0,0,0,0,0,0,0,0,0,1],
-          [1,0,0,0,0,0,0,0,0,0,0,1],
-          [1,1,1,1,1,1,1,1,1,1,1,1]]
-  map2d.reverse()
+  map2d = loadmap('test.map')
 
   m = MapPlot(mapdata = map2d)
   m.configure_traits()

@@ -29,7 +29,7 @@ class Robot(HasTraits):
 
     x = Range(0,xmax)
     y = Range(0,ymax)
-    theta = Range(-pi,pi)  # change this to 0 - 2pi to simplify calcs? 
+    theta = Range(0,2*pi)  
 
     num_sensors = 3
     FORWARD, LEFT, RIGHT = range(num_sensors)  
@@ -37,6 +37,14 @@ class Robot(HasTraits):
     sensors.append(Sensor(FORWARD,'F',0.0))
     sensors.append(Sensor(LEFT,'L',pi/2))
     sensors.append(Sensor(RIGHT,'R',-pi/2))
+
+    # noise params, contributes to gaussian noise sigma (std dev)
+    noise_move = 0.1
+    noise_turn = 0.1
+    noise_sense = 0.25
+
+    def __str__(self):
+      return " (%5.2f , %5.2f)  @ %+0.2f\n" % (self.x, self.y, self.theta)
 
     def sense_all(self, mapdata):
       print "Robot sense:"
@@ -50,31 +58,30 @@ class Robot(HasTraits):
     # a simulator stub of the robot's sensors
     #   currently a very simple model -- straightline distance to closest wall
     def sense(self, rel_theta, mapdata):
-      sense_theta = ((self.theta + pi + rel_theta) % (2*pi)) - pi
+      sense_theta = (self.theta + rel_theta) % (2*pi)
       # TODO: this needs to sense in a 30(?) degree arc, not just straight ahead
       wx,wy = wall(self.x,self.y,sense_theta,mapdata)
       # mimic sensor by calculating euclidian distance + noise
-      return norm([self.x - wx, self.y - wy]) + gauss(0,0.25)
+      return norm([self.x - wx, self.y - wy]) + gauss(0,self.noise_sense)
 
     # simulator stub for moving the robot 
     #   all moves are : turn, then go forward
     def move(self, dtheta, forward):
       print "Move (dtheta, forward): ", dtheta, forward
-      self.theta = ( (self.theta + dtheta + pi) % (2*pi) ) - pi  # range must stay [-pi,pi]
-      print " Expected theta: ", self.theta
-      self.theta = gauss(self.theta, 0.1 * dtheta)
-      print " Actual theta: ", self.theta
+      self.theta = (self.theta + dtheta) % (2*pi)   # range must stay [0,2*pi]
+      print " Expected theta: %+0.2f" % self.theta
+      self.theta = gauss(self.theta, self.noise_turn * dtheta)
+      print " Actual theta: %+0.2f" % self.theta
       dx = forward * cos(self.theta)
       dy = forward * sin(self.theta)
       self.x += dx
       self.y += dy
-      print " Expected x,y: ", self.x, self.y
-      self.x = gauss(self.x, 0.1 * dx)
-      self.y = gauss(self.y, 0.1 * dy)
-      print " Actual x,y: ", self.x, self.y
+      print " Expected x,y: (%+0.2f, %+0.2f)" % (self.x, self.y)
+      self.x = gauss(self.x, self.noise_move * dx)
+      self.y = gauss(self.y, self.noise_move * dy)
+      print " Acutal x,y: (%+0.2f, %+0.2f)" % (self.x, self.y)
 
-
-class RobotPlot(HasTraits):
+class RobotPlotter(HasTraits):
 
     robot = Instance(Robot)
     #plot = Instance(QuiverPlot)
@@ -114,8 +121,8 @@ class RobotPlot(HasTraits):
     # dynamic instantiation of plot
     def _plot_default(self):
 
-      xsize = 11.0  # should be init param
-      ysize = 9.0
+      xsize = self.robot.xmax
+      ysize = self.robot.ymax
 
       # Array data sources, each single element arrays
       x_ds = ArrayDataSource([self.x])
