@@ -23,128 +23,132 @@ class MapPlot(HasTraits):
 
 class Robot(HasTraits):
 
-    # need to get these from the map, move to init function
-    xmax = 11.0
-    ymax = 9.0 
+  def __init__(self, x, y, theta, color = 'red', noise_move = 0.1, noise_turn = 0.1, noise_sense = 0.25):
 
-    x = Range(0,xmax)
-    y = Range(0,ymax)
-    theta = Range(0,2*pi)  
+    self.x = x
+    self.y = y
+    self.theta = theta
+    self.color = color
 
-    num_sensors = 3
-    FORWARD, LEFT, RIGHT = range(num_sensors)  
+    # noise params, contributes to gaussian noise sigma (std dev)
+    self.noise_move = noise_move
+    self.noise_turn = noise_turn
+    self.noise_sense = noise_sense
+
+    self.num_sensors = 3
     sensors = []
+    FORWARD, LEFT, RIGHT = range(self.num_sensors)  
     sensors.append(Sensor(FORWARD,'F',0.0))
     sensors.append(Sensor(LEFT,'L',pi/2))
     sensors.append(Sensor(RIGHT,'R',-pi/2))
+    self.sensors = sensors
 
-    # noise params, contributes to gaussian noise sigma (std dev)
-    noise_move = 0.1
-    noise_turn = 0.1
-    noise_sense = 0.25
+  def __str__(self):
+    return " (%5.2f , %5.2f)  @ %+0.2f\n" % (self.x, self.y, self.theta)
 
-    def __str__(self):
-      return " (%5.2f , %5.2f)  @ %+0.2f\n" % (self.x, self.y, self.theta)
+  def sense_all(self, mapdata):
+    #print "Robot sense:"
+    sensed = []
+    for s in self.sensors:
+      val = self.sense(s.angle, mapdata)
+      sensed.append(val)
+    return sensed
 
-    def sense_all(self, mapdata):
-      print "Robot sense:"
-      sensed = []
-      for s in self.sensors:
-        val = self.sense(s.angle, mapdata)
-        print "  Sensor %s @ %+0.2f : %0.2f" % (s.name, s.angle, val)
-        sensed.append(val)
-      return sensed
+  # a simulator stub of the robot's sensors
+  #   currently a very simple model -- straightline distance to closest wall
+  def sense(self, rel_theta, mapdata):
+    sense_theta = (self.theta + rel_theta) % (2*pi)
+    # TODO: this needs to sense in a 30(?) degree arc, not just straight ahead
+    wx,wy = wall(self.x,self.y,sense_theta,mapdata)
+    # mimic sensor by calculating euclidian distance + noise
+    return norm([self.x - wx, self.y - wy]) + gauss(0,self.noise_sense)
 
-    # a simulator stub of the robot's sensors
-    #   currently a very simple model -- straightline distance to closest wall
-    def sense(self, rel_theta, mapdata):
-      sense_theta = (self.theta + rel_theta) % (2*pi)
-      # TODO: this needs to sense in a 30(?) degree arc, not just straight ahead
-      wx,wy = wall(self.x,self.y,sense_theta,mapdata)
-      # mimic sensor by calculating euclidian distance + noise
-      return norm([self.x - wx, self.y - wy]) + gauss(0,self.noise_sense)
-
-    # simulator stub for moving the robot 
-    #   all moves are : turn, then go forward
-    def move(self, dtheta, forward):
-      print "Move (dtheta, forward): ", dtheta, forward
-      self.theta = (self.theta + dtheta) % (2*pi)   # range must stay [0,2*pi]
-      print " Expected theta: %+0.2f" % self.theta
-      self.theta = gauss(self.theta, self.noise_turn * dtheta)
-      print " Actual theta: %+0.2f" % self.theta
-      dx = forward * cos(self.theta)
-      dy = forward * sin(self.theta)
-      self.x += dx
-      self.y += dy
-      print " Expected x,y: (%+0.2f, %+0.2f)" % (self.x, self.y)
-      self.x = gauss(self.x, self.noise_move * dx)
-      self.y = gauss(self.y, self.noise_move * dy)
-      print " Acutal x,y: (%+0.2f, %+0.2f)" % (self.x, self.y)
+  # simulator stub for moving the robot 
+  #   all moves are : turn, then go forward
+  def move(self, dtheta, forward):
+    print "Move [dtheta, forward] : %+0.2f, %0.2f " % (dtheta, forward)
+    self.theta = (self.theta + dtheta) % (2*pi)   # range must stay [0,2*pi]
+    self.theta = gauss(self.theta, self.noise_turn * dtheta)
+    dx = forward * cos(self.theta)
+    dy = forward * sin(self.theta)
+    self.x += dx
+    self.y += dy
+    self.x = gauss(self.x, self.noise_move * dx)
+    self.y = gauss(self.y, self.noise_move * dy)
 
 class RobotPlotter(HasTraits):
 
-    robot = Instance(Robot)
-    #plot = Instance(QuiverPlot)
-    plot = Instance(Component)
-    vsize = Int(10)
+  robot = Instance(Robot)
+  plot = Instance(Component)
+  vsize = Int(10)
+  xsize = Int
+  ysize = Int
 
-    # these delegations allow the _*_changed notifications to work
-    x = DelegatesTo('robot')
-    y = DelegatesTo('robot')
-    theta = DelegatesTo('robot')
+  # these delegations allow the _*_changed notifications to work
+  #  since robot is nolonger traitsified... remove?
+  x = DelegatesTo('robot')
+  y = DelegatesTo('robot')
+  theta = DelegatesTo('robot')
+  color = DelegatesTo('robot')
 
-    vector = Property(Array, depends_on=["theta"])
+  vector = Property(Array, depends_on=["theta"])
 
-    # this defines the default view when configure_traits is called
-    traits_view = View(Item('robot'),
-                       Item('plot', editor=ComponentEditor(), show_label=False),
-                       resizable=True)
+  # this defines the default view when configure_traits is called
+  traits_view = View(Item('robot'),
+                     Item('plot', editor=ComponentEditor(), show_label=False),
+                     resizable=True)
 
-    def _x_changed(self):
-      # these should probably reference a named datasource handle (x_ds, y_ds)
-      # instead of the ones inside plot (index, value)
-      self.plot.index.set_data([self.x])
-      self.plot.request_redraw()
+  def do_redraw(self):
+    self.plot.index.set_data([self.robot.x])
+    self.plot.value.set_data([self.robot.y])
+    self.plot.vectors.set_data(self.vector)
+    self.plot.request_redraw()
 
-    def _y_changed(self):
-      self.plot.value.set_data([self.y])
-      self.plot.request_redraw()
+  #def _x_changed(self):
+  #  # these should probably reference a named datasource handle (x_ds, y_ds)
+  #  # instead of the ones inside plot (index, value)
+  #  self.plot.index.set_data([self.x])
+  #  self.plot.request_redraw()
 
-    def _theta_changed(self):
-      self.plot.vectors.set_data(self.vector)
-      self.plot.request_redraw()
+  #def _y_changed(self):
+  #  self.plot.value.set_data([self.y])
+  #  self.plot.request_redraw()
 
-    # getter for vector property
-    def _get_vector(self):
-      return array([[cos(self.theta), sin(self.theta)]])*self.vsize
+  #def _theta_changed(self):
+  #  self.plot.vectors.set_data(self.vector)
+  #  self.plot.request_redraw()
 
-    # dynamic instantiation of plot
-    def _plot_default(self):
+  # getter for vector property
+  def _get_vector(self):
+    return array([[cos(self.theta), sin(self.theta)]])*self.vsize
 
-      xsize = self.robot.xmax
-      ysize = self.robot.ymax
+  # dynamic instantiation of plot
+  def _plot_default(self):
 
-      # Array data sources, each single element arrays
-      x_ds = ArrayDataSource([self.x])
-      y_ds = ArrayDataSource([self.y])
+    #xsize = self.robot.xmax
+    #ysize = self.robot.ymax
 
-      vector_ds = MultiArrayDataSource()
-      vector_ds.set_data(self.vector)
+    # Array data sources, each single element arrays
+    x_ds = ArrayDataSource([self.x])
+    y_ds = ArrayDataSource([self.y])
 
-      # Set up the ranges for the plot explicitly (no autosizing)
-      x_r = DataRange1D(x_ds)
-      x_r.set_bounds(0,xsize)
-      y_r = DataRange1D(y_ds)
-      y_r.set_bounds(0,ysize)
+    vector_ds = MultiArrayDataSource()
+    vector_ds.set_data(self.vector)
 
-      plot = QuiverPlot(index = x_ds, value = y_ds,
-                      vectors = vector_ds,
-                      index_mapper = LinearMapper(range=x_r),
-                      value_mapper = LinearMapper(range=y_r),
-                      bgcolor = "white", line_color = "red", line_width = 2.0)
+    # Set up the ranges for the plot explicitly (no autosizing)
+    x_r = DataRange1D(x_ds)
+    x_r.set_bounds(0,self.xsize)
+    y_r = DataRange1D(y_ds)
+    y_r.set_bounds(0,self.ysize)
 
-      plot.aspect_ratio = xsize / ysize
-      return plot
+    plot = QuiverPlot(index = x_ds, value = y_ds,
+                    vectors = vector_ds,
+                    index_mapper = LinearMapper(range=x_r),
+                    value_mapper = LinearMapper(range=y_r),
+                    bgcolor = "white", line_color = self.color, line_width = 2.0)
+
+    plot.aspect_ratio = self.xsize / self.ysize
+    return plot
      
 
 if __name__ == "__main__":

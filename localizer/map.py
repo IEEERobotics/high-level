@@ -55,7 +55,7 @@ class MapPlot(HasTraits):
                        index_mapper = LinearMapper(range = x_dr),
                        value_mapper = LinearMapper(range = y_dr),
                        color = "black", bgcolor = "white", 
-                       marker = "square", marker_size = 40)
+                       marker = "square", marker_size = 400 / len(self.mapdata))
 
     plot.aspect_ratio = float(self.xdim) / float(self.ydim)
 

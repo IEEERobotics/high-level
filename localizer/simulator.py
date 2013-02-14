@@ -11,13 +11,14 @@ from traits.api import String, Button
 from traitsui.api import InstanceEditor
 from chaco.api import OverlayPlotContainer
 
-particle_count = 500
+particle_count = 1000
 
 class Container(HasTraits):
     container = Instance(OverlayPlotContainer)
     robot = DelegatesTo('rplotter')   # assigned during init
+    robot_guess = DelegatesTo('rgplotter', 'robot')   # assigned during init
     particles = DelegatesTo('pplotter')   # assigned during init
-    output = String('Push the button!')
+    output = String('Push some buttons!')
     sense = Button()
     update = Button()
     move = Button()
@@ -29,36 +30,8 @@ class Container(HasTraits):
     noise_forward = Float(0.5)
     noise_turn = Float(0.1)
 
-    def _sense_fired(self):
-      measured = self.robot.sense_all(map2d)
-      self.output = "F: %0.2f  L: %0.2f  R: %0.2f" % ( measured[0], measured[1], measured[2])
-
-    # currently not used, logic wrapped into move_fired for now
-    def _update_fired(self):
-      print "update!"
-      measured = self.robot.sense_all(map2d)
-      self.particles.sense_all(map2d)
-      self.particles.resample(measured)
-      x = self.particles.x.mean()
-      y = self.particles.y.mean()
-      theta = self.particles.theta.mean()  # TODO: average individual vector components NOT theta!
-      self.output = "Guess: X: %0.2f Y: %0.2f: Theta: %0.2f" % (x,y,theta)
-
-    def _move_fired(self):
-      print "Move!"
-      self.robot.move(self.move_theta, self.move_dist)
-      self.particles.move(self.move_theta, self.move_dist)
-
-      # do we want to resample every move?
-      self._update_fired() 
-      #measured = self.robot.sense_all(map2d)
-      #self.particles.sense_all(map2d)
-      #self.particles.resample(measured)
-
-      self.pplotter.do_redraw()
-
     traits_view = View(
-                       Item('robot', editor=InstanceEditor(), style='custom'),
+                       #Item('robot', editor=InstanceEditor(), style='custom'),
                        Item('container', editor=ComponentEditor(), show_label=False),
                        Item('output'),
                        Item('sense'),
@@ -70,25 +43,60 @@ class Container(HasTraits):
                        Group(Item('noise_sensor'), Item('noise_forward'), Item('noise_turn'))
         )
 
+    def _sense_fired(self):
+      measured = self.robot.sense_all(map2d)
+      self.output = "F: %0.2f  L: %0.2f  R: %0.2f" % ( measured[0], measured[1], measured[2])
+
+    # currently not used, logic wrapped into move_fired for now
+    def _update_fired(self):
+      print "update!"
+      measured = self.robot.sense_all(map2d)
+      self.particles.sense_all(map2d)
+      self.particles.resample(measured)
+
+      x, y, theta = self.particles.guess()
+      self.output = "Guess: X: %0.2f Y: %0.2f: Theta: %0.2f" % (x,y,theta)
+      self.robot_guess.x = x
+      self.robot_guess.y = y
+      self.robot_guess.theta = theta
+
+    def _move_fired(self):
+      print "Move!"
+      self.robot.move(self.move_theta, self.move_dist)
+      self.particles.move(self.move_theta, self.move_dist)
+      self.rplotter.do_redraw()
+
+      # do we want to resample every move?
+      self._update_fired() 
+      self.pplotter.do_redraw()
+      self.rgplotter.do_redraw()
+
     def __init__(self):
-        robot = Robot(x = 6.0, y = 5.0, theta = 0.0)
-        rplotter = RobotPlotter(robot = robot)
-        particles = Particles(robot, particle_count)
-        pplotter = ParticlePlotter(robot = robot, particles = particles)
         m = MapPlot(mapdata = map2d)
+
+        robot = Robot(x = 6.0, y = 5.0, theta = 0.0, color = 'red')
+        rplotter = RobotPlotter(robot = robot, xsize = m.xdim, ysize = m.ydim)
+        particles = Particles(robot, map2d, particle_count) 
+        pplotter = ParticlePlotter(robot = robot, particles = particles, xsize = m.xdim, ysize = m.ydim)
+
+
+        rg = Robot(x = m.xdim/2, y = m.ydim/2, theta = 0.0, color = 'green')
+        rgplotter = RobotPlotter(robot = rg, xsize = m.xdim, ysize = m.ydim )
 
         c = OverlayPlotContainer()
         c.add(m.plot)
         c.add(pplotter.qplot)
+        c.add(rgplotter.plot)
         c.add(rplotter.plot)
 
         self.container = c
         self.pplotter = pplotter
         self.rplotter = rplotter
+        self.rgplotter = rgplotter
 
 if __name__ == "__main__":
 
-  map2d = loadmap('test.map')
+  map2d = loadmap('test2.map')
 
   c = Container()
   c.configure_traits()

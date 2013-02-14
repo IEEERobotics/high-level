@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 # Major library imports
-from numpy import array, sort, pi, cos, sin, zeros
+from numpy import array, sort, pi, cos, sin, zeros, arctan2
 from numpy.random import random
 
 # Enthought library imports
@@ -25,26 +25,21 @@ size = (100, 100)
 
 class Particles(object):
 
-  #robot = None
-  #numpts = None  # set in init
-
   @property
   def v(self):
     return array( zip(cos(self.theta), sin(self.theta)) )
 
 
-  def __init__(self, robot, n = 100):
+  def __init__(self, robot, mapdata, n = 100):
     # need to move the logic out of the GUI class and into its own particles class
     self.numpts = n
+    self.mapdata = mapdata
     self.sensed = zeros((robot.num_sensors,self.numpts))  # modeled sensor data
     self.robot = robot
 
-    self.xsize = self.robot.xmax
-    self.ysize = self.robot.ymax
-
     # Create starting points for the vectors.
-    self.x = sort(random(self.numpts)) * self.xsize # sorted for axis tick calculation?
-    self.y = random(self.numpts) * self.ysize
+    self.x = sort(random(self.numpts)) * len(mapdata[0]) # sorted for axis tick calculation?
+    self.y = random(self.numpts) * len(mapdata)
     self.theta = random(self.numpts)*2*pi
 
     self.prob = zeros(self.numpts)    # probability measurement, "weight"
@@ -70,8 +65,8 @@ class Particles(object):
       y[i] = gauss(y[i] + dy, dy * self.robot.noise_move)
 
     # quick and dirty, keep things in range
-    self.x = x.clip(0,self.xsize)
-    self.y = y.clip(0,self.ysize)
+    self.y = y.clip(0,len(self.mapdata))
+    self.x = x.clip(0,len(self.mapdata[0]))
 
     self.theta = theta
     
@@ -94,7 +89,7 @@ class Particles(object):
     for s in self.robot.sensors:
       # get the full set of particle senses for this sensor
       self.sensed[s.index] = self.sense(s.angle, mapdata)
-    print "Particle sense:"
+    #print "Particle sense:"
     #for i in range(self.numpts):
     #  print "  %0.2f, %0.2f @ %0.2f = " % (x[i], y[i], self.theta[i]),
     #  print ", ".join( [ "%s: %0.2f" % (s.name, self.sensed[s.index,i]) for s in self.robot.sensors ])
@@ -104,7 +99,7 @@ class Particles(object):
     x = self.x
     y = self.y
     theta = self.theta
-    print "Updating particle weights:"
+    #print "Updating particle weights:"
     # create an array of particle weights to use as resampling probability
     for i in range(self.numpts):
       self.prob[i] = 1.0
@@ -126,12 +121,20 @@ class Particles(object):
         cur = (cur+1) % self.numpts
         #print "b: %0.2f, cur: %d, prob = %0.2f" % (beta, cur, self.prob[cur])
       new.append((cur, x[cur], y[cur], theta[cur], self.prob[cur]))
-    print "Resampled:"
+    #print "Resampled:"
     #for i in range(self.numpts):
     #  print " %d : %0.2f, %0.2f @ %+0.2f = %0.2e " % new[i]
     self.x = array([e[1] for e in new])
     self.y = array([e[2] for e in new])
     self.theta = array([e[3] for e in new])
+
+  def guess(self):
+    x = self.x.mean()
+    y = self.y.mean()
+    # average the vector components of theta individually to avoid jump between 0 and 2pi
+    vx,vy = self.v.mean(axis=0)
+    theta = arctan2(vy,vx) % (2*pi)
+    return (x,y,theta)
 
 
 class ParticlePlotter(HasTraits):
@@ -139,6 +142,10 @@ class ParticlePlotter(HasTraits):
     qplot = Instance(QuiverPlot)
     #vsize = Range(low = -20.0, high = 20.0, value = 1.0)
     vsize = Int(10)
+ 
+    # field dimensions, should we just hook in the map object and use it's values directly?
+    xsize = Int
+    ysize = Int
 
     # the associated robot object which our particles are simulating
     #   provides: x,y range and sensors list
@@ -176,8 +183,8 @@ class ParticlePlotter(HasTraits):
     #  robot param is the robot we are modeling -- source of params
     def _qplot_default(self):
 
-      xsize = self.robot.xmax
-      ysize = self.robot.ymax
+      #xsize = self.robot.xmax
+      #ysize = self.robot.ymax
 
       # Create an array data sources to plot all vectors at once
       #xs = ArrayDataSource(self.particles.x, sort_order='ascending')
@@ -191,10 +198,10 @@ class ParticlePlotter(HasTraits):
       # Set up the Plot
       xrange = DataRange1D()
       xrange.add(self.xs)
-      xrange.set_bounds(0,xsize)
+      xrange.set_bounds(0,self.xsize)
       yrange = DataRange1D()
       yrange.add(self.ys)
-      yrange.set_bounds(0,ysize)
+      yrange.set_bounds(0,self.ysize)
       qplot = QuiverPlot(index = self.xs, value = self.ys,
                       vectors = self.vector_ds,
                       #data_type = 'radial',  # not implemented
@@ -202,7 +209,7 @@ class ParticlePlotter(HasTraits):
                       value_mapper = LinearMapper(range=yrange),
                       bgcolor = "white")
 
-      qplot.aspect_ratio = xsize / ysize
+      qplot.aspect_ratio = self.xsize / self.ysize
       return qplot
 
 if __name__ == "__main__":
