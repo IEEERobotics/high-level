@@ -6,7 +6,7 @@ Ricker Snow
 First column and first row corresponds to top corner of upper most platform (near air storage is).  Last row first column corresponds to corner closest to start area.  The 'path' element of the map has not been set.
 """
 
-def mk_map():
+def mk_map(res):
 	#print("mk_map")
 	class TileProp:			#define a struct-like class
 		desc = 0		#driving surface (0), start(1), storage(2), land(3), sea(4), air(5), marker/white line (7), wall(8)
@@ -16,7 +16,7 @@ def mk_map():
 		path = 0		#not path (0), path(1)
 
 
-	tilesize = 16			#tiles per inch
+	tilesize = res			#tiles per inch
 	width = 97 * tilesize		#course width --> list index --> number of columns
 	length = 73 * tilesize		#course length --> list number --> number of rows
 
