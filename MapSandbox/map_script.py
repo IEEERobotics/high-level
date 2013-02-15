@@ -18,7 +18,7 @@ def main():
 	Map = CV_Map.mk_map(args.res)
 	#output map to text
 	map2txt.map2txt(Map)
-
+	#txt2map.txt2map(res)
 	#print("main2")
 	return 0
 

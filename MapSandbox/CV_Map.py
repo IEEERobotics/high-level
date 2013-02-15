@@ -2,14 +2,15 @@
 CV Map 
 Ricker Snow
 
-2-D map.  Will require angle calculations for ramp distance calculations.
+2-D map.  Accepts argument defining the resolution of the map.  Will require angle calculations for ramp distance calculations.
 First column and first row corresponds to top corner of upper most platform (near air storage is).  Last row first column corresponds to corner closest to start area.  The 'path' element of the map has not been set.
 """
 
 def mk_map(res):
 	#print("mk_map")
 	class TileProp:			#define a struct-like class
-		desc = 0		#driving surface (0), start(1), storage(2), land(3), sea(4), air(5), marker/white line (7), wall(8)
+		desc = 0		#driving surface (0), start(1), storage(2), land(3), sea(4), air(5), marker/white line (7), wall(8), edge(9)
+					#edge between ramp and ground, or platform and ground
 		status = 0 		#empty(0), filled(1)
 		color = 2		#unk(0), blue(1), black(2), green(3), yellow(4), red(5), brown(6), white(7)
 		level = 0		# ground(0), ramp(1), lwr plat(2), upp plat(3)
@@ -58,6 +59,16 @@ def mk_map(res):
 	for x in xrange(loPltL, loPltL + loRmpL):
 		for y in xrange(width - loRmpW, width):
 			Map[x][y].level = 1	#ramp
+	#define edge between upper platform and ground and long ramp and ground
+	x = upPltL - 1; 
+	for y in xrange(0, upPltW + upRmpW + 1):
+		#Map[x][y].level = 9
+		Map[x][y].desc = 9
+	#define edge between short ramp and ground
+	y = upPltW + upRmpW
+	for x in xrange(loPltL, (loPltL + loRmpL)):
+		#Map[x][y].level = 9
+		Map[x][y].desc = 9
 
 	"""walls"""
 	#define long wall along width of course (south side)
