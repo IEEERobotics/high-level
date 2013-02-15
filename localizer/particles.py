@@ -30,22 +30,22 @@ class Particles(object):
     return array( zip(cos(self.theta), sin(self.theta)) )
 
 
-  def __init__(self, robot, mapdata, n = 100):
+  def __init__(self, robot, map, n = 100):
     # need to move the logic out of the GUI class and into its own particles class
     self.numpts = n
-    self.mapdata = mapdata
+    self.map = map
     self.sensed = zeros((robot.num_sensors,self.numpts))  # modeled sensor data
     self.robot = robot
 
     # Create starting points for the vectors.
-    self.x = sort(random(self.numpts)) * len(mapdata[0]) # sorted for axis tick calculation?
-    self.y = random(self.numpts) * len(mapdata)
+    self.x = sort(random(self.numpts)) * map.xdim  # sorted for axis tick calculation?
+    self.y = random(self.numpts) * map.ydim
     self.theta = random(self.numpts)*2*pi
 
     self.prob = zeros(self.numpts)    # probability measurement, "weight"
 
   def __str__(self):
-    out = ""
+    out = "Particles:\n"
     for i in range(self.numpts):
       out += " %3d : (%5.2f , %5.2f)  @ %+0.2f\n" % (i, self.x[i], self.y[i], self.theta[i])
     return out
@@ -65,12 +65,13 @@ class Particles(object):
       y[i] = gauss(y[i] + dy, dy * self.robot.noise_move)
 
     # quick and dirty, keep things in range
-    self.y = y.clip(0,len(self.mapdata))
-    self.x = x.clip(0,len(self.mapdata[0]))
+    self.y = y.clip(0,self.map.ydim)
+    self.x = x.clip(0,self.map.xdim)
 
     self.theta = theta
-    
-  def sense(self, rel_theta, mapdata):
+   
+  # TODO: actual sensing logic should be a function in the sensor class, called from here
+  def sense(self, rel_theta, map):
     x = self.x
     y = self.y
     data = zeros(self.numpts)
@@ -78,17 +79,20 @@ class Particles(object):
     for i in range(self.numpts):
       # the logic here is currently a duplicate of that for robot.sense(), but in 
       #   reality, robot.sense() will pull actual sensor data from the sensors (not a model)
-      wx,wy = wall(x[i],y[i],sense_theta[i],mapdata)
+      wx,wy = wall(x[i],y[i],sense_theta[i],map)
       # add gaussian noise to (otherwise exact) distance calculation?
-      data[i] = norm( [x[i]-wx, y[i]-wy] )
+      if wx == -1:  # no wall seen
+        data[i] = norm( [map.xdim, map.ydim] )  # TODO should be sensor max reading
+      else:
+        data[i] = norm( [x[i]-wx, y[i]-wy] )
     return data
 
-  def sense_all(self, mapdata):
+  def sense_all(self, map):
     x = self.x
     y = self.y
     for s in self.robot.sensors:
       # get the full set of particle senses for this sensor
-      self.sensed[s.index] = self.sense(s.angle, mapdata)
+      self.sensed[s.index] = self.sense(s.angle, map)
     #print "Particle sense:"
     #for i in range(self.numpts):
     #  print "  %0.2f, %0.2f @ %0.2f = " % (x[i], y[i], self.theta[i]),
@@ -106,7 +110,7 @@ class Particles(object):
       for s in self.robot.sensors:
         # compare measured input of sensor versus the particle's value, adjusting prob accordingly
         #   TODO: refine 1.0 noise parameter to something meaningful
-        self.prob[i] *= gaussian(self.sensed[s.index][i], 1.0, measured[s.index])
+        self.prob[i] *= gaussian(self.sensed[s.index][i], 1.5, measured[s.index])
       #print "  %d : %0.2f, %0.2f @ %0.2f = %0.2e" % (i, x[i], y[i], theta[i], self.prob[i]) 
 
     # resample (x, y, theta) using wheel resampler

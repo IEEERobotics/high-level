@@ -1,21 +1,19 @@
 from numpy import clip, sin, cos, sign
 from numpy.linalg import norm
 
-def wall(x,y,theta,mapdata):
+def wall(x,y,theta,map):
   #print "wall: (%0.2f,%0.2f) @ %0.2f" % (x,y,theta)
   # note: maplen_xy will be one more than the hightest integer coord (eg 0-10 -> maplen=11)
-  maplen_y = len(mapdata)
-  maplen_x = len(mapdata[0])
-  xpath,ypath = calc_line(x,y,theta,maplen_x,maplen_y)
-  # it would problably be faster to do the checking right in the line algorithm
+  xpath,ypath = calc_line(x,y,theta,map.xdim,map.ydim)
+  # TODO: move this check inside the line algorithm for speed
   for i in range(len(xpath)):
-    if mapdata[ypath[i]][xpath[i]] == 1:
+    if map.data[ypath[i]][xpath[i]] == 1:
       return xpath[i],ypath[i]
-  return -1,-1
+  return -1,-1  # no wall
 
 # x_len, y_len are the lengths of the entire grid
 def calc_line(x,y,theta,x_len,y_len):
-  maxlen = norm([x_len,y_len])
+  maxlen = norm([x_len,y_len])  # what about max sensor range?
   # find stright line coordinates far enough to be off the map
   xoff = int(x + maxlen * cos(theta))
   yoff = int(y + maxlen * sin(theta))

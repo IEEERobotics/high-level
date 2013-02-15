@@ -46,29 +46,34 @@ class Robot(HasTraits):
   def __str__(self):
     return " (%5.2f , %5.2f)  @ %+0.2f\n" % (self.x, self.y, self.theta)
 
-  def sense_all(self, mapdata):
+  def sense_all(self, map):
     #print "Robot sense:"
     sensed = []
     for s in self.sensors:
-      val = self.sense(s.angle, mapdata)
+      val = self.sense(s.angle, map)
       sensed.append(val)
     return sensed
 
   # a simulator stub of the robot's sensors
   #   currently a very simple model -- straightline distance to closest wall
-  def sense(self, rel_theta, mapdata):
+  def sense(self, rel_theta, map):
     sense_theta = (self.theta + rel_theta) % (2*pi)
     # TODO: this needs to sense in a 30(?) degree arc, not just straight ahead
-    wx,wy = wall(self.x,self.y,sense_theta,mapdata)
-    # mimic sensor by calculating euclidian distance + noise
-    return norm([self.x - wx, self.y - wy]) + gauss(0,self.noise_sense)
+    wx,wy = wall(self.x,self.y,sense_theta,map)
+    if wx == -1:  # no wall seen
+      data = norm( [map.xdim, map.ydim] )  # TODO should be sensor max reading
+    else:
+      # mimic sensor by calculating euclidian distance + noise
+      data = norm( [self.x-wx, self.y-wy] )
+      # add simulated noise
+      data += gauss(0, self.noise_sense)
+    return data
 
   # simulator stub for moving the robot 
   #   all moves are : turn, then go forward
   def move(self, dtheta, forward):
-    print "Move [dtheta, forward] : %+0.2f, %0.2f " % (dtheta, forward)
-    self.theta = (self.theta + dtheta) % (2*pi)   # range must stay [0,2*pi]
-    self.theta = gauss(self.theta, self.noise_turn * dtheta)
+    #print "Move [dtheta, forward] : %+0.2f, %0.2f " % (dtheta, forward)
+    self.theta = gauss(self.theta + dtheta , self.noise_turn * dtheta) % (2*pi)
     dx = forward * cos(self.theta)
     dy = forward * sin(self.theta)
     self.x += dx

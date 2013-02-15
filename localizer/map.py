@@ -12,16 +12,27 @@ import csv
 # loads map into 2d list:
 #   [y][x] are map coordinates
 #   [0][0] is bottom left corner
-def loadmap(filename):
-  mapdata = list( csv.reader(open(filename, 'r')))
-  mapdata = [ [int(x) for x in y] for y in mapdata  ]  # convert string to ints
-  mapdata.reverse()
-  return mapdata
+class Map():
+  def __init__(self, filename):
+    data = list( csv.reader(open(filename, 'r')))
+    data = [ [int(x) for x in y] for y in data  ]  # convert string to ints
+    data.reverse()
+    self.data = data
+
+  @property
+  def xdim(self):
+    return len(self.data[0])
+  @property
+  def ydim(self):
+    return len(self.data)
+  def __str__(self):
+    return "Map: (%d, %d)" % (self.xdim, self.ydim)
 
 class MapPlot(HasTraits):
 
   plot = Instance(Component)
-  mapdata = Array  # 2d matrix map
+  map = Instance(Map)
+  data = Array  # 2d matrix map
   traits_view = View(Item('plot', editor=ComponentEditor(size = (480,400))),
                      resizable=False)
 
@@ -29,18 +40,19 @@ class MapPlot(HasTraits):
   ydim = Property(Int)
 
   def _get_xdim(self):
-    return self.mapdata.shape[1]
+    return self.map.xdim
 
   def _get_ydim(self):
-    return self.mapdata.shape[0]
+    return self.map.ydim
 
   def _plot_default(self):
 
+    self.data = self.map.data
     data_xy = []
-    for y in range(len(self.mapdata)):
-      for x in range(len(self.mapdata[y])):
-        #if self.mapdata[ (len(self.mapdata)-1) - y][x] == 1:
-        if self.mapdata[y][x] == 1:
+    for y in range(len(self.data)):
+      for x in range(len(self.data[y])):
+        #if self.data[ (len(self.data)-1) - y][x] == 1:
+        if self.data[y][x] == 1:
           data_xy.append([x,y])
 
     data_xy = array(data_xy)
@@ -55,7 +67,7 @@ class MapPlot(HasTraits):
                        index_mapper = LinearMapper(range = x_dr),
                        value_mapper = LinearMapper(range = y_dr),
                        color = "black", bgcolor = "white", 
-                       marker = "square", marker_size = 400 / len(self.mapdata))
+                       marker = "square", marker_size = 400 / len(self.data))
 
     plot.aspect_ratio = float(self.xdim) / float(self.ydim)
 
@@ -72,10 +84,3 @@ class MapPlot(HasTraits):
 
     return plot    
 
-
-if __name__ == "__main__":
-  map2d = loadmap('test.map')
-
-  m = MapPlot(mapdata = map2d)
-  m.configure_traits()
-  #Map(mapdata = map2d).plot

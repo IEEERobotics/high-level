@@ -11,9 +11,12 @@ from traits.api import String, Button
 from traitsui.api import InstanceEditor
 from chaco.api import OverlayPlotContainer
 
-particle_count = 1000
+import argparse
 
-class Container(HasTraits):
+particle_count = None
+map = None
+
+class Simulator(HasTraits):
     container = Instance(OverlayPlotContainer)
     robot = DelegatesTo('rplotter')   # assigned during init
     robot_guess = DelegatesTo('rgplotter', 'robot')   # assigned during init
@@ -34,13 +37,13 @@ class Container(HasTraits):
                        #Item('robot', editor=InstanceEditor(), style='custom'),
                        Item('container', editor=ComponentEditor(), show_label=False),
                        Item('output'),
-                       Item('sense'),
-                       Item('update'),
+                       Group(Item('sense'),Item('update'), orientation = 'horizontal'),
                        Group(Item('move'),
                              Item('move_theta'),
                              Item('move_dist'),
                              orientation = 'horizontal'),
-                       Group(Item('noise_sensor'), Item('noise_forward'), Item('noise_turn'))
+                       Group(Item('noise_sensor'), Item('noise_forward'), 
+                             Item('noise_turn'), orientation = 'horizontal')
         )
 
     def _sense_fired(self):
@@ -50,8 +53,8 @@ class Container(HasTraits):
     # currently not used, logic wrapped into move_fired for now
     def _update_fired(self):
       print "update!"
-      measured = self.robot.sense_all(map2d)
-      self.particles.sense_all(map2d)
+      measured = self.robot.sense_all(map)
+      self.particles.sense_all(map)
       self.particles.resample(measured)
 
       x, y, theta = self.particles.guess()
@@ -72,31 +75,39 @@ class Container(HasTraits):
       self.rgplotter.do_redraw()
 
     def __init__(self):
-        m = MapPlot(mapdata = map2d)
+      m = MapPlot(map = map)
 
-        robot = Robot(x = 6.0, y = 5.0, theta = 0.0, color = 'red')
-        rplotter = RobotPlotter(robot = robot, xsize = m.xdim, ysize = m.ydim)
-        particles = Particles(robot, map2d, particle_count) 
-        pplotter = ParticlePlotter(robot = robot, particles = particles, xsize = m.xdim, ysize = m.ydim)
+      robot = Robot(x = map.xdim/2, y = map.ydim/2, theta = 0.0, color = 'red')
+      rplotter = RobotPlotter(robot = robot, xsize = m.xdim, ysize = m.ydim)
+      particles = Particles(robot, map, particle_count) 
+      pplotter = ParticlePlotter(robot = robot, particles = particles, xsize = m.xdim, ysize = m.ydim)
+      print particles
 
+      rg = Robot(x = m.xdim/2, y = m.ydim/2, theta = 0.0, color = 'green')
+      rgplotter = RobotPlotter(robot = rg, xsize = m.xdim, ysize = m.ydim )
 
-        rg = Robot(x = m.xdim/2, y = m.ydim/2, theta = 0.0, color = 'green')
-        rgplotter = RobotPlotter(robot = rg, xsize = m.xdim, ysize = m.ydim )
+      c = OverlayPlotContainer()
+      c.add(m.plot)
+      c.add(pplotter.qplot)
+      c.add(rgplotter.plot)
+      c.add(rplotter.plot)
 
-        c = OverlayPlotContainer()
-        c.add(m.plot)
-        c.add(pplotter.qplot)
-        c.add(rgplotter.plot)
-        c.add(rplotter.plot)
-
-        self.container = c
-        self.pplotter = pplotter
-        self.rplotter = rplotter
-        self.rgplotter = rgplotter
+      self.container = c
+      self.pplotter = pplotter
+      self.rplotter = rplotter
+      self.rgplotter = rgplotter
 
 if __name__ == "__main__":
 
-  map2d = loadmap('test2.map')
+  parser = argparse.ArgumentParser(description='Localization simulator')
+  parser.add_argument('-m', '--map', help='Map file', default='test.map' )
+  parser.add_argument('-n', '--num', help='Number of partiles', type=int, default='500' )
+  args = parser.parse_args()
 
-  c = Container()
-  c.configure_traits()
+  map = Map(args.map)
+  particle_count = args.num
+
+  print map
+
+  s = Simulator()
+  s.configure_traits()
