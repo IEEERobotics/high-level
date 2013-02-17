@@ -1,12 +1,15 @@
+#!/usr/bin/python
+
 import robot, particles, map
 from numpy import *
 
 num = 1500
 
-startx = 6
-starty = 5
-
 m = map.Map('test3.map')
+
+startx = m.xdim / 2
+starty = m.ydim / 2
+
 r = robot.Robot(x = startx, y = starty, theta = 0, 
                 noise_move = 0.1, noise_turn = 0.2, noise_sense = 0.25)
 p = particles.Particles(r, m, num)

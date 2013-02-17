@@ -1,10 +1,9 @@
-# TOOD:
-# add textbox item
-# add sense and update buttons
+#!/usr/bin/python
 
 from particles import *
 from robot import *
 from map import *
+from mapplot import *
 from probability import *
 
 from traits.api import String, Button
@@ -47,7 +46,7 @@ class Simulator(HasTraits):
         )
 
     def _sense_fired(self):
-      measured = self.robot.sense_all(map2d)
+      measured = self.robot.sense_all(map)
       self.output = "F: %0.2f  L: %0.2f  R: %0.2f" % ( measured[0], measured[1], measured[2])
 
     # currently not used, logic wrapped into move_fired for now
@@ -81,7 +80,7 @@ class Simulator(HasTraits):
       rplotter = RobotPlotter(robot = robot, xsize = m.xdim, ysize = m.ydim)
       particles = Particles(robot, map, particle_count) 
       pplotter = ParticlePlotter(robot = robot, particles = particles, xsize = m.xdim, ysize = m.ydim)
-      print particles
+      #print particles
 
       rg = Robot(x = m.xdim/2, y = m.ydim/2, theta = 0.0, color = 'green')
       rgplotter = RobotPlotter(robot = rg, xsize = m.xdim, ysize = m.ydim )
@@ -108,6 +107,7 @@ if __name__ == "__main__":
   particle_count = args.num
 
   print map
+  #print map.data
 
   s = Simulator()
   s.configure_traits()

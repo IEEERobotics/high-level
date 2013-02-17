@@ -152,7 +152,7 @@ class RobotPlotter(HasTraits):
                     value_mapper = LinearMapper(range=y_r),
                     bgcolor = "white", line_color = self.color, line_width = 2.0)
 
-    plot.aspect_ratio = self.xsize / self.ysize
+    plot.aspect_ratio = float(self.xsize) / float(self.ysize)
     return plot
      
 

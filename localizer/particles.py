@@ -187,9 +187,6 @@ class ParticlePlotter(HasTraits):
     #  robot param is the robot we are modeling -- source of params
     def _qplot_default(self):
 
-      #xsize = self.robot.xmax
-      #ysize = self.robot.ymax
-
       # Create an array data sources to plot all vectors at once
       #xs = ArrayDataSource(self.particles.x, sort_order='ascending')
       #ys = ArrayDataSource(self.particles.y)
@@ -211,9 +208,9 @@ class ParticlePlotter(HasTraits):
                       #data_type = 'radial',  # not implemented
                       index_mapper = LinearMapper(range=xrange),
                       value_mapper = LinearMapper(range=yrange),
-                      bgcolor = "white")
+                      bgcolor = "white", line_color = "grey")
 
-      qplot.aspect_ratio = self.xsize / self.ysize
+      qplot.aspect_ratio = float(self.xsize) / float(self.ysize)
       return qplot
 
 if __name__ == "__main__":
