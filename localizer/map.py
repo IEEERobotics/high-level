@@ -18,7 +18,7 @@ class Map():
     for y in range(len(self.data)):
       for x in range(len(self.data[0])):
         if self.data[y][x] == 1:
-          xy.append([x,y])
+          xy.append([x+0.5,y+0.5])
     return array(xy)
 
   @property
