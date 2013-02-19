@@ -5,7 +5,7 @@ from numpy import *
 
 num = 1500
 
-m = map.Map('test3.map')
+m = map.Map('maps/test3.map')
 
 startx = m.xdim / 2
 starty = m.ydim / 2
