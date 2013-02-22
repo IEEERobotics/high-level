@@ -1,10 +1,15 @@
 #!/usr/bin/python
 
 from particles import *
+from particleplot import *
+
 from robot import *
+from robotplot import *
+
 from map import *
 from mapplot import *
-from probability import *
+
+#from probability import *
 
 from traits.api import String, Button
 from traitsui.api import InstanceEditor

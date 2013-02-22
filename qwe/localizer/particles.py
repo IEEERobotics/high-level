@@ -4,15 +4,6 @@
 from numpy import array, sort, pi, cos, sin, zeros, arctan2
 from numpy.random import random
 
-# Enthought library imports
-from enable.api import Component, ComponentEditor
-from traits.api import HasTraits, Instance, Property, Int, Array, Range, cached_property
-from traitsui.api import Item, View, Group
-
-# Chaco imports
-from chaco.api import ArrayDataSource, MultiArrayDataSource, DataRange1D, \
-        LinearMapper, QuiverPlot, Plot, ArrayPlotData
-
 # for sense 
 from raycast import wall
 from numpy.linalg import norm
@@ -20,8 +11,6 @@ from probability import gaussian
 from random import gauss  
 
 from robot import *
-
-size = (100, 100)
 
 class Particles(object):
 
@@ -132,7 +121,11 @@ class Particles(object):
     self.y = array([e[2] for e in new])
     self.theta = array([e[3] for e in new])
 
+  # TODO: try using a guess based on weighted particles?
   def guess(self):
+    return self.guess_mean()
+
+  def guess_mean(self):
     x = self.x.mean()
     y = self.y.mean()
     # average the vector components of theta individually to avoid jump between 0 and 2pi
@@ -140,78 +133,3 @@ class Particles(object):
     theta = arctan2(vy,vx) % (2*pi)
     return (x,y,theta)
 
-
-class ParticlePlotter(HasTraits):
-
-    qplot = Instance(QuiverPlot)
-    #vsize = Range(low = -20.0, high = 20.0, value = 1.0)
-    vsize = Int(10)
- 
-    # field dimensions, should we just hook in the map object and use it's values directly?
-    xsize = Int
-    ysize = Int
-
-    # the associated robot object which our particles are simulating
-    #   provides: x,y range and sensors list
-    robot = Instance(Robot)
-    particles = Instance(Particles)
-   
-    xs = ArrayDataSource()
-    ys = ArrayDataSource()
-    vector_ds = MultiArrayDataSource()
-
-    # this defines the default view when configure_traits is called
-    traits_view = View(Item('qplot', editor=ComponentEditor(size=size), show_label=False),
-                       Item('vsize'), 
-                       resizable=True)
-
-    def do_redraw(self):
-      self.xs.set_data(self.particles.x, sort_order='ascending')
-      self.ys.set_data(self.particles.y)
-      self.vector_ds.set_data(self.vectors)
-
-    # magic function called when vsize trait is changed
-    def _vsize_changed(self):
-      #print "vsize is: ", self.vsize
-      #self.vectors = array( zip(self.vsize*cos(self.theta), self.vsize*sin(self.theta)) )
-      self.vector_ds.set_data(self.vectors)
-      #print self.vector_ds.get_shape()
-      self.qplot.request_redraw()
-        
-    #@cached_property
-    @property
-    def vectors(self):
-      return self.particles.v * self.vsize
-
-    # ?? dynamic instantiation of qplot verus setting up in init?
-    #  robot param is the robot we are modeling -- source of params
-    def _qplot_default(self):
-
-      # Create an array data sources to plot all vectors at once
-      #xs = ArrayDataSource(self.particles.x, sort_order='ascending')
-      #ys = ArrayDataSource(self.particles.y)
-      self.xs.set_data(self.particles.x, sort_order='ascending')
-      self.ys.set_data(self.particles.y)
-
-      #self.vector_ds = MultiArrayDataSource(self.vectors)
-      self.vector_ds.set_data(self.vectors)
-
-      # Set up the Plot
-      xrange = DataRange1D()
-      xrange.add(self.xs)
-      xrange.set_bounds(0,self.xsize)
-      yrange = DataRange1D()
-      yrange.add(self.ys)
-      yrange.set_bounds(0,self.ysize)
-      qplot = QuiverPlot(index = self.xs, value = self.ys,
-                      vectors = self.vector_ds,
-                      #data_type = 'radial',  # not implemented
-                      index_mapper = LinearMapper(range=xrange),
-                      value_mapper = LinearMapper(range=yrange),
-                      bgcolor = "white", line_color = "grey")
-
-      qplot.aspect_ratio = float(self.xsize) / float(self.ysize)
-      return qplot
-
-if __name__ == "__main__":
-    ParticlePlotter().configure_traits()
