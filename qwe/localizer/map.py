@@ -7,11 +7,12 @@ import csv
 #   [y][x] are map coordinates
 #   [0][0] is bottom left corner
 class Map():
-  def __init__(self, filename):
+  def __init__(self, filename, scale = 1):
     data = list( csv.reader(open(filename, 'r')))
     data = [ [int(x) for x in y] for y in data  ]  # convert string to ints
     data.reverse()
     self.data = data
+    self.scale = scale  # inches per element
 
   def xy(self):
     xy = []
@@ -24,9 +25,11 @@ class Map():
   @property
   def xdim(self):
     return len(self.data[0])
+
   @property
   def ydim(self):
     return len(self.data)
+
   def __str__(self):
-    return "Map: (%d, %d)" % (self.xdim, self.ydim)
+    return "Map: (%d, %d) = (%0.2f, %0.2f) inches" % (self.xdim, self.ydim, self.xdim * self.scale, self.ydim * self.scale)
 

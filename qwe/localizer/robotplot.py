@@ -19,13 +19,6 @@ class RobotPlotter(HasTraits):
   xsize = Int
   ysize = Int
 
-  # these delegations allow the _*_changed notifications to work
-  #  since robot is nolonger traitsified... remove?
-  x = DelegatesTo('robot')
-  y = DelegatesTo('robot')
-  theta = DelegatesTo('robot')
-  color = DelegatesTo('robot')
-
   vector = Property(Array, depends_on=["theta"])
 
   # this defines the default view when configure_traits is called
@@ -39,33 +32,16 @@ class RobotPlotter(HasTraits):
     self.plot.vectors.set_data(self.vector)
     self.plot.request_redraw()
 
-  #def _x_changed(self):
-  #  # these should probably reference a named datasource handle (x_ds, y_ds)
-  #  # instead of the ones inside plot (index, value)
-  #  self.plot.index.set_data([self.x])
-  #  self.plot.request_redraw()
-
-  #def _y_changed(self):
-  #  self.plot.value.set_data([self.y])
-  #  self.plot.request_redraw()
-
-  #def _theta_changed(self):
-  #  self.plot.vectors.set_data(self.vector)
-  #  self.plot.request_redraw()
-
   # getter for vector property
   def _get_vector(self):
-    return array([[cos(self.theta), sin(self.theta)]])*self.vsize
+    return array([[cos(self.robot.theta), sin(self.robot.theta)]])*self.vsize
 
   # dynamic instantiation of plot
   def _plot_default(self):
 
-    #xsize = self.robot.xmax
-    #ysize = self.robot.ymax
-
     # Array data sources, each single element arrays
-    x_ds = ArrayDataSource([self.x])
-    y_ds = ArrayDataSource([self.y])
+    x_ds = ArrayDataSource([self.robot.x])
+    y_ds = ArrayDataSource([self.robot.y])
 
     vector_ds = MultiArrayDataSource()
     vector_ds.set_data(self.vector)
@@ -80,7 +56,7 @@ class RobotPlotter(HasTraits):
                     vectors = vector_ds,
                     index_mapper = LinearMapper(range=x_r),
                     value_mapper = LinearMapper(range=y_r),
-                    bgcolor = "white", line_color = self.color, line_width = 2.0)
+                    bgcolor = "white", line_color = self.robot.color, line_width = 2.0)
 
     plot.aspect_ratio = float(self.xsize) / float(self.ysize)
     return plot
@@ -91,4 +67,3 @@ if __name__ == "__main__":
   plot = RobotPlot(robot = r)
   plot.configure_traits()
 
-  #Simulator(robot = r).configure_traits()

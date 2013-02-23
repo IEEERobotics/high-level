@@ -58,30 +58,14 @@ class Particles(object):
     self.x = x.clip(0,self.map.xdim)
 
     self.theta = theta
-   
-  # TODO: actual sensing logic should be a function in the sensor class, called from here
-  def sense(self, rel_theta, map):
-    x = self.x
-    y = self.y
-    data = zeros(self.numpts)
-    sense_theta = [ ((t + rel_theta) % (2*pi)) for t in self.theta]
-    for i in range(self.numpts):
-      # the logic here is currently a duplicate of that for robot.sense(), but in 
-      #   reality, robot.sense() will pull actual sensor data from the sensors (not a model)
-      wx,wy = wall(x[i],y[i],sense_theta[i],map)
-      # add gaussian noise to (otherwise exact) distance calculation?
-      if wx == -1:  # no wall seen
-        data[i] = norm( [map.xdim, map.ydim] )  # TODO should be sensor max reading
-      else:
-        data[i] = norm( [x[i]-wx, y[i]-wy] )
-    return data
 
   def sense_all(self, map):
     x = self.x
     y = self.y
     for s in self.robot.sensors:
       # get the full set of particle senses for this sensor
-      self.sensed[s.index] = self.sense(s.angle, map)
+      for i in range(self.numpts):
+        self.sensed[s.index, i] = s.sense(self.x[i], self.y[i], self.theta[i], map)
     #print "Particle sense:"
     #for i in range(self.numpts):
     #  print "  %0.2f, %0.2f @ %0.2f = " % (x[i], y[i], self.theta[i]),
