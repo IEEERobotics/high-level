@@ -2,7 +2,7 @@ from distutils.core import setup
 
 setup(
     name='qwe',
-    version='0.1.0',
+    version='0.1.0dev',
     author='NCSU IEEE Ground Robotics Team',
     author_email='ncsuhardware@googlegroups.com',
     packages=['vision', 'sensors', 'comm', 'localizer', 'mapping', 'action', 'navigation', 'planning'],
