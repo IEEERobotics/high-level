@@ -280,6 +280,6 @@ class Planner:
 		print "**************************************"
 		self.processAir()
 
-
-plan = Planner()
-plan.start()
+if __name__ == '__main__':
+    plan = Planner()
+    plan.start()
