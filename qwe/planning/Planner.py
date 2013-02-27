@@ -268,7 +268,7 @@ class Planner:
 		print "Move to Storage Start"
 		self.moveTo(self.getCurrentLocation(), "storageStart")
 		print "Scan Storage"
-		self.scanStorageFirstTime("storage")
+		self.scanStorageFirstTime("storage") # BUG: This should not be hardcoded. Currently fails.
 		print "Move to Storage Start"
 		self.moveTo(self.getCurrentLocation(), "storageStart")
 		print "***********************************************"
@@ -280,6 +280,11 @@ class Planner:
 		print "**************************************"
 		self.processAir()
 
-if __name__ == '__main__':
-    plan = Planner()
-    plan.start()
+def run(bot_loc, blocks, zones, corners, waypoints):
+  # TODO Handle shared data, start your process from here
+  plan = Planner()
+  plan.start()
+  
+if __name__ == "__main__":
+  plan = Planner()
+  plan.start()
