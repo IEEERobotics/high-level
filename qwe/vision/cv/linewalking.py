@@ -67,6 +67,6 @@ class LineWalker(FrameProcessor):
         return True
 
 
-# Run a LineNavigator instance using pycv.main.main()
+# Run a LineWalker instance using pycv.main.main()
 if __name__ == "__main__":
     main(LineWalker)
