@@ -22,14 +22,15 @@ using namespace std;
 
 //channels?
 
-bool SerialCommands::init()
+bool SerialCommands::init(char *portname)
 {
 
 	char *devname;
 
 
     devname = (char *)malloc(10*sizeof(char));
-    strcpy(devname,"/dev/ttyUSB0");
+    //strcpy(devname,"/dev/ttyUSB0");
+    strcpy(devname,portname);
 
     //open
 	if(!sp.openPort(devname))
@@ -46,6 +47,7 @@ bool SerialCommands::move(int heading,int distance) //heading in degrees, distan
     md.cmd = MOVE_CMD_ID;
     md.heading = heading;
     md.distance = distance;
+    md.eol = '\n';
     if(sp.sendBuf((char *)&md,(int)sizeof(md))>0)
     return true;
     else
@@ -59,19 +61,26 @@ bool SerialCommands::arm_rotate(int angle) //angle in degrees
     arm_rotate_data ard;
     ard.cmd = ROTATE_CMD_ID;
     ard.angle = angle;
+    ard.eol = '\n';
     if(sp.sendBuf((char *)&ard,(int)sizeof(ard))>0)
     return true;
     else
     return false;
     //wait to rcv ack
 }
-bool SerialCommands::get_state(int num) //number of samples to get
+bool SerialCommands::get_sensor_data(sensor_data *sd) //number of samples to get
 {
-    get_sensor_data gsd;
+    sensor_data_cmd gsd;
     gsd.cmd = DATA_CMD_ID;
-    gsd.num = num;
+    gsd.eol='\n';
+   // gsd.num = num;
     if(sp.sendBuf((char *)&gsd,(int)sizeof(gsd))>0)
-    return true;
+    {
+      sp.getBuf((char *)&sd,(int)sizeof(sd));
+      return true;
+    }
     else
     return false;
 }
+
+
