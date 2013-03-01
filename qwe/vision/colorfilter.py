@@ -7,6 +7,8 @@ yellow: [ 18 150 150] - [ 32 255 255]
 red: [175 100 100] - [ 15 255 255]
 """
 
+import pickle
+import json
 import numpy as np
 import cv2
 import cv2.cv as cv
@@ -40,6 +42,13 @@ class FilterHSV:
   
   def __str__(self):
     return str(self.lower) + " - " + str(self.upper)
+  
+  def toString(self):
+    return self.__class__.__name__ + "\t" + "\t".join(str(x) for x in self.lower) + "\t" + "\t".join(str(x) for x in self.upper)
+  
+  def toJSONString(self):
+    return "{ \"__class__\": \"" + self.__class__.__name__ + "\", \"lower\": " + json.dumps(self.lower.tolist()) + ", \"upper\": " + json.dumps(self.upper.tolist()) + " }"
+    #return "{ \"__class__\": \"" + self.__class__.__name__ + "\", \"lower\": [" + ", ".join(str(x) for x in self.lower) + "], \"upper\": [" + ", ".join(str(x) for x in self.upper) + "] }"
   
   def toXMLString(self):
     """Return an XML representation of the current state of this filter."""
@@ -137,9 +146,23 @@ class ColorFilter(FrameProcessor):
       return True
     elif keyChar == 'l':
       print "%d filters in bank" % len(self.filterBank)
+      filterBankJSONs = [ ]
       for filterName, filterHSV in self.filterBank.iteritems():
+        filterBankJSONs.append("\"" + filterName + "\": " + filterHSV.toJSONString())
         print filterName + ": " + str(filterHSV)
       print
+      filterBankJSON = "{ " + ", ".join(filterBankJSONs) + " }"
+      print "Filter bank JSON: " + filterBankJSON
+      # TODO save filter bank to file (and load)
+      #filterBankDict = json.loads(filterBankJSON)
+      #print "Filter bank JSON dict [" + str(type(filterBankDict)) + "]:\n" + json.dumps(filterBankDict, indent=2)
+      #print "Pickled: " + pickle.dumps(self.filterBank)
+      
+      #filterJSON = self.filterHSV.toJSONString()
+      #print "\nCurrent filter JSON string: " + filterJSON
+      #filterDict = json.loads(filterJSON)
+      #print "Current filter JSON dict [" + str(type(filterDict)) + "]:\n" + json.dumps(filterDict, indent=2)
+      
       return True
     else:
       return True
