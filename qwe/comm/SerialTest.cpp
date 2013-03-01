@@ -22,12 +22,12 @@ using namespace std;
 
 //channels?
 
-int main()
+int main(int argc, char *argv[])
 {
     SerialCommands sc;
     cout<<sizeof(move_data)<<endl;
     cout<<sizeof(arm_rotate_data)<<endl;
-    sc.init();
+    sc.init(argv[1]);
     sc.move(45,20);
     sc.arm_rotate(45);
 

@@ -9,7 +9,7 @@
 
 #define USS_NUM 4
 #define SERVO_NUM 5
-#define USS_EDGE_NUM 4;
+#define USS_EDGE_NUM 4
 
 /**command and response ids**/
 
@@ -32,31 +32,36 @@ typedef struct move_data
     char cmd;
     int heading; //heading in degrees with respect to the arena reference frame?
     int distance;  //distance to move in cms
+    char eol;		//use non-canonical?
 }__attribute__((packed)) move_data;
 
 typedef struct arm_rotate_data
 {
     char cmd;
     int angle; //angle to rotate in degrees
+    char eol;		//use non-canonical?
 
 }__attribute__((packed)) arm_rotate_data;
 
-typedef struct get_sensor_data
+typedef struct sensor_data_cmd
 {
     char cmd;
     int num;        //number of samples to receive
-}__attribute__((packed)) get_sensor_data;
+    char eol;		//use non-canonical?
+}__attribute__((packed)) sensor_data_cmd;
 
 /*define structures to receive*/
 struct ss
 {
 char resp;
 int USS_arr[USS_NUM];
+int USS_EDGE_arr[USS_EDGE_NUM];
 int heading;
 int servo_arr[SERVO_NUM];
+char eol;		//use non-canonical?
 }__attribute__((packed));
 
-typedef struct ss sensor_values;
+typedef struct ss sensor_data;
 
 
 /*async response struct for fall detection**/
@@ -74,10 +79,11 @@ class SerialCommands
 {
     SerialInterface sp; //use new?
 public:
-bool init();
+bool init(char *);
 bool move(int heading,int distance); //heading in degrees, distance in cms
 bool arm_rotate(int angle); //angle in degrees
-bool get_state(int num); //number of samples to get
+bool get_sensor_data(sensor_data *);
+
 
 };
 
