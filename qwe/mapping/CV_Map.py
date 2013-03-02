@@ -2,172 +2,157 @@
 CV Map 
 Ricker Snow
 
-2-D map.  Accepts argument defining the resolution of the map.  Will require angle calculations for ramp distance calculations.
-First column and first row corresponds to top corner of upper most platform (near air storage is).  Last row first column corresponds to corner closest to start area.  The 'path' element of the map has not been set.
+The mk_map function generates the map as it appears on sheet 7 of the course schematic; the element in the first column and first row corresponds to the corner closest to the upper platform.  mk_map accepts 'res' argument defining the resolution of the map in tiles per inch.  mk_map returns the map.
+
+
+Notes:  Will require angle calculations for ramp distance calculations.  There may be some attributes we want to remove, like path and maybe status.  There's also redundancy between desc and color properties in that color contains white and desc contains markers/white lines.  This code is not optimized as it will not be used during bot runtime.  This code makes the map which will be stored as a pickled file or a text file.  The pickled file or text file will be brought back in to memory at bot runtime. 
 """
+import numpy as np
 
-def mk_map(res):
-	#print("mk_map")
-	class TileProp:			#define a struct-like class
-		desc = 0		#driving surface (0), start(1), storage(2), land(3), sea(4), air(5), marker/white line (7), wall(8), edge(9)
-					#edge between ramp and ground, or platform and ground
-		status = 0 		#empty(0), filled(1)
-		color = 2		#unk(0), blue(1), black(2), green(3), yellow(4), red(5), brown(6), white(7)
-		level = 0		# ground(0), ramp(1), lwr plat(2), upp plat(3)
-		path = 0		#not path (0), path(1)
+def mk_map(res, map_grid_vars, map_prop_vars):
 
-
-	tilesize = res			#tiles per inch
-	width = 97 * tilesize		#course width --> list index --> number of columns
-	length = 73 * tilesize		#course length --> list number --> number of rows
-
-	# make a matrix with each element of class TileProp
-	#Map[list number][list index] --> Map[row][col] --> Map[length][width]
-	Map = [[TileProp() for x in xrange(0,int(width))] for y in xrange(0,int(length))]	
-
-	# Variables
-	upPltW = 24*tilesize			#Upper platform width
-	upPltL = 24*tilesize			#Upper platform length
-	upRmpW = 49*tilesize			#upper ramp width
-	upRmpL = 24*tilesize			#upper ramp length
-	loPltW = 24*tilesize			#lower platform width
-	loPltL = 24*tilesize			#lower platform length
-	loRmpW = 24*tilesize			#lower ramp width
-	loRmpL = 24*tilesize			#lower ramp length
-	wall = int(0.75 *tilesize)		#wall thickness
-	whiteLine = int(0.5 * tilesize)		#thickness of white lines
-	startW = 12 * tilesize			#start square width
-	startL = 12 * tilesize			#start square length
+	# make a numpy 2D array
+	mapSize = (map_grid_vars['height'], map_grid_vars['width']) # (height, width) --> (rows, cols)
+	Map = np.zeros(mapSize, dtype = [('desc', np.uint8),('status', np.uint8),('color', np.uint8),('level', np.uint8),('path', np.uint8)])
 
 	"""
-	Begin initializing board, note that in definition of TileProp, everything is initialized to:
+	Begin initializing board, everything is first initialized to:
 	empty, not path, black, driving surface, and ground level.
 	"""
+	for y in xrange(0,map_grid_vars['height']):	
+		for x in xrange(0,map_grid_vars['width']):
+			Map[y][x]['level'] = map_prop_vars['ground']
+			Map[y][x]['desc'] = map_prop_vars['driv_srfc']
+			Map[y][x]['color'] = map_prop_vars['black']
+			Map[y][x]['path'] = map_prop_vars['not_path']
+			Map[y][x]['status'] = map_prop_vars['empty']
 	#define upper platform
-	for x in xrange(0,upPltL):	
-		for y in xrange(0,upPltW):
-			Map[x][y].level = 3	#upper platform
+	for y in xrange(0,map_grid_vars['upPltH']):	
+		for x in xrange(0,map_grid_vars['upPltW']):
+			Map[y][x]['level'] = map_prop_vars['upp_plat']
 	#define upper ramp
-	for x in xrange(0, upRmpL):
-		for y in xrange(upPltW, width - loPltW):
-			Map[x][y].level = 1	#ramp
+	for y in xrange(0, map_grid_vars['upRmpH']):
+		for x in xrange(map_grid_vars['upPltW'], map_grid_vars['width'] - map_grid_vars['loPltW']):
+			Map[y][x]['level'] = map_prop_vars['ramp']
 	#define lower platform
-	for x in xrange(0, loPltL):
-		for y in xrange(width - loPltW, width):
-			Map[x][y].level = 2	#lower platform
+	for y in xrange(0, map_grid_vars['loPltH']):
+		for x in xrange(map_grid_vars['width'] - map_grid_vars['loPltW'], map_grid_vars['width']):
+			Map[y][x]['level'] = map_prop_vars['lwr_plat']
 	#define lower ramp
-	for x in xrange(loPltL, loPltL + loRmpL):
-		for y in xrange(width - loRmpW, width):
-			Map[x][y].level = 1	#ramp
+	for y in xrange(map_grid_vars['loPltH'], map_grid_vars['loPltH'] + map_grid_vars['loRmpH']):
+		for x in xrange(map_grid_vars['width'] - map_grid_vars['loRmpW'], map_grid_vars['width']):
+			Map[y][x]['level'] = map_prop_vars['ramp']
 	#define edge between upper platform and ground and long ramp and ground
-	x = upPltL - 1; 
-	for y in xrange(0, upPltW + upRmpW + 1):
+	y = map_grid_vars['upPltH'] - 1; 
+	for x in xrange(0, map_grid_vars['upPltW'] + map_grid_vars['upRmpW'] + 1):
 		#Map[x][y].level = 9
-		Map[x][y].desc = 9
+		Map[y][x]['desc'] = map_prop_vars['edge']
 	#define edge between short ramp and ground
-	y = upPltW + upRmpW
-	for x in xrange(loPltL, (loPltL + loRmpL)):
+	x = map_grid_vars['upPltW'] + map_grid_vars['upRmpW']
+	for y in xrange(map_grid_vars['loPltH'], (map_grid_vars['loPltH'] + map_grid_vars['loRmpH'])):
 		#Map[x][y].level = 9
-		Map[x][y].desc = 9
+		Map[y][x]['desc'] = map_prop_vars['edge']
 
 	"""walls"""
 	#define long wall along width of course (south side)
-	for x in xrange(length - wall, length):
-		for y in xrange(0, width):
-			Map[x][y].desc = 8	#wall
+	for y in xrange(map_grid_vars['height'] - map_grid_vars['wall'], map_grid_vars['height']):
+		for x in xrange(0, map_grid_vars['width']):
+			Map[y][x]['desc'] = map_prop_vars['wall']
 	#define short wall along width of course (north side)
-	for x in xrange(upPltL, upPltL + wall):
-		for y in xrange(0, upPltW + upRmpW):
-			Map[x][y].desc = 8	#wall
-	#define long wall along length of course (west side)
-	for x in xrange(upPltL, length):
-		for y in xrange(0, wall):
-			Map[x][y].desc = 8	#wall
-	#short wall along length of course (east side)
-	for x in xrange(loPltL + loRmpL, length):
-		for y in xrange(width - wall, width):
-			Map[x][y].desc = 8	#wall
+	for y in xrange(map_grid_vars['upPltH'], map_grid_vars['upPltH'] + map_grid_vars['wall']):
+		for x in xrange(0, map_grid_vars['upPltW'] + map_grid_vars['upRmpW']):
+			Map[y][x]['desc'] = map_prop_vars['wall']
+	#define long wall along height of course (west side)
+	for y in xrange(map_grid_vars['upPltH'], map_grid_vars['height']):
+		for x in xrange(0, map_grid_vars['wall']):
+			Map[y][x]['desc'] = map_prop_vars['wall']
+	#short wall along height of course (east side)
+	for y in xrange(map_grid_vars['loPltH'] + map_grid_vars['loRmpH'], map_grid_vars['height']):
+		for x in xrange(map_grid_vars['width'] - map_grid_vars['wall'], map_grid_vars['width']):
+			Map[y][x]['desc'] = map_prop_vars['wall']
 
 	"""start area"""
-	#start area - white outline - includes start area, next loop fixes enclosed area
-	for x in xrange(length - wall - startL - whiteLine, length - wall):
-		for y in xrange(wall, wall + startW + whiteLine):
-			Map[x][y].desc = 7	#marker
-			Map[x][y].color = 7	#white
+	#start area - white outHine - includes start area, next loop fixes enclosed area
+	for y in xrange(map_grid_vars['height'] - map_grid_vars['wall'] - map_grid_vars['startH'] - map_grid_vars['whiteLine'], map_grid_vars['height'] - map_grid_vars['wall']):
+		for x in xrange(map_grid_vars['wall'], map_grid_vars['wall'] + map_grid_vars['startW'] + map_grid_vars['whiteLine']):
+			Map[y][x]['desc'] = map_prop_vars['line']
+			Map[y][x]['color'] = map_prop_vars['white']
 	#start area - fix enclosed area
-	for x in xrange(length - wall - startL, length - wall):
-		for y in xrange(wall, wall + startW):
-			Map[x][y].desc = 1	#start
+	for y in xrange(map_grid_vars['height'] - map_grid_vars['wall'] - map_grid_vars['startH'], map_grid_vars['height'] - map_grid_vars['wall']):
+		for x in xrange(map_grid_vars['wall'], map_grid_vars['wall'] + map_grid_vars['startW']):
+			Map[y][x]['desc'] = map_prop_vars['start']
 
 	"""air loading zone"""
 	#air loading zone - white outline - includes enclosed space, next 2 loops fix
-	for x in xrange(int(8.75*tilesize), int((24-8.75)*tilesize)):
-		for y in xrange(0, int(3.5*tilesize)):
-			Map[x][y].desc = 7	#marker
-			Map[x][y].color = 7	#white
+	for y in xrange(map_grid_vars['upPlt_2_Air'], map_grid_vars['upPltH']-map_grid_vars['upPlt_2_Air']):
+		for x in xrange(0, map_grid_vars['air_long']+map_grid_vars['whiteLine']):
+			Map[y][x]['desc'] = map_prop_vars['line']
+			Map[y][x]['color'] = map_prop_vars['white']
 	#air loading zone - fix enclosure - use two loops to account for seperating white line
-	for x in xrange(int((8.75+.5)*tilesize),int((8.75+0.5+2.5)*tilesize)):
-		for y in xrange(0,3*tilesize):
-			Map[x][y].desc = 5	#air storage
-			Map[x][y].color = 0	#color unknown
-	for x in xrange(int((8.75+.5+2.5+.5)*tilesize),int((24-8.75-0.5)*tilesize)):
-		for y in xrange(0,3*tilesize):
-			Map[x][y].desc = 5	#air storage
-			Map[x][y].color = 0	#color unknown
+	for y in xrange(map_grid_vars['upPlt_2_Air']+map_grid_vars['whiteLine'], map_grid_vars['upPlt_2_Air']+map_grid_vars['whiteLine']+map_grid_vars['zone_short']):
+		for x in xrange(0,map_grid_vars['air_long']):
+			Map[y][x]['desc'] = map_prop_vars['air']	
+			Map[y][x]['color'] = map_prop_vars['unk']	#color unknown
+	for y in xrange(map_grid_vars['upPlt_2_Air']+map_grid_vars['whiteLine']+map_grid_vars['zone_short']+map_grid_vars['whiteLine'], map_grid_vars['upPltH']-map_grid_vars['upPlt_2_Air']-map_grid_vars['whiteLine']):
+		for x in xrange(0,map_grid_vars['air_long']):
+			Map[y][x]['desc'] = map_prop_vars['air']	
+			Map[y][x]['color'] = map_prop_vars['unk']	#color unknown
 
 	"""cargo area"""
 	#cargo storage - white outline - includes enclosed area, next loop fixes
-	for x in xrange(upPltL+wall, int(upPltL+wall+6.5*tilesize)):
-		for y in xrange(int(wall+14.875*tilesize), int(wall+(14.875+42.5)*tilesize)):
-			Map[x][y].desc = 7	#marker
-			Map[x][y].color = 7	#white
+	for y in xrange(map_grid_vars['upPltH']+map_grid_vars['wall'], map_grid_vars['upPltH']+map_grid_vars['wall']+map_grid_vars['land_long']+map_grid_vars['whiteLine']):
+		for x in xrange(map_grid_vars['wall']+map_grid_vars['edge2storage'], map_grid_vars['wall']+map_grid_vars['edge2storage']+map_grid_vars['cargoL']):
+			Map[y][x]['desc'] = map_prop_vars['line']
+			Map[y][x]['color'] = map_prop_vars['white']
 	#fix enclosed storage area and make separating white lines
-	k = 0
-	m = wall + int((14.875+.5)*tilesize)
-	#print("width=", width, "length=", length) #debug
-	while k<=13:
-		p = m + 3*tilesize*k
-		#m = m + 3*tilesize*k
-		for x in xrange(upPltL+wall, upPltL+wall+6*tilesize):
-			for y in xrange(p,int(p+2.5*tilesize)):
+	k = 0	#variable to count the nth seperating line being implemented
+	m = map_grid_vars['wall'] + map_grid_vars['edge2storage']+map_grid_vars['whiteLine']	#number of tiles until the first seperating white line
+	#print("width=", width, "height=", height) #debug
+	while k<=13:	#there are thirteen seperating lines (14 storage slots)
+		p = m + map_grid_vars['air_long']*k
+		#m = m + map_grid_vars['air_long']*k
+		for y in xrange(map_grid_vars['upPltH']+map_grid_vars['wall'], map_grid_vars['upPltH']+map_grid_vars['wall']+map_grid_vars['stor_long']):
+			for x in xrange(p,p+map_grid_vars['zone_short']):
 				#print("k=", k,"m=", m, "x=", x, "y=", y) #debug
-				Map[x][y].desc=2	#cargo
-				Map[x][y].color=0  	#color unknown
+				Map[y][x]['desc'] = map_prop_vars['storage']
+				Map[y][x]['color'] = map_prop_vars['unk']  	#color unknown
 		k = k + 1
 
 	"""sea loading zone"""
 	#white outline of sea loading zone
-	for x in xrange(upPltL+wall+int(8.5*tilesize), upPltL+wall+int((8.5+7*.5+6*2.5)*tilesize)):
-		for y in xrange(wall, int(wall+4.5*tilesize)):
-			Map[x][y].desc = 7	#marker
-			Map[x][y].color = 7	#white
+	for y in xrange(map_grid_vars['upPltH']+map_grid_vars['wall']+map_grid_vars['EdgetoSea'], map_grid_vars['upPltH']+map_grid_vars['wall']+map_grid_vars['EdgetoSea']+map_grid_vars['seaH']):
+		for x in xrange(map_grid_vars['wall'], map_grid_vars['wall']+map_grid_vars['sea_long']+map_grid_vars['whiteLine']):
+			Map[y][x]['desc'] = map_prop_vars['line']
+			Map[y][x]['color'] = map_prop_vars['white']
 	#fix enclosed sea area and make seperating white lines
-	k = 0
-	m = upPltL + wall +int((8.5+.5)*tilesize)
+	k = 0	#variable to count the ntinth seperating line being implemented
+	m = map_grid_vars['upPltH'] + map_grid_vars['wall']+map_grid_vars['EdgetoSea']+map_grid_vars['whiteLine']
 	while k<=5:
-		p = m + 3*tilesize*k
-		#m = m + 3*tilesize*k
-		for x in xrange(p, p + int(2.5*tilesize)):
-			for y in xrange(wall, wall + 4*tilesize):
-				Map[x][y].desc = 4	#sea 
-				Map[x][y].color = 0	#color unknown
+		p = m + map_grid_vars['air_long']*k
+		#m = m + map_grid_vars['air_long']*k
+		for y in xrange(p, p + map_grid_vars['zone_short']):
+			for x in xrange(map_grid_vars['wall'], map_grid_vars['wall'] + map_grid_vars['sea_long']):
+				Map[y][x]['desc'] = map_prop_vars['sea']
+				Map[y][x]['color'] = map_prop_vars['unk']	#color unknown
 		k = k + 1
 
 	"""land loading zone"""
 	#white outline of land zone
-	for x in xrange(length-wall-int(5.5*tilesize),length - wall):
-		for y in xrange(wall+int((12.5+31.75)*tilesize),wall+int((12.5+31.75+6*2.5+7*.5)*tilesize)):
-			Map[x][y].desc = 7	#marker
-			Map[x][y].color = 7	#white
+	for y in xrange(map_grid_vars['height']-map_grid_vars['wall']-map_grid_vars['land_long']+map_grid_vars['whiteLine'], map_grid_vars['height'] - map_grid_vars['wall']):
+		for x in xrange(map_grid_vars['wall']+map_grid_vars['startW']+map_grid_vars['whiteLine']+map_grid_vars['start2land'],map_grid_vars['wall']+map_grid_vars['startW']+map_grid_vars['whiteLine']+map_grid_vars['start2land']+map_grid_vars['landW']):
+			Map[y][x]['desc'] = map_prop_vars['line']	#marker
+			Map[y][x]['color'] = map_prop_vars['white']	#white
 	#fix enclosed land storage
 	k = 0
-	m = wall + int((12.5+31.75+.5)*tilesize)
+	m = map_grid_vars['wall'] + map_grid_vars['startW']+map_grid_vars['whiteLine']+map_grid_vars['start2land']+map_grid_vars['whiteLine']
 	while k<=5:
-		p = m + 3*tilesize*k
-		#m = m+3*tilesize*k
-		for x in xrange(length-wall-5*tilesize,length-wall):
-			for y in xrange(p,p+int(2.5*tilesize)):
-				Map[x][y].desc=3	#land 
-				Map[x][y].color =0	#color unknown
+		p = m + map_grid_vars['air_long']*k
+		#m = m+map_grid_vars['air_long']*k
+		for y in xrange(map_grid_vars['height']-map_grid_vars['wall']-map_grid_vars['land_long'],map_grid_vars['height']-map_grid_vars['wall']):
+			for x in xrange(p,p+map_grid_vars['zone_short']):
+				Map[y][x]['desc'] = map_prop_vars['land']	#land 
+				Map[y][x]['color'] = map_prop_vars['unk']	#color unknown
 		k = k+1
+
+	
 	return(Map)
