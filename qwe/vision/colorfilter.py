@@ -15,22 +15,22 @@ import cv2.cv as cv
 from base import FrameProcessor
 from main import main
 
-class FilterHSV:
+class HSVFilter:
   """Represents a simple HSV color filter."""
   minHSV = np.array([0, 0, 0], np.uint8)  # minimum possible values of HSV
   maxHSV = np.array([180, 255, 255], np.uint8)  # maximum possible values of HSV
   
-  def __init__(self):
-    self.lower = self.minHSV  # lower bound
-    self.upper = self.maxHSV  # upper bound
+  def __init__(self, lower=minHSV, upper=maxHSV):
+    self.lower = lower  # lower bound
+    self.upper = upper  # upper bound
   
   def apply(self, imageHSV):
     """Apply this filter to a given image."""
     # Handle hue wrap-around
     maskH = None
     if self.lower[0] > self.upper[0]:
-      maskH_high = cv2.inRange(imageHSV[:,:,0], np.asarray(self.lower[0]), np.asarray(FilterHSV.maxHSV[0]))
-      maskH_low  = cv2.inRange(imageHSV[:,:,0], np.asarray(FilterHSV.minHSV[0]), np.asarray(self.upper[0]))
+      maskH_high = cv2.inRange(imageHSV[:,:,0], np.asarray(self.lower[0]), np.asarray(HSVFilter.maxHSV[0]))
+      maskH_low  = cv2.inRange(imageHSV[:,:,0], np.asarray(HSVFilter.minHSV[0]), np.asarray(self.upper[0]))
       maskH = maskH_high | maskH_low
     else:
       maskH = cv2.inRange(imageHSV[:,:,0], np.asarray(self.lower[0]), np.asarray(self.upper[0]))
@@ -52,21 +52,19 @@ class FilterHSV:
   
   def toXMLString(self):
     """Return an XML representation of the current state of this filter."""
-    return ("<FilterHSV>"
+    return ("<HSVFilter>"
            "<lower><H>%d</H><S>%d</S><V>%d</V></lower>"
            "<upper><H>%d</H><S>%d</S><V>%d</V></upper>"
-           "</FilterHSV>") % (self.lower[0], self.lower[1], self.lower[2],
+           "</HSVFilter>") % (self.lower[0], self.lower[1], self.lower[2],
                               self.upper[0], self.upper[1], self.upper[2])
   
   def copy(self):
     """Return a deep copy of this filter."""
-    clone = FilterHSV()
-    clone.lower = self.lower.copy()
-    clone.upper = self.upper.copy()
+    clone = HSVFilter(lower=self.lower.copy(), upper=self.upper.copy())
     return clone
   
-class ColorFilter(FrameProcessor):
-  """Detects different colored blobs and identifies their color."""
+class ColorFilterProcessor(FrameProcessor):
+  """Detects different colored areas using filters."""
   channelsHSV = "HSV"  # HSV channel names for display = array('c', "HSV")
   
   def __init__(self):
@@ -78,27 +76,33 @@ class ColorFilter(FrameProcessor):
     self.imageSize = (self.image.shape[1], self.image.shape[0])  # (width, height)
     
     self.filterBank = { }
-    self.filterHSV = FilterHSV()
-    self.filterHSV.lower = np.array([105, 100, 100], np.uint8)
-    self.filterHSV.upper = np.array([115, 255, 255], np.uint8)
-    self.logd("initialize", "HSV filter: " + str(self.filterHSV.lower) + " - " + str(self.filterHSV.upper))
+    self.colorFilter = HSVFilter()
+    self.colorFilter.lower = np.array([105, 100, 100], np.uint8)
+    self.colorFilter.upper = np.array([115, 255, 255], np.uint8)
+    self.logd("initialize", "HSV filter: " + str(self.colorFilter.lower) + " - " + str(self.colorFilter.upper))
+    print "*** Menu ***"
+    print "\ta\tAdd current filter to bank"
+    print "\tl\tList filters in bank"
+    print "\tw\tWrite bank to file (as JSON)"
+    print "\tr\tRead bank from file (replaces current bank)"
+    print
     
-    self.lowerPatch = np.array([[self.filterHSV.lower]])  
-    self.upperPatch = np.array([[self.filterHSV.upper]])  # 1x1 pixel image (array) for HSV upper-bound display
+    self.lowerPatch = np.array([[self.colorFilter.lower]])  
+    self.upperPatch = np.array([[self.colorFilter.upper]])  # 1x1 pixel image (array) for HSV upper-bound display
     
     self.channel = 0
     
-    self.hueSpan = (self.filterHSV.upper[0] - self.filterHSV.lower[0]) % FilterHSV.maxHSV[0]
-    self.hue = (self.filterHSV.lower[0] + self.hueSpan / 2) % FilterHSV.maxHSV[0]
+    self.hueSpan = (self.colorFilter.upper[0] - self.colorFilter.lower[0]) % HSVFilter.maxHSV[0]
+    self.hue = (self.colorFilter.lower[0] + self.hueSpan / 2) % HSVFilter.maxHSV[0]
     
     self.winName = "Color Filter"
     cv2.namedWindow(self.winName)
-    cv2.createTrackbar("Hue", self.winName, self.hue, FilterHSV.maxHSV[0], self.onTrackbarChange)
-    cv2.createTrackbar("Hue span", self.winName, self.hueSpan, FilterHSV.maxHSV[0], self.onTrackbarChange)
-    cv2.createTrackbar("Sat min", self.winName, self.filterHSV.lower[1], FilterHSV.maxHSV[1], self.onTrackbarChange)
-    cv2.createTrackbar("Sat max", self.winName, self.filterHSV.upper[1], FilterHSV.maxHSV[1], self.onTrackbarChange)
-    cv2.createTrackbar("Val min", self.winName, self.filterHSV.lower[2], FilterHSV.maxHSV[2], self.onTrackbarChange)
-    cv2.createTrackbar("Val max", self.winName, self.filterHSV.upper[2], FilterHSV.maxHSV[2], self.onTrackbarChange)
+    cv2.createTrackbar("Hue", self.winName, self.hue, HSVFilter.maxHSV[0], self.onTrackbarChange)
+    cv2.createTrackbar("Hue span", self.winName, self.hueSpan, HSVFilter.maxHSV[0], self.onTrackbarChange)
+    cv2.createTrackbar("Sat min", self.winName, self.colorFilter.lower[1], HSVFilter.maxHSV[1], self.onTrackbarChange)
+    cv2.createTrackbar("Sat max", self.winName, self.colorFilter.upper[1], HSVFilter.maxHSV[1], self.onTrackbarChange)
+    cv2.createTrackbar("Val min", self.winName, self.colorFilter.lower[2], HSVFilter.maxHSV[2], self.onTrackbarChange)
+    cv2.createTrackbar("Val max", self.winName, self.colorFilter.upper[2], HSVFilter.maxHSV[2], self.onTrackbarChange)
   
   def process(self, imageIn, timeNow):
     self.image = imageIn
@@ -109,11 +113,11 @@ class ColorFilter(FrameProcessor):
     #cv2.imshow("S", self.imageHSV[:,:,1])
     #cv2.imshow("V", self.imageHSV[:,:,2])
     
-    self.maskHSV = self.filterHSV.apply(self.imageHSV)
+    self.maskHSV = self.colorFilter.apply(self.imageHSV)
     self.imageMasked = cv2.bitwise_and(self.image, np.array([255, 255, 255], np.uint8), mask=self.maskHSV)
     
-    lowerPatch = np.array([[self.filterHSV.lower]])  # 1x1 image for lower-bound display
-    upperPatch = np.array([[self.filterHSV.upper]])  # 1x1 image for upper-bound display
+    lowerPatch = np.array([[self.colorFilter.lower]])  # 1x1 image for lower-bound display
+    upperPatch = np.array([[self.colorFilter.upper]])  # 1x1 image for upper-bound display
     self.imageMasked[10:50, 10:50, :] = cv2.cvtColor(lowerPatch, cv.CV_HSV2BGR)
     self.imageMasked[10:50, 51:90, :] = cv2.cvtColor(upperPatch, cv.CV_HSV2BGR)
     cv2.imshow(self.winName, self.imageMasked)
@@ -129,74 +133,121 @@ class ColorFilter(FrameProcessor):
     elif keyChar == 'v' or keyChar == 'V':
       self.channel = 2
     elif keyChar == ',':  # decrement lower bound
-      self.filterHSV.lower[self.channel] = self.filterHSV.lower[self.channel] - 1 if self.filterHSV.lower[self.channel] > FilterHSV.minHSV[self.channel] else self.filterHSV.lower[self.channel]
+      self.colorFilter.lower[self.channel] = self.colorFilter.lower[self.channel] - 1 if self.colorFilter.lower[self.channel] > HSVFilter.minHSV[self.channel] else self.colorFilter.lower[self.channel]
     elif keyChar == '.':  # increment lower bound
-      self.filterHSV.lower[self.channel] = self.filterHSV.lower[self.channel] + 1 if self.filterHSV.lower[self.channel] < self.filterHSV.upper[self.channel] else self.filterHSV.lower[self.channel]
+      self.colorFilter.lower[self.channel] = self.colorFilter.lower[self.channel] + 1 if self.colorFilter.lower[self.channel] < self.colorFilter.upper[self.channel] else self.colorFilter.lower[self.channel]
     elif keyChar == '<':  # decrement upper bound
-      self.filterHSV.upper[self.channel] = self.filterHSV.upper[self.channel] - 1 if self.filterHSV.upper[self.channel] > self.filterHSV.lower[self.channel] else self.filterHSV.upper[self.channel]
+      self.colorFilter.upper[self.channel] = self.colorFilter.upper[self.channel] - 1 if self.colorFilter.upper[self.channel] > self.colorFilter.lower[self.channel] else self.colorFilter.upper[self.channel]
     elif keyChar == '>':  # increment upper bound
-      self.filterHSV.upper[self.channel] = self.filterHSV.upper[self.channel] + 1 if self.filterHSV.upper[self.channel] < FilterHSV.maxHSV[self.channel] else self.filterHSV.upper[self.channel]
+      self.colorFilter.upper[self.channel] = self.colorFilter.upper[self.channel] + 1 if self.colorFilter.upper[self.channel] < HSVFilter.maxHSV[self.channel] else self.colorFilter.upper[self.channel]
     elif keyChar == 'x':
-      print self.filterHSV.toXMLString()
+      print self.colorFilter.toXMLString()
       return True
     elif keyChar == 'a':
       filterName = raw_input("Add HSV filter to bank with name: ")
       if len(filterName) > 0:
-        self.filterBank[filterName] = self.filterHSV.copy()
+        self.filterBank[filterName] = self.colorFilter.copy()
       return True
     elif keyChar == 'l':
-      print "%d filters in bank" % len(self.filterBank)
-      filterBankJSONs = [ ]
-      for filterName, filterHSV in self.filterBank.iteritems():
-        filterBankJSONs.append("\"" + filterName + "\": " + filterHSV.toJSONString())
-        print filterName + ": " + str(filterHSV)
-      print
-      filterBankJSON = "{ " + ", ".join(filterBankJSONs) + " }"
-      print "Filter bank JSON: " + filterBankJSON
-      # TODO save filter bank to file (and load)
-      #filterBankDict = json.loads(filterBankJSON)
-      #print "Filter bank JSON dict [" + str(type(filterBankDict)) + "]:\n" + json.dumps(filterBankDict, indent=2)
-      #print "Pickled: " + pickle.dumps(self.filterBank)
-      
-      #filterJSON = self.filterHSV.toJSONString()
-      #print "\nCurrent filter JSON string: " + filterJSON
-      #filterDict = json.loads(filterJSON)
-      #print "Current filter JSON dict [" + str(type(filterDict)) + "]:\n" + json.dumps(filterDict, indent=2)
-      
+      self.printFilterBank()
+      return True
+    elif keyChar == 'w':
+      outFilename = raw_input("Write filter bank to file: ")
+      self.writeFilterBankJSON(outFilename)
+      return True
+    elif keyChar == 'r':
+      inFilename = raw_input("Read filter bank from file: ")
+      self.readFilterBankJSON(inFilename)
       return True
     else:
       return True
     
     # If channel or channel values were changed, display current state, and optionally update trackbars
-    self.logd("onKeyPress", "Channel: " + self.channelsHSV[self.channel] + ", HSV filter: " + str(self.filterHSV))
+    self.logd("onKeyPress", "Channel: " + self.channelsHSV[self.channel] + ", HSV filter: " + str(self.colorFilter))
     #self.updateTrackbars()  # TODO Fix hue trackbar issue and re-enable
     return True
   
   def onTrackbarChange(self, value):
     self.hue = cv2.getTrackbarPos("Hue", self.winName)
     self.hueSpan = cv2.getTrackbarPos("Hue span", self.winName)
-    self.filterHSV.lower[0] = (self.hue - self.hueSpan / 2) % FilterHSV.maxHSV[0]
-    self.filterHSV.upper[0] = (self.hue + self.hueSpan / 2) % FilterHSV.maxHSV[0]
-    self.filterHSV.lower[1] = cv2.getTrackbarPos("Sat min", self.winName)
-    self.filterHSV.upper[1] = cv2.getTrackbarPos("Sat max", self.winName)
-    self.filterHSV.lower[2] = cv2.getTrackbarPos("Val min", self.winName)
-    self.filterHSV.upper[2] = cv2.getTrackbarPos("Val max", self.winName)
-    #self.logd("onTrackbarChange", ", HSV filter: " + self.filterHSV)
+    self.colorFilter.lower[0] = (self.hue - self.hueSpan / 2) % HSVFilter.maxHSV[0]
+    self.colorFilter.upper[0] = (self.hue + self.hueSpan / 2) % HSVFilter.maxHSV[0]
+    self.colorFilter.lower[1] = cv2.getTrackbarPos("Sat min", self.winName)
+    self.colorFilter.upper[1] = cv2.getTrackbarPos("Sat max", self.winName)
+    self.colorFilter.lower[2] = cv2.getTrackbarPos("Val min", self.winName)
+    self.colorFilter.upper[2] = cv2.getTrackbarPos("Val max", self.winName)
+    #self.logd("onTrackbarChange", ", HSV filter: " + self.colorFilter)
   
   def updateTrackbars(self):
     # TODO Resolve issue: setTrackbarPos() in turn fires trackbar change events and hue, hueSpan get computed twice and become degenrate
-    self.hueSpan = self.filterHSV.upper[0] - self.filterHSV.lower[0]
-    self.hue = (self.filterHSV.lower[0] + self.filterHSV.upper[0]) / 2
-    #self.hueSpan = (self.filterHSV.upper[0] - self.filterHSV.lower[0]) if self.filterHSV.lower[0] <= self.filterHSV.upper[0] else FilterHSV.maxHSV[0] - (self.filterHSV.lower[0] - self.filterHSV.upper[0])
-    #self.hue = (self.filterHSV.lower[0] + int((self.hueSpan / 2) + 0.5)) % FilterHSV.maxHSV[0]
+    self.hueSpan = self.colorFilter.upper[0] - self.colorFilter.lower[0]
+    self.hue = (self.colorFilter.lower[0] + self.colorFilter.upper[0]) / 2
+    #self.hueSpan = (self.colorFilter.upper[0] - self.colorFilter.lower[0]) if self.colorFilter.lower[0] <= self.colorFilter.upper[0] else HSVFilter.maxHSV[0] - (self.colorFilter.lower[0] - self.colorFilter.upper[0])
+    #self.hue = (self.colorFilter.lower[0] + int((self.hueSpan / 2) + 0.5)) % HSVFilter.maxHSV[0]
     cv2.setTrackbarPos("Hue", self.winName, self.hue)
     cv2.setTrackbarPos("Hue span", self.winName, self.hueSpan)
-    cv2.setTrackbarPos("Sat min", self.winName, self.filterHSV.lower[1])
-    cv2.setTrackbarPos("Sat max", self.winName, self.filterHSV.upper[1])
-    cv2.setTrackbarPos("Val min", self.winName, self.filterHSV.lower[2])
-    cv2.setTrackbarPos("Val max", self.winName, self.filterHSV.upper[2])
+    cv2.setTrackbarPos("Sat min", self.winName, self.colorFilter.lower[1])
+    cv2.setTrackbarPos("Sat max", self.winName, self.colorFilter.upper[1])
+    cv2.setTrackbarPos("Val min", self.winName, self.colorFilter.lower[2])
+    cv2.setTrackbarPos("Val max", self.winName, self.colorFilter.upper[2])
+  
+  def getFilterBankJSON(self):
+    filterJSONs = [ ]  # list of JSON strings, one for each filter in bank
+    for filterName, colorFilter in self.filterBank.iteritems():
+      filterJSONs.append("\"" + filterName + "\": " + colorFilter.toJSONString())
+    print
+    return "{ " + ", ".join(filterJSONs) + " }"
+  
+  def printFilterBank(self, filterBank=None):
+    if filterBank is None:
+      filterBank = self.filterBank
+    print "%d filter(s) in bank" % len(filterBank)
+    for filterName, colorFilter in filterBank.iteritems():
+      print filterName + ": " + str(colorFilter)
+  
+  def writeFilterBankJSON(self, outFilename):
+    """Write filter bank to file (JSON)."""
+    filterBankJSON = self.getFilterBankJSON()  # encode filter bank to JSON string
+    print "Filter bank JSON: " + filterBankJSON
+    
+    filterBankDict = json.loads(filterBankJSON)  # decode JSON to validate format
+    filterBankJSONfinal = json.dumps(filterBankDict, indent=2)  # re-encode with indentation
+    print "Filter bank JSON (final):\n" + filterBankJSONfinal
+    
+    #print "Current filter JSON: " + self.colorFilter.toJSONString()
+    #print "Pickled filter bank: " + pickle.dumps(self.filterBank)
+    
+    try:
+      outFile = open(outFilename, 'w')
+      outFile.write(filterBankJSONfinal)
+      outFile.close()
+    except IOError:
+      print "I/O error; couldn't write to file: " + outFilename
+    else:
+      print "Done."
+  
+  def readFilterBankJSON(self, inFilename):
+    """Read filter bank from file (JSON)."""
+    try:
+      inFile = open(inFilename, 'r')
+      filterBankJSON = inFile.read()
+      inFile.close()
+    except IOError:
+      print "I/O error; couldn't read from file: " + inFilename
+    else:
+      print "Filter bank JSON: " + filterBankJSON
+      # TODO Parse JSON string and fill in filter bank
+      filterBank = { }
+      filterBankDict = json.loads(filterBankJSON)
+      for filterName, filterDict in filterBankDict.iteritems():
+        colorFilter = HSVFilter(lower=np.array(filterDict["lower"], dtype=np.uint8), upper=np.array(filterDict["upper"], dtype=np.uint8))
+        filterBank[filterName] = colorFilter
+      
+      self.filterBank = filterBank
+      print "Done."
+      self.printFilterBank()
 
 
-# Run a ColorFilter instance using main.main()
+# Run a ColorFilterProcessor instance using main.main()
 if __name__ == "__main__":
-  main(ColorFilter)
+  main(ColorFilterProcessor)

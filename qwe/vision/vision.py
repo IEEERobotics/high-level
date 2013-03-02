@@ -6,7 +6,7 @@ import numpy as np
 import cv2
 from util import KeyCode, log
 from base import FrameProcessor
-from colorfilter import ColorFilter
+from colorfilter import ColorFilterProcessor
 
 class VisionManager:
   def __init__(self, context):
@@ -34,7 +34,7 @@ class VisionManager:
       return
     
     # * Create FrameProcessor objects, initialize supporting variables
-    colorFilter = ColorFilter()
+    colorFilter = ColorFilterProcessor()
     fresh = True
     
     # * Processing loop
