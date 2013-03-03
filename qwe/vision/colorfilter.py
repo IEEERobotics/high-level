@@ -12,6 +12,7 @@ import json
 import numpy as np
 import cv2
 import cv2.cv as cv
+from util import Enum
 from base import FrameProcessor
 from main import main
 
@@ -62,33 +63,37 @@ class HSVFilter:
     """Return a deep copy of this filter."""
     clone = HSVFilter(lower=self.lower.copy(), upper=self.upper.copy())
     return clone
-  
+
+
 class ColorFilterProcessor(FrameProcessor):
-  """Detects different colored areas using filters."""
+  """Detects different colored areas using filters (primarily in HSV space)."""
+  State = Enum(['INIT', 'LIVE', 'TRAIN'])
   channelsHSV = "HSV"  # HSV channel names for display = array('c', "HSV")
+  defaultFilterBank = "config/test4.bank"  # filter bank to be loaded on startup, if available
   
   def __init__(self):
     FrameProcessor.__init__(self)
     self.debug = True
+    self.state = self.State.INIT
   
   def initialize(self, imageIn, timeNow):
     self.image = imageIn
     self.imageSize = (self.image.shape[1], self.image.shape[0])  # (width, height)
+    self.imageOut = None
     
     self.filterBank = { }
-    self.colorFilter = HSVFilter()
-    self.colorFilter.lower = np.array([105, 100, 100], np.uint8)
-    self.colorFilter.upper = np.array([115, 255, 255], np.uint8)
-    self.logd("initialize", "HSV filter: " + str(self.colorFilter.lower) + " - " + str(self.colorFilter.upper))
+    self.masks = { }  # dict to store masks produced by filters in bank
+    self.colorFilter = HSVFilter(lower=np.array([105, 100, 100], np.uint8), upper=np.array([115, 255, 255], np.uint8))
+    self.logd("initialize", "Current HSV filter: " + str(self.colorFilter.lower) + " - " + str(self.colorFilter.upper))
     print "*** Menu ***"
     print "\ta\tAdd current filter to bank"
     print "\tl\tList filters in bank"
     print "\tw\tWrite bank to file (as JSON)"
     print "\tr\tRead bank from file (replaces current bank)"
-    print
+    print "\tt\tToggle TRAIN and LIVE modes"
     
-    self.lowerPatch = np.array([[self.colorFilter.lower]])  
-    self.upperPatch = np.array([[self.colorFilter.upper]])  # 1x1 pixel image (array) for HSV upper-bound display
+    self.lowerPatch = np.array([[self.colorFilter.lower]])  # 1x1 pixel image (array) for lower-bound display
+    self.upperPatch = np.array([[self.colorFilter.upper]])  # 1x1 pixel image (array) for upper-bound display
     
     self.channel = 0
     
@@ -103,6 +108,13 @@ class ColorFilterProcessor(FrameProcessor):
     cv2.createTrackbar("Sat max", self.winName, self.colorFilter.upper[1], HSVFilter.maxHSV[1], self.onTrackbarChange)
     cv2.createTrackbar("Val min", self.winName, self.colorFilter.lower[2], HSVFilter.maxHSV[2], self.onTrackbarChange)
     cv2.createTrackbar("Val max", self.winName, self.colorFilter.upper[2], HSVFilter.maxHSV[2], self.onTrackbarChange)
+    
+    self.logd("initialize", "Trying to load default filter bank...")
+    if self.readFilterBankJSON(self.defaultFilterBank):  # load default filter bank
+      self.state = self.State.LIVE  # if successful, switch to LIVE mode
+    else:
+      self.state = self.State.TRAIN  # else, switch to TRAIN mode so that filters can be created
+    self.logd("initialize", "State: " + self.State.toString(self.state))
   
   def process(self, imageIn, timeNow):
     self.image = imageIn
@@ -113,16 +125,25 @@ class ColorFilterProcessor(FrameProcessor):
     #cv2.imshow("S", self.imageHSV[:,:,1])
     #cv2.imshow("V", self.imageHSV[:,:,2])
     
-    self.maskHSV = self.colorFilter.apply(self.imageHSV)
-    self.imageMasked = cv2.bitwise_and(self.image, np.array([255, 255, 255], np.uint8), mask=self.maskHSV)
+    if self.state == self.State.TRAIN:
+      self.maskHSV = self.colorFilter.apply(self.imageHSV)
+      self.imageMasked = cv2.bitwise_and(self.image, np.array([255, 255, 255], np.uint8), mask=self.maskHSV)
+      
+      lowerPatch = np.array([[self.colorFilter.lower]])  # 1x1 image for lower-bound display
+      upperPatch = np.array([[self.colorFilter.upper]])  # 1x1 image for upper-bound display
+      self.imageMasked[10:50, 10:50, :] = cv2.cvtColor(lowerPatch, cv.CV_HSV2BGR)
+      self.imageMasked[10:50, 51:90, :] = cv2.cvtColor(upperPatch, cv.CV_HSV2BGR)
+      cv2.imshow(self.winName, self.imageMasked)
+      self.imageOut = self.maskHSV
+    elif self.state == self.State.LIVE:
+      # For each filter in filter bank, apply it to get a mask
+      for filterName, colorFilter in self.filterBank.iteritems():
+        self.masks[filterName] = colorFilter.apply(self.imageHSV)
+        cv2.imshow(filterName, self.masks[filterName])
+      
+      self.imageOut = None # TODO set output to bitwise OR of all these masks
     
-    lowerPatch = np.array([[self.colorFilter.lower]])  # 1x1 image for lower-bound display
-    upperPatch = np.array([[self.colorFilter.upper]])  # 1x1 image for upper-bound display
-    self.imageMasked[10:50, 10:50, :] = cv2.cvtColor(lowerPatch, cv.CV_HSV2BGR)
-    self.imageMasked[10:50, 51:90, :] = cv2.cvtColor(upperPatch, cv.CV_HSV2BGR)
-    cv2.imshow(self.winName, self.imageMasked)
-    
-    return True, self.maskHSV
+    return True, self.imageOut
   
   def onKeyPress(self, key, keyChar=None):
     # Change current channel to H, S or V, or channel values
@@ -140,6 +161,14 @@ class ColorFilterProcessor(FrameProcessor):
       self.colorFilter.upper[self.channel] = self.colorFilter.upper[self.channel] - 1 if self.colorFilter.upper[self.channel] > self.colorFilter.lower[self.channel] else self.colorFilter.upper[self.channel]
     elif keyChar == '>':  # increment upper bound
       self.colorFilter.upper[self.channel] = self.colorFilter.upper[self.channel] + 1 if self.colorFilter.upper[self.channel] < HSVFilter.maxHSV[self.channel] else self.colorFilter.upper[self.channel]
+    elif keyChar == 't':
+      # Toggle between TRAIN and LIVE states
+      if self.state == self.State.TRAIN:
+        self.state = self.State.LIVE
+      else:
+        self.state = self.State.TRAIN
+      self.logd("onKeyPress", "State: " + self.State.toString(self.state))
+      return True
     elif keyChar == 'x':
       print self.colorFilter.toXMLString()
       return True
@@ -208,23 +237,25 @@ class ColorFilterProcessor(FrameProcessor):
   def writeFilterBankJSON(self, outFilename):
     """Write filter bank to file (JSON)."""
     filterBankJSON = self.getFilterBankJSON()  # encode filter bank to JSON string
-    print "Filter bank JSON: " + filterBankJSON
+    self.logd("writeFilterBankJSON", "Filter bank JSON: " + filterBankJSON)
     
     filterBankDict = json.loads(filterBankJSON)  # decode JSON to validate format
     filterBankJSONfinal = json.dumps(filterBankDict, indent=2)  # re-encode with indentation
-    print "Filter bank JSON (final):\n" + filterBankJSONfinal
+    #self.logd("writeFilterBankJSON", "Filter bank JSON (final):\n" + filterBankJSONfinal)
     
-    #print "Current filter JSON: " + self.colorFilter.toJSONString()
-    #print "Pickled filter bank: " + pickle.dumps(self.filterBank)
+    #self.logd("writeFilterBankJSON", "Current filter JSON: " + self.colorFilter.toJSONString())
+    #self.logd("writeFilterBankJSON", "Pickled filter bank: " + pickle.dumps(self.filterBank))
     
     try:
       outFile = open(outFilename, 'w')
       outFile.write(filterBankJSONfinal)
       outFile.close()
     except IOError:
-      print "I/O error; couldn't write to file: " + outFilename
+      self.logd("writeFilterBankJSON", "I/O error; couldn't write to file: " + outFilename)
+      return False
     else:
-      print "Done."
+      self.logd("writeFilterBankJSON", "Done.")
+      return True
   
   def readFilterBankJSON(self, inFilename):
     """Read filter bank from file (JSON)."""
@@ -233,9 +264,10 @@ class ColorFilterProcessor(FrameProcessor):
       filterBankJSON = inFile.read()
       inFile.close()
     except IOError:
-      print "I/O error; couldn't read from file: " + inFilename
+      self.logd("readFilterBankJSON", "I/O error; couldn't read from file: " + inFilename)
+      return False
     else:
-      print "Filter bank JSON: " + filterBankJSON
+      #self.logd("readFilterBankJSON", "Filter bank JSON: " + filterBankJSON)
       # TODO Parse JSON string and fill in filter bank
       filterBank = { }
       filterBankDict = json.loads(filterBankJSON)
@@ -244,8 +276,9 @@ class ColorFilterProcessor(FrameProcessor):
         filterBank[filterName] = colorFilter
       
       self.filterBank = filterBank
-      print "Done."
+      self.logd("writeFilterBankJSON", "Done.")
       self.printFilterBank()
+      return True
 
 
 # Run a ColorFilterProcessor instance using main.main()
