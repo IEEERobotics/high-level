@@ -9,8 +9,12 @@ from base import FrameProcessor
 from colorfilter import ColorFilterProcessor
 
 class VisionManager:
-  def __init__(self, context):
-    self.context = context
+  def __init__(self, bot_loc, blocks, zones, corners, waypoints):
+    self.bot_loc = bot_loc
+    self.blocks = blocks
+    self.zones = zones
+    self.corners = corners
+    self.waypoints = waypoints
     self.debug = True
   
   def start(self):
@@ -91,10 +95,10 @@ class VisionManager:
       pass
 
 
-def run(context):  # context is a dict with bot_loc, blocks, zones, corners, waypoints, etc.
+def run(bot_loc, blocks, zones, corners, waypoints):
   # Create VisionManager to handle shared data, start vision processors and main vision loop
-  visManager = VisionManager(context)
-  visManager.start()
+  visManager = VisionManager(bot_loc, blocks, zones, corners, waypoints)
+  #visManager.start()
 
 
 if __name__ == "__main__":

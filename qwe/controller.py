@@ -2,18 +2,17 @@
 """Creates shared data structures, then spawns processes for the major robot tasks and passes them 
 those data structures."""
 
-
 # Standard library imports
 from multiprocessing import Process, Manager
 import time
 
 # Local module imports
 import planning.Planner as planner
+import vision.vision as vision
 import mapping.map_script
 # TODO Import localizer entry module
 # TODO Import navigation entry module
 # TODO Import comm entry module
-# TODO Import vision entry module
 
 if __name__ == "__main__":
   # Build shared data structures
@@ -35,7 +34,8 @@ if __name__ == "__main__":
   pPlanner.start()
 
   # Start vision process, pass it shared_data TODO Need target
-  #pVision = Process(target=None, args=(bot_loc, blocks, zones, corners, waypoints))
+  pVision = Process(target=vision.run, args=(bot_loc, blocks, zones, corners, waypoints))
+  pVision.start()
 
   # Start navigator process, pass it shared_data TODO Need target
   #pNav = Process(target=None, args=(bot_loc, blocks, zones, corners, waypoints))
@@ -44,6 +44,6 @@ if __name__ == "__main__":
   #pLocalizer = Process(target=None, args=(bot_loc, blocks, zones, corners, waypoints, course_map))
 
   #pNav.join()
-  #pVision.join()
+  pVision.join()
   #pLocalizer.join()
   pPlanner.join()
