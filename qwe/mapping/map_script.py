@@ -43,11 +43,14 @@ def main():
 	map_real_vars['land_long'] = 5		
 	map_real_vars['stor_long'] = 6	
 	map_real_vars['EdgetoSea'] = 8.5  #from edge of upper platform to start of sea area
+	map_real_vars['Start2Sea'] = 8.5
 	map_real_vars['edge2storage'] = 14.875
 	map_real_vars['start2land'] = 31.75 #distance b/w start and land
 	map_real_vars['cargoL'] = 42.5
 	map_real_vars['seaH'] = 18.5
 	map_real_vars['landW'] = 18.5
+	map_real_vars['bot_width'] = 12		
+	map_real_vars['bot_length'] = 12
 
 	#map property variables
 	#status vars
