@@ -7,6 +7,7 @@ import cv2
 from util import KeyCode, log
 from base import FrameProcessor
 from colorfilter import ColorFilterProcessor
+from blobtracking import BlobTracker
 
 class VisionManager:
   def __init__(self, bot_loc, blocks, zones, corners, waypoints):
@@ -39,6 +40,7 @@ class VisionManager:
     
     # * Create FrameProcessor objects, initialize supporting variables
     colorFilter = ColorFilterProcessor()
+    blobTracker = BlobTracker(colorFilter)
     fresh = True
     
     # * Processing loop
@@ -60,10 +62,12 @@ class VisionManager:
       # ** Initialize FrameProcessors, if required
       if(fresh):
         colorFilter.initialize(frame, timeNow) # timeNow should be zero on initialize
+        blobTracker.initialize(frame, timeNow)
         fresh = False
       
       # ** Process frame
       keepRunning, imageOut = colorFilter.process(frame, timeNow)
+      keepRunning, imageOut = blobTracker.process(frame, timeNow)
       if showOutput and imageOut is not None:
         cv2.imshow("Output", imageOut)
       if not keepRunning:
