@@ -107,4 +107,6 @@ def run(bot_loc, blocks, zones, corners, waypoints):
 
 if __name__ == "__main__":
   print "vision [warning]: Cannot start without bot context!"
-  run({ })
+  #run(None, None, None, None, None)
+  visManager = VisionManager(None, None, None, None, None)  # TODO pass in simulated shared memory structures
+  visManager.start()
