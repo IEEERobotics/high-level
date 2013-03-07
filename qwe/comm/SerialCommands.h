@@ -51,7 +51,7 @@ typedef struct sensor_data_cmd
 }__attribute__((packed)) sensor_data_cmd;
 
 /*define structures to receive*/
-struct ss
+typedef struct ss
 {
 char resp;
 int USS_arr[USS_NUM];
@@ -59,26 +59,27 @@ int USS_EDGE_arr[USS_EDGE_NUM];
 int heading;
 int servo_arr[SERVO_NUM];
 char eol;		//use non-canonical?
-}__attribute__((packed));
+}__attribute__((packed)) sensor_data;
 
-typedef struct ss sensor_data;
+
 
 
 /*async response struct for fall detection**/
-struct async
+typedef struct async
 {
 
 char resp;
 int USS_arr[4];
-}__attribute__((packed));
+}__attribute__((packed)) async;
 
-typedef struct async async;
+
 
 
 class SerialCommands
 {
     SerialInterface sp; //use new?
 public:
+
 bool init(char *);
 bool move(int heading,int distance); //heading in degrees, distance in cms
 bool arm_rotate(int angle); //angle in degrees
