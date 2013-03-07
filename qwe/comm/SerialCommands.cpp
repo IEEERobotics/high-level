@@ -68,7 +68,7 @@ bool SerialCommands::arm_rotate(int angle) //angle in degrees
     return false;
     //wait to rcv ack
 }
-bool SerialCommands::get_sensor_data(sensor_data *sd) //number of samples to get
+bool SerialCommands::get_sensor_data() //number of samples to get
 {
     sensor_data_cmd gsd;
     gsd.cmd = DATA_CMD_ID;

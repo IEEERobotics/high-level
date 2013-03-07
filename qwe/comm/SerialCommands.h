@@ -78,12 +78,13 @@ int USS_arr[4];
 class SerialCommands
 {
     SerialInterface sp; //use new?
-public:
 
+public:
+sensor_data sd;
 bool init(char *);
 bool move(int heading,int distance); //heading in degrees, distance in cms
 bool arm_rotate(int angle); //angle in degrees
-bool get_sensor_data(sensor_data *);
+bool get_sensor_data(void);
 
 
 };

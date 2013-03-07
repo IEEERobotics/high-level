@@ -1,19 +1,30 @@
 %module pyComm
  %{
- /* Put header files here or function declarations like below */
+  
 #include "SerialInterface.h"
 #include "SerialCommands.h"
  %}
+#define __attribute__(x)
+
+typedef struct ss
+{
+char resp;
+int USS_arr[USS_NUM];
+int USS_EDGE_arr[USS_EDGE_NUM];
+int heading;
+int servo_arr[SERVO_NUM];
+char eol;		//use non-canonical?
+}__attribute__((packed)) sensor_data;
 
 class SerialCommands
 {
     SerialInterface sp; //use new?
 public:
-
+sensor_data sd;
 bool init(char *);
 bool move(int heading,int distance); //heading in degrees, distance in cms
 bool arm_rotate(int angle); //angle in degrees
-bool get_sensor_data(sensor_data *);
+bool get_sensor_data(void);
 
 
 };
@@ -34,3 +45,5 @@ char getByte();					/*should return success or fail reading a byte*/
 int getBuf(char* rbptr,int nRead);			/*reads 'nRead' bytes into rbptr, returns number of bytes read*/
    
 };
+
+
