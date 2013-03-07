@@ -3,6 +3,7 @@ Primary communication module to interact with motor and sensor controller board 
 """
 
 import sys
+import random
 import serial
 import threading
 import Queue
@@ -25,11 +26,9 @@ class SerialInterface:
     # NOTE Other default port settings: bytesize=8, parity='N', stopbits=1, xonxoff=0, rtscts=0
     self.device = None  # open serial port in start()
     
-    self.queue = Queue.Queue(SerialInterface.QUEUE_MAXSIZE)  # create internal queue (multiple priority-level queues?) to receive and service commands
-    self.responses = { }  # create a map structure to store responses by commandId
-    
-    self.loopThread = threading.Thread(target=self.loop)
-    # TODO use multiprocessing and multiprocessing.Queue instead of threading and Queue
+    self.commands = Queue.Queue(SerialInterface.QUEUE_MAXSIZE)  # internal queue to receive and service commands
+    # TODO create multiple queues for different priority levels?
+    self.responses = { }  # a map structure to store responses by commandId
   
   def start(self):
     """Open serial port and start main loop thread/process."""
@@ -45,7 +44,9 @@ class SerialInterface:
       print "SerialInterface.start(): Unspecified error opening serial port \"%s\"" % self.port
       return False
     
+    self.loopThread = threading.Thread(target=self.loop)
     self.loopThread.start()
+    # TODO use multiprocessing and multiprocessing.Queue instead of threading and Queue
     
     return True
   
@@ -54,7 +55,7 @@ class SerialInterface:
     print "SerialInterface.loop(): Starting main [LOOP]..."
     while True:
       try:
-        (commandId, command) = self.queue.get(True)  # blocks indefinitely
+        (commandId, command) = self.commands.get(True)  # blocks indefinitely
         if command == "quit":  # special "quit" command breaks out of loop
           break
         #print "[LOOP] Command : " + command
@@ -75,11 +76,10 @@ class SerialInterface:
       self.device.close()
       print "SerialInterface.loop(): Serial port closed"
     
-    # Clean up: Clear queue (print warning if there are unserviced commands?)
-    if not self.queue.empty():
+    # Clean up: Clear queue and responses dict (print warning if there are unserviced commands?)
+    if not self.commands.empty():
       print "SerialInterface.loop(): Warning: Terminated with pending commands"
-    self.queue = None  # NOTE cannot call putCommand after this
-    # TODO find a better way to simply clear the queue (get until empty?)
+    self.commands = None  # TODO find a better way to simply clear the queue (get items until empty?)
     self.responses.clear()
   
   def stop(self):
@@ -89,17 +89,18 @@ class SerialInterface:
   def execCommand(self, command):
     """Execute command (send over serial port) and return response"""
     try:
-      self.device.write(command + "\n")  # '\n' terminated command
-      response = self.device.readline()  # '\n' terminated response
+      self.device.write(command + "\n")  # NOTE '\n' terminated command
+      response = self.device.readline()  # NOTE '\n' terminated response
       return response
     except Exception as e:
       print "SerialInterface.execCommand(): Error: " + e
       return None
   
-  def putCommand(self, command, priority=0):
-    commandId = 0
-    self.queue.put((commandId, command))  # queue items are 2-tuples
-    return commandId  # TODO insert command into internal queue (by priority?) and return a commandId (e.g. a generated random number)
+  def putCommand(self, command):  # priority=0
+    commandId = random.randrange(sys.maxint)  # generate unique command ID
+    self.commands.put((commandId, command))  # insert command into queue as 2-tuple (ID, command)
+    # TODO insert into appropriate queue by priority?
+    return commandId  # return ID
   
   def getResponse(self, commandId, block=True):
     if block:
@@ -140,7 +141,11 @@ class SerialInterface:
 
 
 def main():
-  """Method for standalone testing."""
+  """
+  Standalone testing program for SerialInterface.
+  Usage:
+    python serial_interface.py [port [baudrate [timeout]]]
+  """
   port = SerialInterface.PORT
   baudrate = SerialInterface.BAUDRATE
   timeout = SerialInterface.TIMEOUT
@@ -171,7 +176,7 @@ def main():
       break
     
     response = serialInterface.getResponse(commandId)
-    print "Device: " + response
+    print "Device: " + response + " [" + str(commandId) + "]"
   
   #serialInterface.stop()
   print "main(): Done."
