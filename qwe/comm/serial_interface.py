@@ -112,28 +112,34 @@ class SerialInterface:
     response = self.responses.pop(commandId)  # get response and remove it
     return response
   
+  def botSetWheel(self, wheelId, value):
+    pass  # TODO set individual wheel velocity to value (PWM units?)
+  
+  def botStop(self):
+    pass  # TODO stop all wheels
+  
   def botMove(self, distance):
     pass  # TODO send move command, wait for completion ack, return actual distance traveled (relative)
   
   def botTurn(self, angle):
     pass  # TODO send turn command, wait for completion ack, return actual angle turned (relative)
   
-  def armRotate(self, angle):
+  def armRotate(self, armId, angle):
     pass  # TODO send arm rotate command, wait for completion ack, return actual arm angle (absolute?)
   
-  def armDown(self):
+  def armDown(self, armId):
     pass  # TODO rotate arm to lowest position (to pick-up blocks) [use armRotate], return True/False to indicate success/failure
   
-  def armUp(self):
+  def armUp(self, armId):
     pass  # TODO rotate arm to highest position (e.g. with block in gripper) [use armRotate], return True/False to indicate success/failure
   
-  def gripperSet(self, value):
-    pass  # TODO open gripper to specified value (distance.angle) and return True/False on completion
+  def gripperSet(self, armId, value):
+    pass  # TODO open gripper to specified value (distance/angle) and return actual value on completion
   
-  def gripperClose(self):
+  def gripperClose(self, armId):
     pass  # TODO close gripper (to grab) [use gripperSet] and return True/False on completion
   
-  def gripperOpen(self):
+  def gripperOpen(self, armId):
     pass  # TODO open gripper (to release) [use gripperSet] and return True/False on completion
   
   def getSensorData(self, sensorId):
