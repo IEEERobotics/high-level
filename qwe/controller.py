@@ -4,7 +4,6 @@ those data structures."""
 
 # Standard library imports
 from multiprocessing import Process, Manager, Queue
-import time
 
 # Local module imports
 import planning.Planner as planner
@@ -26,6 +25,7 @@ if __name__ == "__main__":
   waypoints = manager.list()
 
   # Build Queue objects for IPC. Name shows producer_consumer.
+  # Queue for passing motion feedback to localizer. 
   qNav_loc = Queue()
 
   # Get map and waypoints TODO main() should return these objects
@@ -37,14 +37,14 @@ if __name__ == "__main__":
   pPlanner = Process(target=planner.run, args=(bot_loc, blocks, zones, corners, waypoints))
   pPlanner.start()
 
-  # Start vision process, pass it shared_data TODO Need target
+  # Start vision process, pass it shared_data
   pVision = Process(target=vision.run, args=(bot_loc, blocks, zones, corners, waypoints))
   pVision.start()
 
   # Start navigator process, pass it shared_data TODO Need target
   #pNav = Process(target=None, args=(bot_loc, blocks, zones, corners, waypoints))
 
-  # Start localizer process, pass it shared_data and course_map TODO Need target
+  # Start localizer process, pass it shared_data and course_map
   pLocalizer = Process(target=localizer.run, args=(bot_loc, blocks, zones, corners, waypoints, course_map, qNav_loc))
   pLocalizer.start()
 
