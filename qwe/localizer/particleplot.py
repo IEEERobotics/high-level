@@ -14,16 +14,12 @@ size = (100, 100)
 class ParticlePlotter(HasTraits):
 
     qplot = Instance(QuiverPlot)
-    #vsize = Range(low = -20.0, high = 20.0, value = 1.0)
     vsize = Int(10)
  
     # field dimensions, should we just hook in the map object and use it's values directly?
     xsize = Int
     ysize = Int
 
-    # the associated robot object which our particles are simulating
-    #   provides: x,y range and sensors list
-    robot = Instance(Robot)
     particles = Instance(Particles)
    
     xs = ArrayDataSource()
@@ -57,9 +53,7 @@ class ParticlePlotter(HasTraits):
     #  robot param is the robot we are modeling -- source of params
     def _qplot_default(self):
 
-      # Create an array data sources to plot all vectors at once
-      #xs = ArrayDataSource(self.particles.x, sort_order='ascending')
-      #ys = ArrayDataSource(self.particles.y)
+      # Force an update of the array data sources so changes are plotted
       self.xs.set_data(self.particles.x, sort_order='ascending')
       self.ys.set_data(self.particles.y)
 

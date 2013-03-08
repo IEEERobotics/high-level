@@ -1,40 +1,42 @@
 import map
 import raycast
+from numpy import random
+import pose
 
 from numpy import pi
 from numpy.linalg import norm
 
 class Sensor(object):
-  index = 0
   name = ''
-  def __init__(self, index, name):
-    self.index = index
+  def __init__(self, name):
     self.name = name
 
 class Ultrasonic(Sensor):
-  def __init__(self, index, name, angle):  # better to use *args, **kwargs??
-    Sensor.__init__(self, index, name)
-    self.angle = angle
-    # TODO: add sensor position offsets (x,y) from center of robot?? 
+  def __init__(self, name, rel_pose, noise = 0.0):  # better to use *args, **kwargs??
+    Sensor.__init__(self, name)
+    self.rel_pose = rel_pose # relative to robot center
+    self.noise = noise
     self.max = 196.0  # inches
+    # TODO: figure out how we convert this precision value to gaussians
+    self.resolution = 0.1  # inches, from datasheet (0.3cm)
 
-  # TODO: ultrasonic sense should be a 30 degree cone - calc 3 times and take closest?
-  def sense(self, rx, ry, rtheta, map):
+  def sense(self, pose, map, noisy = False):
     """
-    Calculates sensor response
+    Calculates ultrasonic sensor response
 
     Parameters
     ----------
-    rx, ry, rtheta -- robot absolute coordinates and angle
+    pose -- robot absolute coordinates and angle
     """
-    sense_theta = (rtheta + self.angle) % (2*pi)
-    wx,wy = raycast.wall(rx, ry, sense_theta, map)
+    sense_pose = pose + self.rel_pose
+    # TODO: ultrasonic sense should be a +/-15 degree cone - calc 3 times and take closest?
+    wx,wy = raycast.wall(sense_pose.x, sense_pose.y, sense_pose.theta, map)
     if wx == -1:  # no wall seen
      val = self.max / map.scale  # inches / (inches/square)
     else:
-      val = norm( [rx-wx, ry-wy] )
-    # right now, we're only adding noise explictly in Robot.sense(), 
-    # so return the "perfect" value here
+      val = norm( [sense_pose.x-wx, sense_pose.y-wy] )
+      if noisy:
+        val += random.normal(0, self.noise)
     # TODO: figure out if particles should use dirty sensors
     return val
 

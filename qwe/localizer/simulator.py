@@ -16,6 +16,10 @@ from traitsui.api import InstanceEditor
 from chaco.api import OverlayPlotContainer
 
 import argparse
+import std_sensors
+import std_noise
+
+noise_params = std_noise.noise_params
 
 particle_count = None
 map = None
@@ -23,7 +27,7 @@ map = None
 class Simulator(HasTraits):
     container = Instance(OverlayPlotContainer)
     robot = DelegatesTo('rplotter')   # assigned during init
-    robot_guess = DelegatesTo('rgplotter', 'robot')   # assigned during init
+    robot_guess = DelegatesTo('guessplotter', 'robot')   # assigned during init
     particles = DelegatesTo('pplotter')   # assigned during init
     output = String('Push some buttons!')
     sense = Button()
@@ -51,60 +55,59 @@ class Simulator(HasTraits):
         )
 
     def _sense_fired(self):
-      measured = self.robot.sense_all(map)
+      measured = self.robot.sense(map)
       self.output = "F: %0.2f  L: %0.2f  R: %0.2f" % ( measured[0], measured[1], measured[2])
 
     # currently not used, logic wrapped into move_fired for now
     def _update_fired(self):
       print "update!"
-      measured = self.robot.sense_all(map)
-      self.particles.sense_all(map)
-      self.particles.resample(measured)
+      measured = self.robot.sense(map)
+      self.localizer.update(measured)
 
-      x, y, theta = self.particles.guess()
-      self.output = "Guess: X: %0.2f Y: %0.2f: Theta: %0.2f" % (x,y,theta)
-      self.robot_guess.x = x
-      self.robot_guess.y = y
-      self.robot_guess.theta = theta
+      guess = self.localizer.guess()
+      self.output = "Guess: %s" % guess
+      self.robot_guess.pose = guess
 
     def _move_fired(self):
       print "Move!"
       self.robot.move(self.move_theta, self.move_dist)
-      self.particles.move(self.move_theta, self.move_dist)
+      self.localizer.move(self.move_theta, self.move_dist)
       self.rplotter.do_redraw()
 
       # do we want to resample every move?
       self._update_fired() 
       self.pplotter.do_redraw()
-      self.rgplotter.do_redraw()
+      self.guessplotter.do_redraw()
 
     def __init__(self):
       m = MapPlot(map = map)
 
-      robot = Robot(x = map.xdim/2, y = map.ydim/2, theta = 0.0, color = 'red')
+      start_pose = Pose(map.xdim/2, map.ydim/2, 0.0)
+      robot = SimRobot(start_pose, std_sensors.sensors, noise_params = noise_params)
       rplotter = RobotPlotter(robot = robot, xsize = m.xdim, ysize = m.ydim)
-      particles = Particles(robot, map, particle_count) 
-      pplotter = ParticlePlotter(robot = robot, particles = particles, xsize = m.xdim, ysize = m.ydim)
-      #print particles
+      localizer = ParticleLocalizer(std_sensors.sensors, noise_params, map, particle_count)
+      pplotter = ParticlePlotter(particles = localizer.p, xsize = m.xdim, ysize = m.ydim, color = 'red')
 
-      rg = Robot(x = m.xdim/2, y = m.ydim/2, theta = 0.0, color = 'green')
-      rgplotter = RobotPlotter(robot = rg, xsize = m.xdim, ysize = m.ydim )
+      guessbot = Robot(start_pose)
+      guessplotter = RobotPlotter(robot = guessbot, xsize = m.xdim, ysize = m.ydim, color = 'green' )
 
       c = OverlayPlotContainer()
       c.add(m.plot)
       c.add(pplotter.qplot)
-      c.add(rgplotter.plot)
+      c.add(guessplotter.plot)
       c.add(rplotter.plot)
 
       self.container = c
       self.pplotter = pplotter
       self.rplotter = rplotter
-      self.rgplotter = rgplotter
+      self.guessplotter = guessplotter
+
+      self.localizer = localizer
 
 if __name__ == "__main__":
 
   parser = argparse.ArgumentParser(description='Localization simulator')
-  parser.add_argument('-m', '--map', help='Map file', default='test.map' )
+  parser.add_argument('-m', '--map', help='Map file', default='maps/test.map' )
   parser.add_argument('-n', '--num', help='Number of partiles', type=int, default='500' )
   args = parser.parse_args()
 

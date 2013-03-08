@@ -2,7 +2,7 @@
 from enable.api import Component, ComponentEditor
 from traits.api import \
         HasTraits, Instance, Property, DelegatesTo, \
-        Int, Float, Array, Range, cached_property
+        Int, Float, Array, Range, cached_property, Color
 from traitsui.api import Item, View, Group
 
 # Chaco imports
@@ -18,6 +18,8 @@ class RobotPlotter(HasTraits):
   vsize = Int(10)
   xsize = Int
   ysize = Int
+
+  color = Color('red')
 
   vector = Property(Array, depends_on=["theta"])
 
@@ -56,7 +58,7 @@ class RobotPlotter(HasTraits):
                     vectors = vector_ds,
                     index_mapper = LinearMapper(range=x_r),
                     value_mapper = LinearMapper(range=y_r),
-                    bgcolor = "white", line_color = self.robot.color, line_width = 2.0)
+                    bgcolor = "white", line_color = self.color, line_width = 2.0)
 
     plot.aspect_ratio = float(self.xsize) / float(self.ysize)
     return plot
