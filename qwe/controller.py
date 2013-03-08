@@ -3,14 +3,14 @@
 those data structures."""
 
 # Standard library imports
-from multiprocessing import Process, Manager
+from multiprocessing import Process, Manager, Queue
 import time
 
 # Local module imports
 import planning.Planner as planner
 import vision.vision as vision
 import mapping.map_script
-# TODO Import localizer entry module
+import localizer.localizer as localizer
 # TODO Import navigation entry module
 # TODO Import comm entry module
 
@@ -25,9 +25,13 @@ if __name__ == "__main__":
   corners = manager.list()
   waypoints = manager.list()
 
+  # Build Queue objects for IPC. Name shows producer_consumer.
+  qNav_loc = Queue()
+
   # Get map and waypoints TODO main() should return these objects
   #course_map, tmp_waypoints = map_script.main()
   #waypoints.extend(tmp_waypoints)
+  course_map = None # Temp TODO remove
 
   # Start planner process, pass it shared_data
   pPlanner = Process(target=planner.run, args=(bot_loc, blocks, zones, corners, waypoints))
@@ -41,9 +45,10 @@ if __name__ == "__main__":
   #pNav = Process(target=None, args=(bot_loc, blocks, zones, corners, waypoints))
 
   # Start localizer process, pass it shared_data and course_map TODO Need target
-  #pLocalizer = Process(target=None, args=(bot_loc, blocks, zones, corners, waypoints, course_map))
+  pLocalizer = Process(target=localizer.run, args=(bot_loc, blocks, zones, corners, waypoints, course_map, qNav_loc))
+  pLocalizer.start()
 
   #pNav.join()
   pVision.join()
-  #pLocalizer.join()
+  pLocalizer.join()
   pPlanner.join()
