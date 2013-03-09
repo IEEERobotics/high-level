@@ -4,6 +4,7 @@ those data structures."""
 
 # Standard library imports
 from multiprocessing import Process, Manager, Queue
+import time
 
 # Local module imports
 import planning.Planner as planner
@@ -11,9 +12,13 @@ import vision.vision as vision
 import mapping.pickler as mapper
 import localizer.localizer as localizer
 import navigation.nav as nav
-# TODO Import comm entry module
+import comm.serial_interface as comm
 
 if __name__ == "__main__":
+  # Start serial communication to low-level board
+  si = comm.SerialInterface()
+  si.start()
+
   # Build shared data structures
   # Not wrapping them in a mutable container, as it's more complex for other devs
   # See the following for details: http://goo.gl/SNNAs
@@ -25,7 +30,6 @@ if __name__ == "__main__":
   waypoints = manager.list() #TODO Does this really need to be a shared variable?
 
   # Build Queue objects for IPC. Name shows producer_consumer.
-  # Queue for passing motion feedback to localizer. 
   qNav_loc = Queue()
 
   # Get map, waypoints and map properties
