@@ -1,3 +1,0 @@
-swig -c++  -python pyComm.i
-g++ -fPIC -c  SerialInterface.cpp SerialCommands.cpp  pyComm_wrap.cxx -I/usr/include/python2.7/
-g++ -shared SerialCommands.o SerialInterface.o pyComm_wrap.o -o _pyComm.so
