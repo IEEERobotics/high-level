@@ -8,9 +8,9 @@ from multiprocessing import Process, Manager, Queue
 # Local module imports
 import planning.Planner as planner
 import vision.vision as vision
-import mapping.map_script
+import mapping.pickler as mapper
 import localizer.localizer as localizer
-# TODO Import navigation entry module
+import navigation.nav as nav
 # TODO Import comm entry module
 
 if __name__ == "__main__":
@@ -22,16 +22,17 @@ if __name__ == "__main__":
   blocks = manager.list()
   zones = manager.list()
   corners = manager.list()
-  waypoints = manager.list()
+  waypoints = manager.list() #TODO Does this really need to be a shared variable?
 
   # Build Queue objects for IPC. Name shows producer_consumer.
   # Queue for passing motion feedback to localizer. 
   qNav_loc = Queue()
 
-  # Get map and waypoints TODO main() should return these objects
-  #course_map, tmp_waypoints = map_script.main()
-  #waypoints.extend(tmp_waypoints)
-  course_map = None # Temp TODO remove
+  # Get map, waypoints and map properties
+  course_map = mapper.unpickle_map("./mapping/map.pkl")
+  tmp_waypoints = mapper.unpickle_waypoints("./mapping/waypoints.pkl")
+  map_properties = mapper.unpickle_map_prop_vars("./mapping/map_prop_vars.pkl")
+  waypoints.extend(tmp_waypoints)
 
   # Start planner process, pass it shared_data
   pPlanner = Process(target=planner.run, args=(bot_loc, blocks, zones, corners, waypoints))
@@ -41,8 +42,9 @@ if __name__ == "__main__":
   pVision = Process(target=vision.run, args=(bot_loc, blocks, zones, corners, waypoints))
   pVision.start()
 
-  # Start navigator process, pass it shared_data TODO Need target
-  #pNav = Process(target=None, args=(bot_loc, blocks, zones, corners, waypoints))
+  # Start navigator process, pass it shared_data
+  #pNav = Process(target=nav.run, args=(bot_loc, blocks, zones, corners, course_map, waypoints))
+  #pNav.start()
 
   # Start localizer process, pass it shared_data and course_map
   pLocalizer = Process(target=localizer.run, args=(bot_loc, blocks, zones, corners, waypoints, course_map, qNav_loc))
