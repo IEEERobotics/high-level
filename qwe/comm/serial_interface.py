@@ -118,7 +118,7 @@ class SerialInterface:
   def botStop(self):
     pass  # TODO stop all wheels
   
-  def botMove(self, distance):
+  def botMove(self, distance, speed):
     pass  # TODO send move command, wait for completion ack, return actual distance traveled (relative)
   
   def botTurn(self, angle):
