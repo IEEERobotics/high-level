@@ -43,14 +43,14 @@ if __name__ == "__main__":
   pVision.start()
 
   # Start navigator process, pass it shared_data
-  #pNav = Process(target=nav.run, args=(bot_loc, blocks, zones, corners, course_map, waypoints))
-  #pNav.start()
+  pNav = Process(target=nav.run, args=(bot_loc, blocks, zones, corners, course_map, waypoints))
+  pNav.start()
 
   # Start localizer process, pass it shared_data and course_map
   pLocalizer = Process(target=localizer.run, args=(bot_loc, blocks, zones, corners, waypoints, course_map, qNav_loc))
   pLocalizer.start()
 
-  #pNav.join()
+  pNav.join()
   pVision.join()
   pLocalizer.join()
   pPlanner.join()
