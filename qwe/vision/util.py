@@ -2,9 +2,12 @@
 Utility classes and functions.
 """
 
+import os
 import numpy as np
 import cv2
 from cv2 import cv
+
+image_file_exts = ("png", "jpg", "jpeg", "tiff", "bmp", "gif")  # file extensions that indicate image files
 
 class Enum(tuple):
   """Simple enumeration type based on tuple with indices as integer values."""
@@ -60,6 +63,16 @@ def log(obj, func, msg):
         print "{0}: {1}".format(obj.__class__.__name__, msg)
     else:
         print "{0}.{1}(): {2}".format(obj.__class__.__name__, func, msg)
+
+
+def getFileExtension(filename):
+    """Return the extension part of a filename, sans period, in lowercase."""
+    return os.path.splitext(filename)[1][1:].strip().lower()
+
+
+def isImageFile(filename):
+    """Decides whether given filename represents an image file type (solely based on extension."""
+    return getFileExtension(filename) in image_file_exts
 
 
 def cvtColorBGR2CMYK_(imageBGR):
