@@ -1,121 +1,146 @@
-"""
-Vision module to manage different processors.
-Usage: vision.py [<image/video filename>]
-"""
+"""Vision module to manage different processors."""
+# Usage: vision.py [<image/video filename>] [--gui] [--debug]
 
 import sys
+import argparse
+import signal
 import numpy as np
 import cv2
 from util import KeyCode, isImageFile, log
-from base import FrameProcessor
+from base import FrameProcessor, FrameProcessorPipeline
 from colorfilter import ColorFilterProcessor
 from blobtracking import BlobTracker
+from linedetection import LineDetector
+from linewalking import LineWalker
 
 class VisionManager:
-  def __init__(self, bot_loc, blocks, zones, corners, waypoints):
+  def __init__(self, bot_loc, blocks, zones, corners, waypoints, options=None, standalone=False):
     self.bot_loc = bot_loc
     self.blocks = blocks
     self.zones = zones
     self.corners = corners
     self.waypoints = waypoints
-    self.debug = True
+    
+    # * Get parameters and flags from options dict
+    # ** Populate options first, if none given
+    if options is None:
+      parser = argparse.ArgumentParser(description="Vision manager.")
+      parser.add_argument('filename', type=str, nargs='?', default=None, help="Image or video filename")
+      parser.add_argument('--gui', action='store_true', help="Enable GUI mode (show images, process keyboard events)")
+      parser.add_argument('--debug', action='store_true', help="Enable debug messages")
+      self.options = vars(parser.parse_args(args=None if standalone else []))  # if standalone, get options from command-line arguments, else set defaults
+    else:
+      self.options = options
+    # ** Set option variables from options dict
+    self.logi("__init__", "Options: " + str(self.options))
+    self.filename = self.options['filename']
+    self.gui = self.options['gui']
+    self.debug = self.options['debug']
   
-  def start(self, filename=None):
-    """Start main vision loop, running FrameProcessor instances on a static image, video or camera input."""
-    # * Initialize parameters and flags
+  def start(self):
+    """Create FrameProcessor objects and start vision loop (works on a static image, video or camera input)."""
+    # * Initialize other parameters and flags
     delay = 10  # ms
     delayS = delay / 1000.0  # sec; only used in non-GUI mode, so this can be set to 0
-    gui = True  # TODO pass gui flag to FrameProcessors and make them change their behavior accordingly (i.e. suppress imshows when gui == False)
-    showInput = gui and True
-    showOutput = gui and True
+    showInput = self.gui and True
+    showOutput = self.gui and True
     showFPS = False
     showKeys = False
     
     isImage = False
     isVideo = False
-    isOkay = False
+    isReady = False
     isFrozen = False
     
     # * Read input image or video, if specified
-    if filename is not None:
-      if isImageFile(filename):
-        self.logd("start", "Reading image: \"" + filename + "\"")
-        frame = cv2.imread(filename)
+    if self.filename is not None and not self.filename == "camera":
+      if isImageFile(self.filename):
+        self.logi("start", "Reading image: \"" + self.filename + "\"")
+        frame = cv2.imread(self.filename)
         if frame is not None:
           if showInput:
             cv2.imshow("Input", frame)
           isImage = True
-          isOkay = True
+          isReady = True
         else:
-          self.logd("start", "Error reading image; fallback to camera.")
+          self.loge("start", "Error reading image; fallback to camera.")
       else:
-        self.logd("start", "Reading video: \"" + filename + "\"")
-        camera = cv2.VideoCapture(filename)
+        self.logi("start", "Reading video: \"" + self.filename + "\"")
+        camera = cv2.VideoCapture(self.filename)
         if camera.isOpened():
           isVideo = True
-          isOkay = True
+          isReady = True
         else:
-          self.logd("start", "Error reading video; fallback to camera.")
+          self.loge("start", "Error reading video; fallback to camera.")
   
     # * Open camera if input image/video is not provided/available
-    if not isOkay:
-      self.logd("start", "Opening camera...")
+    if not isReady:
+      self.logi("start", "Opening camera...")
       camera = cv2.VideoCapture(0)
-      # ** Final check before processing loop
+      # ** Final check before vision loop
       if camera.isOpened():
-        isOkay = True
+        isReady = True
       else:
-        self.logd("start", "Error opening camera; giving up now.")
+        self.loge("start", "Error opening camera; giving up now.")
         return
     
-    # * Create FrameProcessor objects, initialize supporting variables
-    colorFilter = ColorFilterProcessor()
-    blobTracker = BlobTracker(colorFilter)
-    frameProcessors = [colorFilter, blobTracker]
-    fresh = True
+    # * Create pipeline(s) of FrameProcessor objects, initialize supporting variables
+    #pipeline = FrameProcessorPipeline(self.options, [LineDetector, LineWalker])  # line walking pipeline
+    pipeline = FrameProcessorPipeline(self.options, [ColorFilterProcessor, BlobTracker])  # blob tracking pipeline
+    # ** Get references to specific processors for fast access
+    #colorFilter = pipeline.getProcessorByType(ColorFilterProcessor)
+    #blobTracker = pipeline.getProcessorByType(BlobTracker)
     
-    # * Processing loop
-    timeStart = cv2.getTickCount() / cv2.getTickFrequency()
+    # * Set signal handler before starting vision loop (NOTE must be done in the main thread of this process)
+    signal.signal(signal.SIGTERM, self.handleSignal)
+    signal.signal(signal.SIGINT, self.handleSignal)
+    
+    # * Vision loop
+    self.logi("start", "Starting vision loop...")
+    self.isOkay = True
+    fresh = True
+    frameCount = 0
     timeLast = timeNow = 0.0
-    while(1):
+    timeStart = cv2.getTickCount() / cv2.getTickFrequency()
+    while self.isOkay:
       # ** [timing] Obtain relative timestamp for this loop iteration
       timeNow = (cv2.getTickCount() / cv2.getTickFrequency()) - timeStart
+      
+      # ** Print any pre-frame messages
+      if not self.gui and not self.debug:
+        self.logi("start", "[LOOP] Frame: {0:05d}, time: {1:07.3f}".format(frameCount, timeNow))  # if no GUI, print something to show we are running
       if showFPS:
         timeDiff = (timeNow - timeLast)
         fps = (1.0 / timeDiff) if (timeDiff > 0.0) else 0.0
-        self.logd("start", "{0:5.2f} fps".format(fps))
+        self.logi("start", "[LOOP] {0:5.2f} fps".format(fps))
+      #self.logd("start", "Pipeline: " + str(pipeline))  # current state of pipeline (preceding ~ means processor is inactive)
       
       # ** If not static image, read frame from video/camera
       if not isImage and not isFrozen:
         isValid, frame = camera.read()
         if not isValid:
           break  # camera disconnected or reached end of video
+        frameCount = frameCount + 1
         
         if showInput:
           cv2.imshow("Input", frame)
       
       # ** Initialize FrameProcessors, if required
       if(fresh):
-        for frameProcessor in frameProcessors:
-          frameProcessor.initialize(frame, timeNow) # timeNow should be zero on initialize
+        pipeline.initialize(frame, timeNow)
         fresh = False
       
       # ** Process frame
-      keepRunning = True
-      imageOut = None
-      for frameProcessor in frameProcessors:
-        keepRunning, imageOut = frameProcessor.process(frame, timeNow)
-        if not keepRunning:
-          break  # if a FrameProcessor signals us to stop, don't run others (break out of for loop)
+      keepRunning, imageOut = pipeline.process(frame, timeNow)
+      if not keepRunning:
+        self.stop()
       
       # ** Show output image
       if showOutput and imageOut is not None:
-        cv2.imshow("Output", imageOut)  # output image from last FrameProcessor
-      if not keepRunning:
-        break  # if any FrameProcessor had signaled us to stop, we stop (break out of main processing loop)
+        cv2.imshow("Output", imageOut)  # output image from last processor
       
       # ** Check if GUI is available
-      if gui:
+      if self.gui:
         # *** If so, wait for inter-frame delay and process keyboard events using OpenCV
         key = cv2.waitKey(delay)
         if key != -1:
@@ -123,12 +148,12 @@ class VisionManager:
           keyChar = chr(keyCode) if not (key & KeyCode.SPECIAL) else None
           
           if showKeys:
-            self.logd("process", "Key: " + KeyCode.describeKey(key))
+            self.logi("start", "Key: " + KeyCode.describeKey(key))
           
           if keyCode == 0x1b or keyChar == 'q':
             break
           elif keyChar == ' ':
-            self.logd("process", "[PAUSED] Press any key to continue...")
+            self.logi("start", "[PAUSED] Press any key to continue...")
             ticksPaused = cv2.getTickCount()  # [timing] save time when paused
             cv2.waitKey()  # wait indefinitely for a key press
             timeStart += (cv2.getTickCount() - ticksPaused) / cv2.getTickFrequency()  # [timing] compensate for duration paused
@@ -139,37 +164,51 @@ class VisionManager:
           elif keyChar == 'k':
             showKeys = not showKeys
           else:
-            keepRunning = True
-            for frameProcessor in frameProcessors:
-              keepRunning = frameProcessor.onKeyPress(key, keyChar)  # pass along key-press to FrameProcessor
-              if not keepRunning:
-                break  # break out of for loop
+            keepRunning = pipeline.onKeyPress(key, keyChar)  # pass along key-press to processors in pipeline
             if not keepRunning:
-              break  # break out of main processing loop
+              self.stop()
       
       # ** [timing] Save timestamp for fps calculation
-        timeLast = timeNow
-      
+      timeLast = timeNow
+    
+    # * Reset signal handlers to default behavior
+    signal.signal(signal.SIGTERM, signal.SIG_DFL)
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
+    
     # * Clean-up
-    self.logd("start", "Cleaning up...")
-    cv2.destroyAllWindows()
-    camera.release()
+    self.logi("start", "Cleaning up...")
+    if self.gui:
+      cv2.destroyAllWindows()
+    if not isImage:
+      camera.release()
+  
+  def stop(self):
+    self.isOkay = False  # request vision loop to stop (will be checked at the beginning of the next loop iteration)
+  
+  def handleSignal(self, signum, frame):
+    if signum == signal.SIGTERM or signum == signal.SIGINT:
+      self.logd("handleSignal", "Termination signal ({0}); stopping vision loop...".format(signum))
+    else:
+      self.loge("handleSignal", "Unknown signal ({0}); stopping vision loop anyways...".format(signum))
+    self.stop()
+  
+  def loge(self, func, msg):
+    log(self, func, msg)
+  
+  def logi(self, func, msg):
+    log(self, func, msg)
   
   def logd(self, func, msg):
     if self.debug:
       log(self, func, msg)
-    else:
-      pass
 
 
-def run(bot_loc, blocks, zones, corners, waypoints):
-  # Create VisionManager to handle shared data, start vision processors and main vision loop
-  visManager = VisionManager(bot_loc, blocks, zones, corners, waypoints)
-  visManager.start()
+def run(bot_loc=None, blocks=None, zones=None, corners=None, waypoints=None, options=None, standalone=False):
+  """Entry point for vision process: Create VisionManager to handle shared data and start vision loop."""
+  visManager = VisionManager(bot_loc=bot_loc, blocks=blocks, zones=zones, corners=corners, waypoints=waypoints, options=options, standalone=standalone)  # passing in shared data, options dict and stand-alone flag; use named arguments to avoid positional errors
+  visManager.start()  # start vision loop
 
 
 if __name__ == "__main__":
-  print "vision: [warning] Cannot start without bot context!"
-  #run(None, None, None, None, None)
-  visManager = VisionManager(None, None, None, None, None)  # TODO pass in simulated shared memory structures
-  visManager.start(sys.argv[1] if len(sys.argv) > 1 else None)
+  print "Vision module (Warning: Cannot start properly without bot context!)"
+  run(standalone=True)  # TODO pass in simulated shared memory structures

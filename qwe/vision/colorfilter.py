@@ -1,13 +1,12 @@
-"""
-Image filter used to extract blobs based on color.
-Filter bank:-
+"""Image filter used to extract blobs based on color."""
+# Sample filter bank:-
+'''
 blue: [105 100 100] - [115 255 255]
 brown: [170  50  50] - [ 20 200 140]
 yellow: [ 18 150 150] - [ 32 255 255]
 red: [175 100 100] - [ 15 255 255]
-"""
+'''
 
-import pickle
 import json
 import numpy as np
 import cv2
@@ -71,9 +70,9 @@ class ColorFilterProcessor(FrameProcessor):
   channelsHSV = "HSV"  # HSV channel names for display = array('c', "HSV")
   defaultFilterBank = "config/test4.bank"  # filter bank to be loaded on startup, if available
   
-  def __init__(self):
-    FrameProcessor.__init__(self)
-    self.debug = True
+  def __init__(self, options):
+    FrameProcessor.__init__(self, options)
+    #self.debug = True  # overriding debug flag
     self.state = self.State.INIT
   
   def initialize(self, imageIn, timeNow):
@@ -85,12 +84,6 @@ class ColorFilterProcessor(FrameProcessor):
     self.masks = { }  # dict to store masks produced by filters in bank
     self.colorFilter = HSVFilter(lower=np.array([105, 100, 100], np.uint8), upper=np.array([115, 255, 255], np.uint8))
     self.logd("initialize", "Current HSV filter: " + str(self.colorFilter.lower) + " - " + str(self.colorFilter.upper))
-    print "*** Menu ***"
-    print "\ta\tAdd current filter to bank"
-    print "\tl\tList filters in bank"
-    print "\tw\tWrite bank to file (as JSON)"
-    print "\tr\tRead bank from file (replaces current bank)"
-    print "\tt\tToggle TRAIN and LIVE modes"
     
     self.lowerPatch = np.array([[self.colorFilter.lower]])  # 1x1 pixel image (array) for lower-bound display
     self.upperPatch = np.array([[self.colorFilter.upper]])  # 1x1 pixel image (array) for upper-bound display
@@ -100,30 +93,43 @@ class ColorFilterProcessor(FrameProcessor):
     self.hueSpan = (self.colorFilter.upper[0] - self.colorFilter.lower[0]) % HSVFilter.maxHSV[0]
     self.hue = (self.colorFilter.lower[0] + self.hueSpan / 2) % HSVFilter.maxHSV[0]
     
-    self.winName = "Color Filter"
-    cv2.namedWindow(self.winName)
-    cv2.createTrackbar("Hue", self.winName, self.hue, HSVFilter.maxHSV[0], self.onTrackbarChange)
-    cv2.createTrackbar("Hue span", self.winName, self.hueSpan, HSVFilter.maxHSV[0], self.onTrackbarChange)
-    cv2.createTrackbar("Sat min", self.winName, self.colorFilter.lower[1], HSVFilter.maxHSV[1], self.onTrackbarChange)
-    cv2.createTrackbar("Sat max", self.winName, self.colorFilter.upper[1], HSVFilter.maxHSV[1], self.onTrackbarChange)
-    cv2.createTrackbar("Val min", self.winName, self.colorFilter.lower[2], HSVFilter.maxHSV[2], self.onTrackbarChange)
-    cv2.createTrackbar("Val max", self.winName, self.colorFilter.upper[2], HSVFilter.maxHSV[2], self.onTrackbarChange)
+    if self.gui:
+      self.winName = "Color Filter"
+      cv2.namedWindow(self.winName)
+      cv2.createTrackbar("Hue", self.winName, self.hue, HSVFilter.maxHSV[0], self.onTrackbarChange)
+      cv2.createTrackbar("Hue span", self.winName, self.hueSpan, HSVFilter.maxHSV[0], self.onTrackbarChange)
+      cv2.createTrackbar("Sat min", self.winName, self.colorFilter.lower[1], HSVFilter.maxHSV[1], self.onTrackbarChange)
+      cv2.createTrackbar("Sat max", self.winName, self.colorFilter.upper[1], HSVFilter.maxHSV[1], self.onTrackbarChange)
+      cv2.createTrackbar("Val min", self.winName, self.colorFilter.lower[2], HSVFilter.maxHSV[2], self.onTrackbarChange)
+      cv2.createTrackbar("Val max", self.winName, self.colorFilter.upper[2], HSVFilter.maxHSV[2], self.onTrackbarChange)
     
-    self.logd("initialize", "Trying to load default filter bank...")
+    self.logi("initialize", "Trying to load default filter bank: \"{0}\"".format(self.defaultFilterBank))
     if self.readFilterBankJSON(self.defaultFilterBank):  # load default filter bank
       self.state = self.State.LIVE  # if successful, switch to LIVE mode
-    else:
-      self.state = self.State.TRAIN  # else, switch to TRAIN mode so that filters can be created
-    self.logd("initialize", "State: " + self.State.toString(self.state))
+      self.active = True
+    elif self.gui:
+      self.state = self.State.TRAIN  # else, switch to TRAIN mode so that filters can be created (only in GUI mode)
+      self.active = True
+    
+    if self.gui:
+      self.logi("initialize", "Menu:-")
+      print "\ta\tAdd current filter to bank"
+      print "\tl\tList filters in bank"
+      print "\tw\tWrite bank to file (as JSON)"
+      print "\tr\tRead bank from file (replaces current bank)"
+      print "\tt\tToggle TRAIN and LIVE modes"
+    
+    self.logi("initialize", "State: " + self.State.toString(self.state))
   
   def process(self, imageIn, timeNow):
     self.image = imageIn
 
     self.imageHSV = cv2.cvtColor(self.image, cv.CV_BGR2HSV)
-    #cv2.imshow("HSV", self.imageHSV)
-    #cv2.imshow("H", self.imageHSV[:,:,0])
-    #cv2.imshow("S", self.imageHSV[:,:,1])
-    #cv2.imshow("V", self.imageHSV[:,:,2])
+    #if self.gui:
+    #  cv2.imshow("HSV", self.imageHSV)
+    #  cv2.imshow("H", self.imageHSV[:,:,0])
+    #  cv2.imshow("S", self.imageHSV[:,:,1])
+    #  cv2.imshow("V", self.imageHSV[:,:,2])
     
     if self.state == self.State.TRAIN:
       self.maskHSV = self.colorFilter.apply(self.imageHSV)
@@ -133,15 +139,15 @@ class ColorFilterProcessor(FrameProcessor):
       upperPatch = np.array([[self.colorFilter.upper]])  # 1x1 image for upper-bound display
       self.imageMasked[10:50, 10:50, :] = cv2.cvtColor(lowerPatch, cv.CV_HSV2BGR)
       self.imageMasked[10:50, 51:90, :] = cv2.cvtColor(upperPatch, cv.CV_HSV2BGR)
-      cv2.imshow(self.winName, self.imageMasked)
-      self.imageOut = self.maskHSV
+      if self.gui:
+        cv2.imshow(self.winName, self.imageMasked)
+        self.imageOut = self.maskHSV
     elif self.state == self.State.LIVE:
       # For each filter in filter bank, apply it to get a mask
       for filterName, colorFilter in self.filterBank.iteritems():
         self.masks[filterName] = colorFilter.apply(self.imageHSV)
-        cv2.imshow(filterName, self.masks[filterName])
-      
-      self.imageOut = None # TODO set output to bitwise OR of all these masks
+        if self.gui: cv2.imshow(filterName, self.masks[filterName])
+      # TODO set output to bitwise OR of all these masks (?)
     
     return True, self.imageOut
   
@@ -251,7 +257,7 @@ class ColorFilterProcessor(FrameProcessor):
       outFile.write(filterBankJSONfinal)
       outFile.close()
     except IOError:
-      self.logd("writeFilterBankJSON", "I/O error; couldn't write to file: " + outFilename)
+      self.loge("writeFilterBankJSON", "I/O error; couldn't write to file: " + outFilename)
       return False
     else:
       self.logd("writeFilterBankJSON", "Done.")
@@ -264,11 +270,11 @@ class ColorFilterProcessor(FrameProcessor):
       filterBankJSON = inFile.read()
       inFile.close()
     except IOError:
-      self.logd("readFilterBankJSON", "I/O error; couldn't read from file: " + inFilename)
+      self.loge("readFilterBankJSON", "I/O error; couldn't read from file: " + inFilename)
       return False
     else:
       #self.logd("readFilterBankJSON", "Filter bank JSON: " + filterBankJSON)
-      # TODO Parse JSON string and fill in filter bank
+      # Parse JSON string and fill in filter bank
       filterBank = { }
       filterBankDict = json.loads(filterBankJSON)
       for filterName, filterDict in filterBankDict.iteritems():
@@ -276,7 +282,7 @@ class ColorFilterProcessor(FrameProcessor):
         filterBank[filterName] = colorFilter
       
       self.filterBank = filterBank
-      self.logd("writeFilterBankJSON", "Done.")
+      self.logd("readFilterBankJSON", "Done.")
       self.printFilterBank()
       return True
 

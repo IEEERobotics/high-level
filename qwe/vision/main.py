@@ -1,7 +1,5 @@
-"""
-Driver program for running a single FrameProcessor.
-Usage: main.py [<image/video filename>]
-"""
+"""Driver program for running a single FrameProcessor."""
+# Usage: main.py [<image/video filename>]
 
 import sys
 from time import sleep
