@@ -6,7 +6,7 @@ import argparse
 import signal
 import numpy as np
 import cv2
-from util import KeyCode, isImageFile, log
+from util import KeyCode, isImageFile, log, rotateImage
 from base import FrameProcessor, FrameProcessorPipeline
 from colorfilter import ColorFilterProcessor
 from blobtracking import BlobTracker
@@ -28,6 +28,7 @@ class VisionManager:
       parser.add_argument('filename', type=str, nargs='?', default=None, help="Image or video filename")
       parser.add_argument('--gui', action='store_true', help="Enable GUI mode (show images, process keyboard events)")
       parser.add_argument('--debug', action='store_true', help="Enable debug messages")
+      parser.add_argument('--filter-bank', type=str, default=ColorFilterProcessor.defaultFilterBankFilename, help="Color filter bank to use")
       self.options = vars(parser.parse_args(args=None if standalone else []))  # if standalone, get options from command-line arguments, else set defaults
     else:
       self.options = options
@@ -36,6 +37,10 @@ class VisionManager:
     self.filename = self.options['filename']
     self.gui = self.options['gui']
     self.debug = self.options['debug']
+    
+    # * [Sim] If standalone or navigator is not available otherwise, make self a simulator (to be passed along to processors)
+    self.sim = True  # TODO get a reference to navigator to do line-walking
+    self.heading = 0.0
   
   def start(self):
     """Create FrameProcessor objects and start vision loop (works on a static image, video or camera input)."""
@@ -60,6 +65,7 @@ class VisionManager:
         if frame is not None:
           if showInput:
             cv2.imshow("Input", frame)
+          frozenFrame = frame.copy()  # useful if simulating and rotating image every frame
           isImage = True
           isReady = True
         else:
@@ -85,10 +91,12 @@ class VisionManager:
         return
     
     # * Create pipeline(s) of FrameProcessor objects, initialize supporting variables
-    #pipeline = FrameProcessorPipeline(self.options, [LineDetector, LineWalker])  # line walking pipeline
+    #pipeline = FrameProcessorPipeline(self.options, [ColorFilterProcessor, LineDetector, LineWalker])  # line walking pipeline
     pipeline = FrameProcessorPipeline(self.options, [ColorFilterProcessor, BlobTracker])  # blob tracking pipeline
+    #pipeline = FrameProcessorPipeline(self.options, [ColorFilterProcessor, LineDetector, LineWalker, BlobTracker])  # combined pipeline
     # ** Get references to specific processors for fast access
     #colorFilter = pipeline.getProcessorByType(ColorFilterProcessor)
+    lineWalker = pipeline.getProcessorByType(LineWalker)
     #blobTracker = pipeline.getProcessorByType(BlobTracker)
     
     # * Set signal handler before starting vision loop (NOTE must be done in the main thread of this process)
@@ -107,8 +115,8 @@ class VisionManager:
       timeNow = (cv2.getTickCount() / cv2.getTickFrequency()) - timeStart
       
       # ** Print any pre-frame messages
-      if not self.gui and not self.debug:
-        self.logi("start", "[LOOP] Frame: {0:05d}, time: {1:07.3f}".format(frameCount, timeNow))  # if no GUI, print something to show we are running
+      if not self.gui:
+        self.logd("start", "[LOOP] Frame: {0:05d}, time: {1:07.3f}".format(frameCount, timeNow))  # if no GUI, print something to show we are running
       if showFPS:
         timeDiff = (timeNow - timeLast)
         fps = (1.0 / timeDiff) if (timeDiff > 0.0) else 0.0
@@ -125,15 +133,30 @@ class VisionManager:
         if showInput:
           cv2.imshow("Input", frame)
       
+      # [Sim] Rotate image to simulate bot movement
+      if self.sim and lineWalker is not None:
+        if self.heading != 0.0:
+          if isImage or isFrozen:
+            frame = frozenFrame.copy()
+          frame = rotateImage(frame, self.heading)
+      
       # ** Initialize FrameProcessors, if required
       if(fresh):
         pipeline.initialize(frame, timeNow)
         fresh = False
+        # TODO activate only those processors that should be active initially
       
       # ** Process frame
       keepRunning, imageOut = pipeline.process(frame, timeNow)
       if not keepRunning:
         self.stop()
+      
+      # [Sim] Compute simulated bot movement from heading error reported by LineWalker
+      # TODO Send out actual movement commands to navigator (only in LINE_WALKING state)
+      if self.sim and lineWalker is not None:
+        if lineWalker.state is LineWalker.State.GOOD and lineWalker.headingError != 0.0:
+          #self.logd("start", "[LOOP] headingError: {0:6.2f}".format(lineWalker.headingError))
+          self.heading -= 0.1 * lineWalker.headingError
       
       # ** Show output image
       if showOutput and imageOut is not None:
@@ -158,7 +181,17 @@ class VisionManager:
             cv2.waitKey()  # wait indefinitely for a key press
             timeStart += (cv2.getTickCount() - ticksPaused) / cv2.getTickFrequency()  # [timing] compensate for duration paused
           elif keyCode == 0x0d:
-            isFrozen = not isFrozen  # freeze frame, but keep processors running
+            if not isImage:
+              isFrozen = not isFrozen  # freeze frame, but keep processors running
+              if isFrozen:
+                frozenFrame = frame
+              self.logi("start", "Frame {0:05d} is now frozen".format(frameCount) if isFrozen else "Frame processing unfrozen")
+          elif keyChar == 'x':
+            pipeline.deactivateProcessors()
+            self.logi("start", "Pipeline processors deactivated.")
+          elif keyChar == 'y':
+            pipeline.activateProcessors()
+            self.logi("start", "Pipeline processors activated.")
           elif keyChar == 'f':
             showFPS = not showFPS
           elif keyChar == 'k':

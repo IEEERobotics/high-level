@@ -68,10 +68,11 @@ class ColorFilterProcessor(FrameProcessor):
   """Detects different colored areas using filters (primarily in HSV space)."""
   State = Enum(['INIT', 'LIVE', 'TRAIN'])
   channelsHSV = "HSV"  # HSV channel names for display = array('c', "HSV")
-  defaultFilterBank = "config/test4.bank"  # filter bank to be loaded on startup, if available
+  defaultFilterBankFilename = "config/default.bank"  # filter bank to be loaded on startup, if available
   
   def __init__(self, options):
     FrameProcessor.__init__(self, options)
+    self.filterBankFilename = options.get('filter_bank', self.defaultFilterBankFilename)
     #self.debug = True  # overriding debug flag
     self.state = self.State.INIT
   
@@ -103,8 +104,8 @@ class ColorFilterProcessor(FrameProcessor):
       cv2.createTrackbar("Val min", self.winName, self.colorFilter.lower[2], HSVFilter.maxHSV[2], self.onTrackbarChange)
       cv2.createTrackbar("Val max", self.winName, self.colorFilter.upper[2], HSVFilter.maxHSV[2], self.onTrackbarChange)
     
-    self.logi("initialize", "Trying to load default filter bank: \"{0}\"".format(self.defaultFilterBank))
-    if self.readFilterBankJSON(self.defaultFilterBank):  # load default filter bank
+    self.logi("initialize", "Trying to load filter bank: \"{0}\"".format(self.filterBankFilename))
+    if self.readFilterBankJSON(self.filterBankFilename):  # load default filter bank
       self.state = self.State.LIVE  # if successful, switch to LIVE mode
       self.active = True
     elif self.gui:
@@ -133,14 +134,15 @@ class ColorFilterProcessor(FrameProcessor):
     
     if self.state == self.State.TRAIN:
       self.maskHSV = self.colorFilter.apply(self.imageHSV)
-      self.imageMasked = cv2.bitwise_and(self.image, np.array([255, 255, 255], np.uint8), mask=self.maskHSV)
-      
-      lowerPatch = np.array([[self.colorFilter.lower]])  # 1x1 image for lower-bound display
-      upperPatch = np.array([[self.colorFilter.upper]])  # 1x1 image for upper-bound display
-      self.imageMasked[10:50, 10:50, :] = cv2.cvtColor(lowerPatch, cv.CV_HSV2BGR)
-      self.imageMasked[10:50, 51:90, :] = cv2.cvtColor(upperPatch, cv.CV_HSV2BGR)
       if self.gui:
-        cv2.imshow(self.winName, self.imageMasked)
+        imageMasked = cv2.bitwise_and(self.image, np.array([255, 255, 255], np.uint8), mask=self.maskHSV)
+      
+        lowerPatch = np.array([[self.colorFilter.lower]])  # 1x1 image for lower-bound display
+        upperPatch = np.array([[self.colorFilter.upper]])  # 1x1 image for upper-bound display
+        imageMasked[10:50, 10:50, :] = cv2.cvtColor(lowerPatch, cv.CV_HSV2BGR)
+        imageMasked[10:50, 51:90, :] = cv2.cvtColor(upperPatch, cv.CV_HSV2BGR)
+        
+        cv2.imshow(self.winName, imageMasked)
         self.imageOut = self.maskHSV
     elif self.state == self.State.LIVE:
       # For each filter in filter bank, apply it to get a mask
@@ -175,9 +177,6 @@ class ColorFilterProcessor(FrameProcessor):
         self.state = self.State.TRAIN
       self.logd("onKeyPress", "State: " + self.State.toString(self.state))
       return True
-    elif keyChar == 'x':
-      print self.colorFilter.toXMLString()
-      return True
     elif keyChar == 'a':
       filterName = raw_input("Add HSV filter to bank with name: ")
       if len(filterName) > 0:
@@ -185,6 +184,7 @@ class ColorFilterProcessor(FrameProcessor):
       return True
     elif keyChar == 'l':
       self.printFilterBank()
+      print "Current filter: " + str(self.colorFilter)  # self.colorFilter.toXMLString()
       return True
     elif keyChar == 'w':
       outFilename = raw_input("Write filter bank to file: ")
@@ -206,7 +206,7 @@ class ColorFilterProcessor(FrameProcessor):
     self.hue = cv2.getTrackbarPos("Hue", self.winName)
     self.hueSpan = cv2.getTrackbarPos("Hue span", self.winName)
     self.colorFilter.lower[0] = (self.hue - self.hueSpan / 2) % HSVFilter.maxHSV[0]
-    self.colorFilter.upper[0] = (self.hue + self.hueSpan / 2) % HSVFilter.maxHSV[0]
+    self.colorFilter.upper[0] = (self.hue + (self.hueSpan / 2.0 - 0.5)) % HSVFilter.maxHSV[0]
     self.colorFilter.lower[1] = cv2.getTrackbarPos("Sat min", self.winName)
     self.colorFilter.upper[1] = cv2.getTrackbarPos("Sat max", self.winName)
     self.colorFilter.lower[2] = cv2.getTrackbarPos("Val min", self.winName)

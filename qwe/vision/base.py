@@ -92,9 +92,13 @@ class FrameProcessorPipeline(FrameProcessorPool):
           break  # break out of this for loop (no further processors get the key event)
     return keepRunning
   
-  def __str__(self):
-    desc = "[" + ", ".join(("" if processor.active else "~") + processor.__class__.__name__ for processor in self.processors) + "]"
-    return desc
+  def activateProcessors(self, processorTypes=None, active=True):  # if None, activate all
+    for processor in self.processors:
+      if processorTypes is None or processor.__class__ in processorTypes:
+        processor.active = active
+  
+  def deactivateProcessors(self, processorTypes=None):  # if None, deactivate all
+    self.activateProcessors(processorTypes, False)
   
   def getProcessorByType(self, processorType):
     """Returns the first processor found that is an instance of processorType."""
@@ -102,3 +106,7 @@ class FrameProcessorPipeline(FrameProcessorPool):
       if isinstance(processor, processorType):
         return processor
     return None
+  
+  def __str__(self):
+    desc = "[" + ", ".join(("" if processor.active else "~") + processor.__class__.__name__ for processor in self.processors) + "]"
+    return desc
