@@ -112,38 +112,46 @@ class SerialInterface:
     response = self.responses.pop(commandId)  # get response and remove it
     return response
   
-  def botSetWheel(self, wheelId, value):
-    pass  # TODO set individual wheel velocity to value (PWM units?)
-  
   def botStop(self):
-    pass  # TODO stop all wheels
+    """Stop immediately."""
+    pass  # TODO
+  
+  def botSetSpeed(self, left, right):
+    """Set individual wheel/side speeds. (units?)"""
+    pass  # TODO
   
   def botMove(self, distance, speed):
     pass  # TODO send move command, wait for completion ack, return actual distance traveled (relative)
   
-  def botTurn(self, angle):
+  def botSetHeading(self, angle, speed):
+    pass  # TODO send turn command, wait for completion ack, return current heading (absolute)
+  
+  def botTurn(self, angle, speed):
     pass  # TODO send turn command, wait for completion ack, return actual angle turned (relative)
   
-  def armRotate(self, armId, angle):
+  def armSetAngle(self, armId, angle, ramp):
     pass  # TODO send arm rotate command, wait for completion ack, return actual arm angle (absolute?)
   
   def armDown(self, armId):
-    pass  # TODO rotate arm to lowest position (to pick-up blocks) [use armRotate], return True/False to indicate success/failure
+    pass  # TODO rotate arm to lowest position (to pick-up blocks) [use armSetAngle], return True/False to indicate success/failure
   
   def armUp(self, armId):
-    pass  # TODO rotate arm to highest position (e.g. with block in gripper) [use armRotate], return True/False to indicate success/failure
+    pass  # TODO rotate arm to highest position (e.g. with block in gripper) [use armSetAngle], return True/False to indicate success/failure
   
-  def gripperSet(self, armId, value):
+  def gripperSetValue(self, armId, value):
     pass  # TODO open gripper to specified value (distance/angle) and return actual value on completion
   
   def gripperClose(self, armId):
-    pass  # TODO close gripper (to grab) [use gripperSet] and return True/False on completion
+    pass  # TODO close gripper (to grab) [use gripperSetValue] and return True/False on completion
   
   def gripperOpen(self, armId):
-    pass  # TODO open gripper (to release) [use gripperSet] and return True/False on completion
+    pass  # TODO open gripper (to release) [use gripperSetValue] and return True/False on completion
+  
+  def getAllSensorData(self):
+    pass  # TODO obtain data for all sensors return them (timestamp?)
   
   def getSensorData(self, sensorId):
-    pass  # TODO obtain data for given sensorId and return value
+    pass  # TODO obtain data for given sensorId and return value (timestamp?)
 
 
 def main():
