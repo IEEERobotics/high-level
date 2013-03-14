@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 """Primary module of navigation package"""
 
-#from comm import serial_interface as comm
 import comm.serial_interface as comm
 
 def run(bot_loc, blocks, zones, corners, course_map, waypoints):
