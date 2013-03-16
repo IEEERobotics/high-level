@@ -8,21 +8,35 @@ import serial
 import threading
 import Queue
 
+default_port = "/dev/ttyO3"
+default_baudrate = 19200
+default_timeout = 1  # seconds; float allowed
+default_queue_maxsize = 10
+
 default_speed = 5000
 default_servo_ramp = 10
+
+command_eol = "\r\n"
+
+# TODO move arm info out into action, creating an Arm class to encapsulate?
+left_arm = 0
+right_arm = 2
+
+arm_angles = { left_arm: (670, 340),
+               right_arm: (340, 670) }  # arm: (up, down)
+
+grippers = { left_arm: 1, right_arm: 3}
+# TODO get correct gripper angles
+gripper_angles = { grippers[left_arm]: (200, 400),
+                   grippers[right_arm]: (200, 400) }  # gripper: (open, close)
 
 class SerialInterface:
   """
   Encapsulates functionality to send (multiplexed) commands over a serial line.
   Exposes a set of methods for different navigation, action and sensor commands.
   """
-  PORT = "/dev/ttyO3"
-  BAUDRATE = 19200
-  TIMEOUT = 1  # seconds; float allowed
   
-  QUEUE_MAXSIZE = 10
-  
-  def __init__(self, port=PORT, baudrate=BAUDRATE, timeout=TIMEOUT):
+  def __init__(self, port=default_port, baudrate=default_baudrate, timeout=default_timeout):
     self.port = port
     self.baudrate = baudrate
     self.timeout = timeout
@@ -30,7 +44,7 @@ class SerialInterface:
     self.device = None  # open serial port in start()
     
     # TODO move queue out to separate class to manage it (and responses?)
-    self.commands = Queue.Queue(SerialInterface.QUEUE_MAXSIZE)  # internal queue to receive and service commands
+    self.commands = Queue.Queue(default_queue_maxsize)  # internal queue to receive and service commands
     # TODO create multiple queues for different priority levels?
     self.responses = { }  # a map structure to store responses by commandId
   
@@ -43,7 +57,9 @@ class SerialInterface:
       return False
     
     if self.device.isOpen():
-      print "SerialInterface.start(): Serial port \"%s\" open (Baud rate: %d, timeout: %d secs.)" % (self.device.name, self.device.baudrate, self.device.timeout)
+      print "SerialInterface.start(): Serial port \"%s\" open (Baud rate: %d, timeout: %d secs.)" % (self.device.name, self.device.baudrate, (-1 if self.timeout is None else self.timeout))
+      self.device.flushInput()
+      self.device.flushOutput()
     else:
       print "SerialInterface.start(): Unspecified error opening serial port \"%s\"" % self.port
       return False
@@ -67,15 +83,17 @@ class SerialInterface:
         response = self.execCommand(command)
         if response is None:  # None response means something went wrong, break out of loop
           break
-        #print "[LOOP] Response: " + response
+        elif response.startswith("ERROR"):
+          print "[LOOP] Error response: " + response
+          #response = "ERROR"  # modify response since it is useless anyways?
         
-        self.responses[commandId] = command  # store result by commandId for later retrieval
+        self.responses[commandId] = response  # store result by commandId for later retrieval
       except Queue.Empty:
         print "[LOOP] Empty queue"
         pass  # if queue is empty, simply loop back and wait for more commands
     
     # Clean up: Close serial port
-    print "SerialInterface.loop(): Main loop terminated"
+    print "SerialInterface.loop(): Main loop terminated."
     if self.device is not None and self.device.isOpen():
       self.device.close()
       print "SerialInterface.loop(): Serial port closed"
@@ -91,11 +109,11 @@ class SerialInterface:
     self.putCommand("quit")
   
   def execCommand(self, command):
-    """Execute command (send over serial port) and return response"""
+    """Execute command (send over serial port) and return response. Adds terminating EOL chars. to commands and strips them from responses."""
     try:
-      self.device.write(command + "\n")  # NOTE '\n' terminated command
-      response = self.device.readline()  # NOTE '\n' terminated response
-      return response
+      self.device.write(command + command_eol)  # add eol
+      response = self.device.readline()
+      return response.strip()  # strip EOL
     except Exception as e:
       print "SerialInterface.execCommand(): Error: " + e
       return None
@@ -116,58 +134,69 @@ class SerialInterface:
     response = self.responses.pop(commandId)  # get response and remove it
     return response
   
-  def botStop(self):
-    """Stop immediately."""
-    pass  # TODO
-  
-  def botSetSpeed(self, left, right):
-    """Set individual wheel/side speeds. (units?)"""
-    pass  # TODO
-  
-  def botMove(self, distance, speed=default_speed):
-    command = "set 0 {speed} {distance}\n".format(speed=speed, distance=distance)
+  def runCommandSync(self, command):
+    """Convenience method for running a command and blocking for response."""
     commandId = self.putCommand(command)
     response = self.getResponse(commandId)
-    return response  # TODO convert response (distance traveled) to int unless ERROR?
+    return response
+  
+  def botStop(self):
+    """Stop immediately."""
+    response = self.runCommandSync("stop")
+    return response.startswith("OK")
+  
+  def botSetSpeed(self, left, right):
+    """Set individual wheel/side speeds (units: PWM values 0 - 10000)."""
+    response = self.runCommandSync("pwm_drive {0} {1}".format(left, right))
+    return response.startswith("OK")
+  
+  def botMove(self, distance, speed=default_speed):
+    response = self.runCommandSync("set 0 {speed} {distance}".format(speed=speed, distance=distance))
+    return 0  # TODO accept actual values once implemented in motor-control
+    #return (0 if response.startswith("ERROR") else int(response))  # convert response (distance traveled) to int unless ERROR
+  
+  def botTurn(self, angle, speed=default_speed):
+    response = self.runCommandSync("set {angle} {speed} 0".format(angle=angle, speed=speed))
+    return 0  # TODO accept actual values once implemented in motor-control
+    #return (0 if response.startswith("ERROR") else int(response))  # convert response (angle turned) to int unless ERROR
   
   def botSetHeading(self, angle, speed):
     pass  # TODO get current heading, compute difference, send turn command, wait for completion ack, return current heading (absolute)
   
-  def botTurn(self, angle, speed=default_speed):
-    command = "set {angle} {speed} 0\n".format(angle=angle, speed=speed)
-    commandId = self.putCommand(command)
-    response = self.getResponse(commandId)
-    return response  # TODO convert response (angle turned) to int unless ERROR?
+  def armSetAngle(self, arm, angle, ramp=default_servo_ramp):
+    response = self.runCommandSync("servo {channel} {ramp} {angle}".format(channel=arm, ramp=ramp, angle=angle*10))  # angle is 10ths of degrees
+    # TODO wait here for servo to reach angle?
+    return response.startswith("OK")
   
-  def armSetAngle(self, armId, angle, ramp=default_servo_ramp):
-    command = "servo {channel} {ramp} {angle}\n".format(channel=armId, ramp=ramp, angle=angle)
-    commandId = self.putCommand(command)
-    response = self.getResponse(commandId)
-    return response  # TODO send arm rotate command, wait for completion ack, return actual arm angle (absolute?)
+  def armUp(self, arm):
+    return self.armSetAngle(arm, arm_angles[arm][0])
   
-  def armDown(self, armId):
-    pass  # TODO rotate arm to lowest position (to pick-up blocks) [use armSetAngle], return True/False to indicate success/failure
+  def armDown(self, arm):
+    return self.armSetAngle(arm, arm_angles[arm][1])
   
-  def armUp(self, armId):
-    pass  # TODO rotate arm to highest position (e.g. with block in gripper) [use armSetAngle], return True/False to indicate success/failure
+  def gripperSetAngle(self, arm, angle, ramp=default_servo_ramp):
+    response = self.runCommandSync("servo {channel} {ramp} {angle}".format(channel=grippers[arm], ramp=ramp, angle=angle))
+    # TODO wait here for servo to reach angle?
+    return response.startswith("OK")
   
-  def gripperSetValue(self, armId, value, ramp=default_servo_ramp):
-    command = "servo {channel} {ramp} {angle}\n".format(channel=armId, ramp=ramp, angle=value)
-    commandId = self.putCommand(command)
-    response = self.getResponse(commandId)
-    return response  # TODO open gripper to specified value (distance/angle) and return actual value on completion
+  def gripperOpen(self, arm):
+    gripper = grippers[arm]
+    return gripperSetAngle(gripper, gripper_angles[gripper][0])
   
-  def gripperClose(self, armId):
-    pass  # TODO close gripper (to grab) [use gripperSetValue] and return True/False on completion
-  
-  def gripperOpen(self, armId):
-    pass  # TODO open gripper (to release) [use gripperSetValue] and return True/False on completion
+  def gripperClose(self, arm):
+    gripper = grippers[arm]
+    return gripperSetAngle(gripper, gripper_angles[gripper][1])
   
   def getAllSensorData(self):
     pass  # TODO obtain data for all sensors return them (timestamp?)
   
-  def getSensorData(self, sensorId):
-    pass  # TODO obtain data for given sensorId and return value (timestamp?)
+  def getSensorValue(self, sensorId):
+    """Fetches current value of a sensor. Handles only scalar sensors, i.e. ones that return a single int value."""
+    response = self.runCommandSync("sensor {sensorId}".format(sensorId=sensorId))
+    # TODO timestamp sensor data here?
+    return (-1 if response.startswith("ERROR") else int(response))  # NOTE this only handles single-value data
+  
+   # TODO write specialized sensor value fetchers for non-scalar sensors like the accelerometer (and possibly other sensors for convenience)
 
 
 def main():
@@ -176,9 +205,9 @@ def main():
   Usage:
     python serial_interface.py [port [baudrate [timeout]]]
   """
-  port = SerialInterface.PORT
-  baudrate = SerialInterface.BAUDRATE
-  timeout = SerialInterface.TIMEOUT
+  port = default_port
+  baudrate = default_baudrate
+  timeout = default_timeout
   
   if len(sys.argv) > 1:
     port = sys.argv[1]
@@ -187,7 +216,7 @@ def main():
       if len(sys.argv) > 3:
         timeout = None if sys.argv[3] == "None" else float(sys.argv[3])
   
-  print "main(): Creating SerialInterface(port=\"{port}\", baudrate={baudrate}, timeout={timeout})".format(port=port, baudrate=baudrate, timeout=timeout)
+  print "main(): Creating SerialInterface(port=\"{port}\", baudrate={baudrate}, timeout={timeout})".format(port=port, baudrate=baudrate, timeout=(-1 if timeout is None else timeout))
   serialInterface = SerialInterface(port, baudrate, timeout)
   if not serialInterface.start():
     return
