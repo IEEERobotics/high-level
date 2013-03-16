@@ -5,8 +5,8 @@ map2txt() function accepts the map and creates 5 comma seperated txt files - one
 def map2txt(Map):
 
 	#print("map2txt")
-	cols = len(Map[0]) 	#find index of last column in matrix
-	rows = len(Map)		#find index of last row
+	cols = len(Map.grid[0]) 	#find index of last column in matrix
+	rows = len(Map.grid)		#find index of last row
 
 	"""
 	map_desc.txt
@@ -22,7 +22,7 @@ def map2txt(Map):
 	y = last_row	
 	while y >= 0:
 		for x in xrange(0,int(cols)):	
-			coord = Map[y][x]['desc']
+			coord = Map.grid[y][x]['desc']
 			s = str(coord)
 			map_desc.write(s)
 			#if not at the last column index, comma seperate adjacent data
@@ -46,7 +46,7 @@ def map2txt(Map):
 	y = last_row
 	while y >= 0:
 		for x in xrange(0,int(cols)):
-			coord = Map[y][x]['status']
+			coord = Map.grid[y][x]['status']
 			s = str(coord)
 			map_status.write(s)
 			#if not at the last column index, comma seperate adjacent data
@@ -69,7 +69,7 @@ def map2txt(Map):
 	y = last_row
 	while y >= 0:
 		for x in xrange(0,int(cols)):
-			coord = Map[y][x]['color']
+			coord = Map.grid[y][x]['color']
 			s = str(coord)
 			map_color.write(s)
 			#if not at the last column index, comma seperate adjacent data
@@ -92,7 +92,7 @@ def map2txt(Map):
 	y = last_row
 	while y >= 0:
 		for x in xrange(0,int(cols)):
-			coord = Map[y][x]['level']
+			coord = Map.grid[y][x]['level']
 			s = str(coord)
 			map_level.write(s)
 			#if not at the last column index, comma seperate adjacent data
@@ -115,7 +115,7 @@ def map2txt(Map):
 	y = last_row
 	while y >= 0:
 		for x in xrange(0,int(cols)):
-			coord = Map[y][x]['path']
+			coord = Map.grid[y][x]['path']
 			s = str(coord)
 			map_path.write(s)
 			#if not at the last column index, comma seperate adjacent data
