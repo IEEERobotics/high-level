@@ -8,13 +8,16 @@ import serial
 import threading
 import Queue
 
+default_speed = 5000
+default_servo_ramp = 10
+
 class SerialInterface:
   """
   Encapsulates functionality to send (multiplexed) commands over a serial line.
   Exposes a set of methods for different navigation, action and sensor commands.
   """
   PORT = "/dev/ttyO3"
-  BAUDRATE = 57600
+  BAUDRATE = 19200
   TIMEOUT = 1  # seconds; float allowed
   
   QUEUE_MAXSIZE = 10
@@ -26,6 +29,7 @@ class SerialInterface:
     # NOTE Other default port settings: bytesize=8, parity='N', stopbits=1, xonxoff=0, rtscts=0
     self.device = None  # open serial port in start()
     
+    # TODO move queue out to separate class to manage it (and responses?)
     self.commands = Queue.Queue(SerialInterface.QUEUE_MAXSIZE)  # internal queue to receive and service commands
     # TODO create multiple queues for different priority levels?
     self.responses = { }  # a map structure to store responses by commandId
@@ -39,7 +43,7 @@ class SerialInterface:
       return False
     
     if self.device.isOpen():
-      print "SerialInterface.start(): Serial port \"%s\" open" % self.device.name
+      print "SerialInterface.start(): Serial port \"%s\" open (Baud rate: %d, timeout: %d secs.)" % (self.device.name, self.device.baudrate, self.device.timeout)
     else:
       print "SerialInterface.start(): Unspecified error opening serial port \"%s\"" % self.port
       return False
@@ -120,17 +124,26 @@ class SerialInterface:
     """Set individual wheel/side speeds. (units?)"""
     pass  # TODO
   
-  def botMove(self, distance, speed):
-    pass  # TODO send move command, wait for completion ack, return actual distance traveled (relative)
+  def botMove(self, distance, speed=default_speed):
+    command = "set 0 {speed} {distance}\n".format(speed=speed, distance=distance)
+    commandId = self.putCommand(command)
+    response = self.getResponse(commandId)
+    return response  # TODO convert response (distance traveled) to int unless ERROR?
   
   def botSetHeading(self, angle, speed):
-    pass  # TODO send turn command, wait for completion ack, return current heading (absolute)
+    pass  # TODO get current heading, compute difference, send turn command, wait for completion ack, return current heading (absolute)
   
-  def botTurn(self, angle, speed):
-    pass  # TODO send turn command, wait for completion ack, return actual angle turned (relative)
+  def botTurn(self, angle, speed=default_speed):
+    command = "set {angle} {speed} 0\n".format(angle=angle, speed=speed)
+    commandId = self.putCommand(command)
+    response = self.getResponse(commandId)
+    return response  # TODO convert response (angle turned) to int unless ERROR?
   
-  def armSetAngle(self, armId, angle, ramp):
-    pass  # TODO send arm rotate command, wait for completion ack, return actual arm angle (absolute?)
+  def armSetAngle(self, armId, angle, ramp=default_servo_ramp):
+    command = "servo {channel} {ramp} {angle}\n".format(channel=armId, ramp=ramp, angle=angle)
+    commandId = self.putCommand(command)
+    response = self.getResponse(commandId)
+    return response  # TODO send arm rotate command, wait for completion ack, return actual arm angle (absolute?)
   
   def armDown(self, armId):
     pass  # TODO rotate arm to lowest position (to pick-up blocks) [use armSetAngle], return True/False to indicate success/failure
@@ -138,8 +151,11 @@ class SerialInterface:
   def armUp(self, armId):
     pass  # TODO rotate arm to highest position (e.g. with block in gripper) [use armSetAngle], return True/False to indicate success/failure
   
-  def gripperSetValue(self, armId, value):
-    pass  # TODO open gripper to specified value (distance/angle) and return actual value on completion
+  def gripperSetValue(self, armId, value, ramp=default_servo_ramp):
+    command = "servo {channel} {ramp} {angle}\n".format(channel=armId, ramp=ramp, angle=value)
+    commandId = self.putCommand(command)
+    response = self.getResponse(commandId)
+    return response  # TODO open gripper to specified value (distance/angle) and return actual value on completion
   
   def gripperClose(self, armId):
     pass  # TODO close gripper (to grab) [use gripperSetValue] and return True/False on completion
