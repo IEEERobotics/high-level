@@ -13,7 +13,7 @@ default_baudrate = 19200
 default_timeout = 1  # seconds; float allowed
 default_queue_maxsize = 10
 
-default_speed = 5000
+default_speed = 400
 default_servo_ramp = 10
 
 command_eol = "\r\n"
@@ -156,15 +156,15 @@ class SerialInterface:
     #return (0 if response.startswith("ERROR") else int(response))  # convert response (distance traveled) to int unless ERROR
   
   def botTurn(self, angle, speed=default_speed):
-    response = self.runCommandSync("set {angle} {speed} 0".format(angle=angle, speed=speed))
+    response = self.runCommandSync("set {angle} {speed} 0".format(angle=(angle*10), speed=speed))  # angle is 10ths of degrees
     return 0  # TODO accept actual values once implemented in motor-control
-    #return (0 if response.startswith("ERROR") else int(response))  # convert response (angle turned) to int unless ERROR
+    #return (0 if response.startswith("ERROR") else int(response))  # convert response (angle turned) to int (and divide by 10) unless ERROR
   
   def botSetHeading(self, angle, speed):
     pass  # TODO get current heading, compute difference, send turn command, wait for completion ack, return current heading (absolute)
   
   def armSetAngle(self, arm, angle, ramp=default_servo_ramp):
-    response = self.runCommandSync("servo {channel} {ramp} {angle}".format(channel=arm, ramp=ramp, angle=angle*10))  # angle is 10ths of degrees
+    response = self.runCommandSync("servo {channel} {ramp} {angle}".format(channel=arm, ramp=ramp, angle=angle))
     # TODO wait here for servo to reach angle?
     return response.startswith("OK")
   
