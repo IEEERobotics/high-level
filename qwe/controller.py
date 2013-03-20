@@ -24,7 +24,7 @@ if __name__ == "__main__":
 
   # Start serial communication to low-level board
   si = comm.SerialInterface()
-  si.start()
+  si.start() # FIXME: Unless you're on the Pandaboard, this will fail.
   logger.info("Serial interface setup")
 
   # Build shared data structures
@@ -35,7 +35,6 @@ if __name__ == "__main__":
   blocks = manager.list()
   zones = manager.list()
   corners = manager.list()
-  waypoints = manager.list() #TODO Does this really need to be a shared variable?
   logger.debug("Shared data structures created")
 
   # Build Queue objects for IPC. Name shows producer_consumer.
@@ -43,29 +42,30 @@ if __name__ == "__main__":
   logger.debug("Queue objects created")
 
   # Get map, waypoints and map properties
-  course_map = mapper.unpickle_map("./mapping/map.pkl")
-  tmp_waypoints = mapper.unpickle_waypoints("./mapping/waypoints.pkl")
-  map_properties = mapper.unpickle_map_prop_vars("./mapping/map_prop_vars.pkl")
-  waypoints.extend(tmp_waypoints)
+  course_map = mapper.unpickle_map("./mapping/map.pkl") # FIXME: This currently fails. See issue tracker.
   logger.info("Map unpickled")
+  waypoints = mapper.unpickle_waypoints("./mapping/waypoints.pkl")
+  logger.info("Waypoints unpickled")
+  map_properties = mapper.unpickle_map_prop_vars("./mapping/map_prop_vars.pkl")
+  logger.info("Map properties unpickled")
 
-  # Start planner process, pass it shared_data
+  # Start planner process, pass it shared data
   pPlanner = Process(target=planner.run, args=(bot_loc, blocks, zones, corners, waypoints))
   pPlanner.start()
   logger.info("Planner process started")
 
-  # Start vision process, pass it shared_data
+  # Start vision process, pass it shared data
   pVision = Process(target=vision.run, args=(bot_loc, blocks, zones, corners, waypoints))
   pVision.start()
   logger.info("Vision process started")
 
-  # Start navigator process, pass it shared_data
+  # Start navigator process, pass it shared data
   pNav = Process(target=nav.run, args=(bot_loc, blocks, zones, corners, course_map, waypoints))
   pNav.start()
   logger.info("Navigator process started")
 
-  # Start localizer process, pass it shared_data and course_map
-  pLocalizer = Process(target=localizer.run, args=(bot_loc, blocks, zones, corners, waypoints, course_map, qNav_loc))
+  # Start localizer process, pass it shared data, waypoints, map_properties course_map and queue for talking to nav
+  pLocalizer = Process(target=localizer.run, args=(bot_loc, blocks, zones, corners, waypoints, map_properties, course_map, qNav_loc))
   pLocalizer.start()
   logger.info("Localizer process started")
 
