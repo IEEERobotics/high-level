@@ -32,9 +32,9 @@ def pickle_waypoints(waypoints):
 """
 unpickle_map takes no arguments. It unpickles the map data structure and returns it.  
 """
-def unpickle_map(map_file):
+def unpickle_map():
 
-	pkl_file = open(map_file, 'r')
+	pkl_file = open('map.pkl', 'r')
 	Map = pickle.load(pkl_file)
 	pkl_file.close()
 
@@ -43,9 +43,9 @@ def unpickle_map(map_file):
 """
 unpickle_waypoints takes no arguments.  It unpickles the waypoints data structure and returns it.
 """
-def unpickle_waypoints(waypoints_file):
+def unpickle_waypoints():
 
-	pkl_file = open(waypoints_file, 'r')
+	pkl_file = open('waypoints.pkl', 'r')
 	waypoints = pickle.load(pkl_file)
 	pkl_file.close()
 
@@ -63,8 +63,8 @@ def pickle_map_prop_vars(map_prop_vars):
 """
 unpickle_map_prop_vars accepts no arguments.  The map_prop_vars dict is returned.
 """
-def unpickle_map_prop_vars(map_properties_file):
-	pkl_file = open(map_properties_file, 'r')
+def unpickle_map_prop_vars():
+	pkl_file = open('map_prop_vars.pkl', 'r')
 	map_prop_vars = pickle.load(pkl_file)
 	pkl_file.close()
 	return(map_prop_vars)

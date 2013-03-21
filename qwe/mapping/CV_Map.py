@@ -8,34 +8,12 @@ The mk_map function generates the map as it appears on sheet 7 of the course sch
 Notes:  Will require angle calculations for ramp distance calculations.  There may be some attributes we want to remove, like path and maybe status.  There's also redundancy between desc and color properties in that color contains white and desc contains markers/white lines.  This code is not optimized as it will not be used during bot runtime.  This code makes the map which will be stored as a pickled file or a text file.  The pickled file or text file will be brought back in to memory at bot runtime. 
 """
 import numpy as np
+from map_class import MapClass
 
 def mk_map(res, map_grid_vars, map_prop_vars):
 
-	class MapClass:
-		def __init__(self, res, mapSize):
-			self.res = res	
-			self.mapSize = mapSize	
-			self.scale = res
-			# make a numpy 2D array
-			self.grid = np.zeros(mapSize, dtype = [('desc', np.uint8),('status', np.uint8),('color', np.uint8),('level', np.uint8),('path', np.uint8)])
-		def ydim(self): 	#return the y dimension of grid (number of rows)
-			return(len(self.grid))
-		def xdim(self):		#return the x dimension of grid (number of columns)
-			return(len(self.grid[0]))	
-		def fill(self, p1, p2, prop):	#fill an area defined by p1 and p2 with value prop['key'] in layer key of MyMap.grid
-			x1,y1,x2,y2 = p1[0],p1[1],p2[0],p2[1]
-			if y1 <= y2:	y_range = (y1, y2)	
-			else: y_range = (y2, y1)
-			if x1 <= x2: x_range = (x1, x2)
-			else: x_range = (x2, x1)
-			for y in xrange(y_range[0],y_range[1]):	
-				for x in xrange(x_range[0],y_range[1]):
-					for key in prop:
-						self.grid[y][x][key] = prop[key]
-
 	mapSize = (map_grid_vars['height'], map_grid_vars['width']) # (height, width) --> (rows, cols)	
 	myMap = MapClass(res,mapSize)
-
 
 	"""
 	Begin initializing board, everything is first initialized to:

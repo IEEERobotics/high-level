@@ -4,6 +4,7 @@ this is a short script that makes the map by calling the mk_map() function from 
 """
 import argparse
 import CV_Map
+from map_class import MapClass
 import map2txt
 import flip_map
 import pickler
@@ -97,21 +98,21 @@ def main():
 	#Make the waypoints
 	waypoints = mk_waypoints.mk_waypoints(args.res, map_grid_vars)
 	#Output map to text
-	#map2txt.map2txt(Map)
+	map2txt.map2txt(Map)
 	#pickle the map
 	pickler.pickle_map(Map)
 	#pickle the waypoints
 	pickler.pickle_waypoints(waypoints)
 	#pickle the map_prop_vars
 	pickler.pickle_map_prop_vars(map_prop_vars)
-	#unpickle the map
+	#unpickle the waypoints - to test function
 	#Map_result = pickler.unpickle_map()
-	#unpickle the waypoints
+	#unpickle the waypoints - to test function
 	#waypoints_result = pickler.unpickle_waypoints()
-	#unpickle the map_prop_vars
+	#unpickle the map_prop_vars - to test function
 	#map_prop_vars_result = pickler.unpickle_map_prop_vars()
 
-	#print(Map_result[0][0]['desc'])
+	#print(Map_result.grid[0][0]['desc'])
 	#print(waypoints_result['land'])
 	#print(map_prop_vars_result['blue'])
 
