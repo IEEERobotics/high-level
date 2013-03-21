@@ -106,11 +106,11 @@ def main():
 	#pickle the map_prop_vars
 	pickler.pickle_map_prop_vars(map_prop_vars)
 	#unpickle the waypoints - to test function
-	#Map_result = pickler.unpickle_map()
+	#Map_result = pickler.unpickle_map('map.pkl')
 	#unpickle the waypoints - to test function
-	#waypoints_result = pickler.unpickle_waypoints()
+	#waypoints_result = pickler.unpickle_waypoints('waypoints.pkl')
 	#unpickle the map_prop_vars - to test function
-	#map_prop_vars_result = pickler.unpickle_map_prop_vars()
+	#map_prop_vars_result = pickler.unpickle_map_prop_vars('map_prop_vars.pkl')
 
 	#print(Map_result.grid[0][0]['desc'])
 	#print(waypoints_result['land'])
