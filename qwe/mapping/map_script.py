@@ -93,12 +93,12 @@ def main():
 
 	#Make map
 	Map = CV_Map.mk_map(args.res, map_grid_vars, map_prop_vars)
+	#Output map to text - the function map2txt flips the map during storing so don't need to call flip map first
+	map2txt.map2txt(Map)
 	#Flip the map
 	Map = flip_map.flip_map(Map)
 	#Make the waypoints
 	waypoints = mk_waypoints.mk_waypoints(args.res, map_grid_vars)
-	#Output map to text
-	map2txt.map2txt(Map)
 	#pickle the map
 	pickler.pickle_map(Map)
 	#pickle the waypoints
