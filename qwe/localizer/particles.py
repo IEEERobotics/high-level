@@ -14,12 +14,11 @@ from pose import *
 
 class ParticleLocalizer(object):
   # things we need from robot for init:
-  #  - sensor list
   #  - ? noise params?
   def __init__(self, sensor_list, noise_params, map, pcount):
     self.p = Particles(sensor_list, noise_params, map, pcount)
     self.pcount = pcount
-    self.prob = zeros(pcount)    # probability measurement, "weight"
+    self.weight = zeros(pcount)    # probability measurement, "weight"
     
   def move(self, turn, move):
     # this seems silly
@@ -28,34 +27,45 @@ class ParticleLocalizer(object):
   # Sense and Resample
   def update(self, measured):
     self.p.particle_sense()
-    self.resample(measured)
+    self.calc_weights(measured)
+    self.resample()
 
-  def resample(self, measured):
-    x = self.p.x
-    y = self.p.y
-    theta = self.p.theta
+  def calc_weights(self, measured):
     #print "Particles: updating weights:"
     # create an array of particle weights to use as resampling probability
+    prob = self.weight
     for i in range(self.pcount):
-      self.prob[i] = 1.0
+      prob[i] = 1.0
       for index,s in enumerate(self.p.sensors):
         # compare measured input of sensor versus the particle's value, adjusting prob accordingly
         #   TODO: refine 1.0 noise parameter to something meaningful
-        self.prob[i] *= gaussian(self.p.sensed[index][i], 1.5, measured[index])
-      #print "  %d : %0.2f, %0.2f @ %0.2f = %0.2e" % (i, x[i], y[i], theta[i], self.prob[i]) 
+        prob[i] *= gaussian(self.p.sensed[index][i], 1.5, measured[index])
+      #print "  %d : %0.2f, %0.2f @ %0.2f = %0.2e" % (i, x[i], y[i], theta[i], prob[i]) 
 
+  def random_particles(self, count):
+    x = random.random(count) * self.p.map.xdim
+    y = random.random(count) * self.p.map.ydim
+    theta = random.random(count)*2*pi
+    return zip( zeros(len(x)), x, y, theta, zeros(len(x)) )
+
+  def resample(self):
+    x = self.p.x
+    y = self.p.y
+    theta = self.p.theta
+    weight = self.weight
     # resample (x, y, theta) using wheel resampler
-    new = []
-    step = max(self.prob) * 2.0
+    rand_count = self.pcount / 10  # use some% entirely random
+    new = self.random_particles(rand_count)
+    step = max(weight) * 2.0
     cur = int(random.random() * self.pcount)
     beta = 0.0
-    for i in range(self.pcount):
+    for i in range(self.pcount - rand_count):
       beta += random.random() * step  # 0 - step size
-      while beta > self.prob[cur]:
-        beta -= self.prob[cur]
+      while beta > weight[cur]:
+        beta -= weight[cur]
         cur = (cur+1) % self.pcount
-        #print "b: %0.2f, cur: %d, prob = %0.2f" % (beta, cur, self.prob[cur])
-      new.append((cur, x[cur], y[cur], theta[cur], self.prob[cur]))
+        #print "b: %0.2f, cur: %d, prob = %0.2f" % (beta, cur, weight[cur])
+      new.append((cur, x[cur], y[cur], theta[cur], weight[cur]))
     #print "Resampled:"
     #for i in range(self.pcount):
     #  print " %d : %0.2f, %0.2f @ %+0.2f = %0.2e " % new[i]
@@ -65,13 +75,24 @@ class ParticleLocalizer(object):
 
   # TODO: try using a guess based on weighted particles?
   def guess(self):
-    return self.guess_mean()
+    return self.guess_wmean()
 
   def guess_mean(self):
     x = self.p.x.mean()
     y = self.p.y.mean()
     # average the vector components of theta individually to avoid jump between 0 and 2pi
     vx,vy = self.p.v.mean(axis=0)
+    theta = arctan2(vy,vx) % (2*pi)
+    return Pose(x,y,theta)
+
+  def guess_wmean(self):
+    weight = self.weight
+    normalizer = weight.sum()
+    x = (self.p.x * weight).sum() / normalizer
+    y = (self.p.y * weight).sum() / normalizer
+    # average the vector components of theta individually to avoid jump between 0 and 2pi
+    vx = (self.p.v[:,0] * weight).sum() / normalizer
+    vy = (self.p.v[:,1] * weight).sum() / normalizer
     theta = arctan2(vy,vx) % (2*pi)
     return Pose(x,y,theta)
 
