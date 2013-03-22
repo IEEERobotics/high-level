@@ -2,6 +2,9 @@
 """Creates shared data structures, then spawns processes for the major robot tasks and passes them 
 those data structures."""
 
+import sys
+sys.path.append("./mapping")
+
 # Standard library imports
 from multiprocessing import Process, Manager, Queue
 import time
@@ -20,7 +23,7 @@ if __name__ == "__main__":
   # Setup logging
   logging.config.fileConfig("logging.conf")
   logger = logging.getLogger(__name__)
-  logger.debug("Logger setup")
+  logger.debug("Logger setup in controller")
 
   # Start serial communication to low-level board
   si = comm.SerialInterface()
@@ -42,7 +45,7 @@ if __name__ == "__main__":
   logger.debug("Queue objects created")
 
   # Get map, waypoints and map properties
-  course_map = mapper.unpickle_map("./mapping/map.pkl") # FIXME: This currently fails. See issue tracker.
+  course_map = mapper.unpickle_map("./mapping/map.pkl")
   logger.info("Map unpickled")
   waypoints = mapper.unpickle_waypoints("./mapping/waypoints.pkl")
   logger.info("Waypoints unpickled")
@@ -60,12 +63,12 @@ if __name__ == "__main__":
   logger.info("Vision process started")
 
   # Start navigator process, pass it shared data
-  pNav = Process(target=nav.run, args=(bot_loc, blocks, zones, corners, course_map, waypoints))
+  pNav = Process(target=nav.run, args=(bot_loc, blocks, corners, course_map, waypoints, qNav_loc))
   pNav.start()
   logger.info("Navigator process started")
 
   # Start localizer process, pass it shared data, waypoints, map_properties course_map and queue for talking to nav
-  pLocalizer = Process(target=localizer.run, args=(bot_loc, blocks, zones, corners, waypoints, map_properties, course_map, qNav_loc))
+  pLocalizer = Process(target=localizer.run, args=(bot_loc, blocks, corners, map_properties, course_map, qNav_loc))
   pLocalizer.start()
   logger.info("Localizer process started")
 
