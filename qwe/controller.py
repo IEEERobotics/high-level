@@ -27,7 +27,7 @@ if __name__ == "__main__":
 
   # Start serial communication to low-level board
   si = comm.SerialInterface()
-  si.start() # FIXME: Unless you're on the Pandaboard, this will fail.
+  si.start() # Displays an error if port not found (not running on Pandaboard)
   logger.info("Serial interface setup")
 
   # Build shared data structures
@@ -38,6 +38,7 @@ if __name__ == "__main__":
   blocks = manager.list()
   zones = manager.list()
   corners = manager.list()
+  bot_state = manager.dict(nav_type=None, action_type=None)
   logger.debug("Shared data structures created")
 
   # Build Queue objects for IPC. Name shows producer_consumer.
@@ -53,22 +54,22 @@ if __name__ == "__main__":
   logger.info("Map properties unpickled")
 
   # Start planner process, pass it shared data
-  pPlanner = Process(target=planner.run, args=(bot_loc, blocks, zones, corners, waypoints))
+  pPlanner = Process(target=planner.run, args=(bot_loc, blocks, zones, waypoints, si, bot_state))
   pPlanner.start()
   logger.info("Planner process started")
 
   # Start vision process, pass it shared data
-  pVision = Process(target=vision.run, args=(bot_loc, blocks, zones, corners, waypoints))
+  pVision = Process(target=vision.run, args=(bot_loc, blocks, zones, corners, waypoints, si, bot_state))
   pVision.start()
   logger.info("Vision process started")
 
   # Start navigator process, pass it shared data
-  pNav = Process(target=nav.run, args=(bot_loc, blocks, corners, course_map, waypoints, qNav_loc))
+  pNav = Process(target=nav.run, args=(bot_loc, course_map, waypoints, qNav_loc, si, bot_state))
   pNav.start()
   logger.info("Navigator process started")
 
   # Start localizer process, pass it shared data, waypoints, map_properties course_map and queue for talking to nav
-  pLocalizer = Process(target=localizer.run, args=(bot_loc, blocks, corners, map_properties, course_map, qNav_loc))
+  pLocalizer = Process(target=localizer.run, args=(bot_loc, blocks, corners, map_properties, course_map, qNav_loc, si, bot_state))
   pLocalizer.start()
   logger.info("Localizer process started")
 
