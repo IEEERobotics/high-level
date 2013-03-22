@@ -89,7 +89,15 @@ while True:
   perr_theta = abs(simbot.theta - pguess.theta)
   if perr_theta > pi:
     perr_theta = 2*pi - perr_theta
-  print "Part Guess: ", pguess,
+  print "Part Guess (mean): ", pguess,
+  print " Error: %0.2f @ %0.2f" % (perr_xy, perr_theta)
+
+  pwguess = ploc.guess_wmean()
+  perr_xy = norm([simbot.x - pwguess.x, simbot.y - pwguess.y])
+  perr_theta = abs(simbot.theta - pwguess.theta)
+  if perr_theta > pi:
+    perr_theta = 2*pi - perr_theta
+  print "Part Guess (weighted): ", pwguess,
   print " Error: %0.2f @ %0.2f" % (perr_xy, perr_theta)
 
   print
