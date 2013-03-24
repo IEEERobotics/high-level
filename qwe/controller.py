@@ -2,6 +2,7 @@
 """Creates shared data structures, then spawns processes for the major robot tasks and passes them 
 those data structures."""
 
+# Add mapping to path
 import sys
 sys.path.append("./mapping")
 
@@ -43,6 +44,7 @@ if __name__ == "__main__":
 
   # Build Queue objects for IPC. Name shows producer_consumer.
   qNav_loc = Queue()
+  qMove_nav = Queue()
   logger.debug("Queue objects created")
 
   # Get map, waypoints and map properties
@@ -54,30 +56,30 @@ if __name__ == "__main__":
   logger.info("Map properties unpickled")
 
   # Start planner process, pass it shared data
-  pPlanner = Process(target=planner.run, args=(bot_loc, blocks, zones, waypoints, si, bot_state))
-  pPlanner.start()
+  pPlanner = Process(target=planner.run, args=(bot_loc, blocks, zones, waypoints, si, bot_state, qMove_nav))
+  #pPlanner.start()
   logger.info("Planner process started")
 
   # Start vision process, pass it shared data
   pVision = Process(target=vision.run, args=(bot_loc, blocks, zones, corners, waypoints, si, bot_state))
-  pVision.start()
+  #pVision.start()
   logger.info("Vision process started")
 
   # Start navigator process, pass it shared data
-  pNav = Process(target=nav.run, args=(bot_loc, course_map, waypoints, qNav_loc, si, bot_state))
+  pNav = Process(target=nav.run, args=(bot_loc, course_map, waypoints, qNav_loc, si, bot_state, qMove_nav))
   pNav.start()
   logger.info("Navigator process started")
 
   # Start localizer process, pass it shared data, waypoints, map_properties course_map and queue for talking to nav
   pLocalizer = Process(target=localizer.run, args=(bot_loc, blocks, corners, map_properties, course_map, qNav_loc, si, bot_state))
-  pLocalizer.start()
+  #pLocalizer.start()
   logger.info("Localizer process started")
 
   pNav.join()
   logger.info("Joined navigation process")
-  pVision.join()
+  #pVision.join()
   logger.info("Joined vision process")
-  pLocalizer.join()
+  #pLocalizer.join()
   logger.info("Joined localizer process")
-  pPlanner.join()
+  #pPlanner.join()
   logger.info("Joined planner process")
