@@ -46,5 +46,5 @@ echo "start(meters,rads):" $start_x $start_y $start_theta >> $ENV_DIR/$ENV_FILE
 echo "end(meters,rads):" $end_x $end_y $end_theta >> $ENV_DIR/$ENV_FILE
 echo "environment:" >> $ENV_DIR/$ENV_FILE
 
-# Prepend env map
+# Append env map
 cat $MAP_DIR/$MAP_FILE >> $ENV_DIR/$ENV_FILE
