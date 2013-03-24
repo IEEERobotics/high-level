@@ -10,6 +10,10 @@ be added."""
 
 import logging
 import logging.config
+from collections import namedtuple
+
+macro_move = namedtuple("macro_move", ["x", "y", "theta", "timestamp"])
+micro_move = namedtuple("micro_move", ["speed", "direction", "timestamp"])
 
 class Nav:
 
@@ -54,9 +58,26 @@ class Nav:
 
     self.logger.debug("Entering loop")
     while True:
-      self.qMove_nav.get()
       # TODO Handle movement logic here
+      move_cmd = self.qMove_nav.get()
+      self.logger.debug("Recieved move command")
 
+      if type(move_cmd) == macro_move:
+        self.logger.debug("Move command is if type macro")
+        self.macroMove(x=move_cmd.x, y=move_cmd.y, theta=move_cmd.theta)
+      elif type(move_cmd) == micro_move:
+        self.logger.debug("Move command is if type micro")
+        self.microMove(speed=move_cmd.speed, direction=move_cmd.direction)
+      else:
+        self.logger.warn("Move command is of unknown type")
+
+  def macroMove(self):
+    """Handle global movement commands. Accept a goal pose and use SBPL + other logic to navigate to that goal pose."""
+    self.logger.debug("Handling macro move")
+
+  def microMove(self):
+    """Handle simple movements on a small scale. Used for small adjustments by vision or planner when very close to objects."""
+    self.logger.debug("Handling micro move")
 
 def run(bot_loc, course_map, waypoints, qNav_loc, si, bot_state, qMove_nav):
   """Function that accepts initial data from controller and kicks off nav. Will eventually involve instantiating a class.
