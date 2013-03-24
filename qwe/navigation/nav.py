@@ -1,7 +1,5 @@
 #!/usr/bin/env python
-"""Primary module of navigation package. Currently, nav accepts a goalPose and then generates an environment configuration 
-file in the format accepted by SBPL. It uses default values that have no relationship to the actual course. It will then 
-call the C++ SBPL code using a subprocess, parse the generated solution file and issue commands to comm.
+"""Primary module of navigation package. 
 
 As this develops, it will eventually accept a goalPose from planner, request a currentPose from localizer, then call
 SBPL code (C++ made usable in Python by some method) and pass the configuration params. No file will be created and
@@ -10,92 +8,78 @@ be parsed and handed off to comm. Some additional logic involving issuing steps 
 checking for the amount of error, notifying localizer, maybe re-planning, and then issuing the next step will need to
 be added."""
 
-import comm.serial_interface as comm
-from subprocess import call
 import logging
 import logging.config
 
-DISCRETIZATION = 15 # Cells
-OBSTHRESH = 1
-COST_INSCRIBED_THRESH = 1
-COST_POSSIBLY_CIRCUMSCRIBED_THRESH = 0
-CELLSIZE = 0.025 # Meters
-NOMINALVEL = 1.0 # Meters per second
-TIMETOTURN45DEGSINPLACE = 2.0 # Seconds
-ENVIROMENT = \
-"0 0 0 0 0 0 1 1 0 0 0 0 0 0 0  " + "\r\n" \
-+ "0 0 0 0 0 0 1 1 0 0 0 0 0 0 0 " + "\r\n" \
-+ "0 0 0 0 0 0 1 1 0 0 0 0 0 0 0 " + "\r\n" \
-+ "0 0 0 0 0 0 1 1 1 1 0 0 0 0 0 " + "\r\n" \
-+ "0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 " + "\r\n" \
-+ "0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 " + "\r\n" \
-+ "0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 " + "\r\n" \
-+ "1 1 1 1 0 0 0 0 0 0 0 1 0 0 0 " + "\r\n" \
-+ "1 1 1 1 0 0 0 0 0 0 0 1 0 0 0 " + "\r\n" \
-+ "0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 " + "\r\n" \
-+ "0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 " + "\r\n" \
-+ "0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 " + "\r\n" \
-+ "0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 " + "\r\n" \
-+ "0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 " + "\r\n" \
-+ "0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 " + "\r\n"
+class Nav:
 
-def run(bot_loc, blocks, zones, corners, course_map, waypoints):
-  """Function that accepts initial data from controller and kicks off nav. Will eventually involve instaniating an class.
+  def __init__(self, bot_loc, course_map, waypoints, qNav_loc, si, bot_state, qMove_nav, logger):
+    """Setup navigation class
 
-  :param bot_loc: initial location of the bot
-  :param blocks: block data
-  :param zones: zone data
-  :param corners: corner data
-  :param course_map: map of course
-  :param waypoints: waypoint data
+    :param bot_loc: Shared dict updated with best-guess location of bot by localizer
+    :param course_map: Map of course
+    :param waypoints: Locations of interest on the course
+    :param qNav_loc: Multiprocessing.Queue object for passing movement feedback to localizer from navigator
+    :param si: Serial interface object for sending commands to low-level boards
+    :param bot_state: Dict of information about the current state of the bot (ex macro/micro nav)
+    :param qMove_nav: Multiprocessing.Queue object for passing movement commands to navigation (mostly from Planner)
+    :param logger: Used for standard Python logging
+    """
+
+    logger.info("Nav instantiated")
+
+    # Store passed-in data
+    self.bot_loc = bot_loc
+    self.course_map = course_map
+    self.waypoints = waypoints
+    self.qNav_loc = qNav_loc
+    self.si = si
+    self.bot_state = bot_state
+    self.qMove_nav = qMove_nav
+    self.logger = logger
+    self.logger.debug("Passed-in data stored to Nav object")
+
+  def start(self):
+    """Do any setup of nav here"""
+    self.logger.info("Started nav")
+
+    # TODO Add setup code here
+
+    # Call main loop that will handle movement commands passed in via qMove_nav
+    self.logger.debug("Calling main loop function")
+    self.loop()
+
+  def loop(self):
+    """Main loop of nav. Blocks and waits for motion commands passed in on qMove_nav"""
+
+    self.logger.debug("Entering loop")
+    while True:
+      self.qMove_nav.get()
+      # TODO Handle movement logic here
+
+
+def run(bot_loc, course_map, waypoints, qNav_loc, si, bot_state, qMove_nav):
+  """Function that accepts initial data from controller and kicks off nav. Will eventually involve instantiating a class.
+
+  :param bot_loc: Shared dict updated with best-guess location of bot by localizer
+  :param course_map: Map of course
+  :param waypoints: Locations of interest on the course
+  :param qNav_loc: Multiprocessing.Queue object for passing movement feedback to localizer from navigator
+  :param si: Serial interface object for sending commands to low-level boards
+  :param bot_state: Dict of information about the current state of the bot (ex macro/micro nav)
+  :param qMove_nav: Multiprocessing.Queue object for passing movement commands to navigation (mostly from Planner)
   """
+
+  # Setup logging
   logging.config.fileConfig("logging.conf")
   logger = logging.getLogger(__name__)
   logger.debug("Logger setup in nav")
 
-def moveForward(distance, speed):
-  """Very stupid function for moving forward. Goal is to get started with message passing between planner and comm.
+  # Build nav object and start it
+  logger.debug("Executing run function of nav")
+  nav = Nav(bot_loc, course_map, waypoints, qNav_loc, si, bot_state, qMove_nav, logger)
+  logger.info("Built Nav object")
+  nav.start()
+  logger.info("Started nav, exiting run in nav")
 
-  :param distance: distance to move forward
-  :param speed: speed to move forward
-  """
-  si = comm.SerialInterface()
-  actual_move = si.botMove(distance, speed)
-  return actual_move
 
-def genEnvTestFile(currentPose = {'theta': 0, 'x': 0.11, 'y': 0.11}, goalPose = {'theta': 0, 'x': 0.35, 'y': 0.3}):
-  """Builds a file suitable as input for SBPL. Eventually, params will be passed directly to SBPL, not written out.
-
-  :param goalPose: X, Y and theta of the desired bot location
-  """
-  # Open enviroment file for writing
-  envFile = open("navigation/envs/envTestFile.cfg", "w")
-
-  # Write configuration to environment file
-  envFile.write("discretization(cells): " + str(DISCRETIZATION) + " " + str(DISCRETIZATION) + "\r\n"
-    + "obsthresh: " + str(OBSTHRESH) + "\r\n"
-    + "cost_inscribed_thresh: " + str(COST_INSCRIBED_THRESH) + "\r\n"
-    + "cost_possibly_circumscribed_thresh: " + str(COST_POSSIBLY_CIRCUMSCRIBED_THRESH) + "\r\n"
-    + "cellsize(meters): " + str(CELLSIZE) + "\r\n"
-    + "nominalvel(mpersecs): " + str(NOMINALVEL) + "\r\n"
-    + "timetoturn45degsinplace(secs): " + str(TIMETOTURN45DEGSINPLACE) + "\r\n"
-    + "start(meters,rads): " + str(currentPose["x"]) + " " + str(currentPose["y"]) + " " + str(currentPose["theta"]) + "\r\n"
-    + "end(meters,rads): " + str(goalPose["x"]) + " " + str(goalPose["y"]) + " " + str(goalPose["theta"]) + "\r\n"
-    + "environment:" + "\r\n" + str(ENVIROMENT))
-
-  # Close environment file
-  envFile.close()
-  
-def moveTo(goalPose):
-  """Accepts a pose from planner that nav will attempt to move the bot to.
-
-  :param goalPose: dict with keys x, y and theta of the desired bot location
-  """
-  logger.info("Received new goalPose:", goalPose)
-
-  # TODO Get current pose from localizer
-
-  # Create environment fire for SBPL. TODO Replace this will direct call to SBPL C++, made to work in Python.
-  genEnvFile()
-
-  # TODO Call SBPL
