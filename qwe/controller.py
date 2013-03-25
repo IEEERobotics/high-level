@@ -2,15 +2,16 @@
 """Creates shared data structures, then spawns processes for the major robot tasks and passes them 
 those data structures."""
 
+ERROR_BAD_CWD = 100
+
 # Add mapping to path
 import sys
 sys.path.append("./mapping")
 
 # Standard library imports
 from multiprocessing import Process, Manager, Queue
-import time
-import logging
 import logging.config
+import os
 
 # Local module imports
 import planning.Planner as planner
@@ -21,10 +22,15 @@ import navigation.nav as nav
 import comm.serial_interface as comm
 
 if __name__ == "__main__":
+  # Confirm that controller is being run from correct directory
+  if not os.getcwd().endswith("qwe"):
+    print "Run me from ./qwe"
+    sys.exit(ERROR_BAD_CWD)
+
   # Setup logging
   logging.config.fileConfig("logging.conf")
   logger = logging.getLogger(__name__)
-  logger.debug("Logger setup in controller")
+  logger.debug("Logger is set up")
 
   # Start serial communication to low-level board
   si = comm.SerialInterface()
