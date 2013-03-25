@@ -1,15 +1,27 @@
 #!/usr/bin/env bash
 # 
 
-cd ./cmake_build &> /dev/null
-cd_return=$?
-if [ $cd_return -ne "0" ]
+if [ $# -ne 1 ]
 then
-  cd ./navigation/cmake_build &> /dev/null
-  cd2_return=$?
-  if [ $cd2_return -ne "0" ]
+  cd ./cmake_build &> /dev/null
+  cd_return=$?
+  if [ $cd_return -ne "0" ]
+  then
+    cd ./navigation/cmake_build &> /dev/null
+    cd2_return=$?
+    if [ $cd2_return -ne "0" ]
+      then
+        echo "Error: failed to CD to build dir. Pass as param or run from qwe or qwe/navigation."
+        exit 1
+    fi
+  fi
+else
+  path_to_build_dir=$1
+  cd $path_to_build_dir
+  cd3_return=$?
+  if [ $cd3_return -ne "0" ]
     then
-      echo "Error: Run from qwe or qwe/navigation"
+      echo "Error: failed to CD to build dir. Pass as param or run from qwe or qwe/navigation."
       exit 1
   fi
 fi
