@@ -8,12 +8,18 @@ be parsed and handed off to comm. Some additional logic involving issuing steps 
 checking for the amount of error, notifying localizer, maybe re-planning, and then issuing the next step will need to
 be added."""
 
-import logging
 import logging.config
 from collections import namedtuple
+from subprocess import call
+import os
 
+# Movement objects for issuing macro or micro movement commands to nav. Populate and pass to qMove_nav queue.
 macro_move = namedtuple("macro_move", ["x", "y", "theta", "timestamp"])
 micro_move = namedtuple("micro_move", ["speed", "direction", "timestamp"])
+
+# Dict of error codes and their human-readable names
+errors = {100 : "ERROR_BAD_CWD",  101 : "ERROR_SBPL_BUILD", 102 : "ERROR_SBPL_RUN", 103 : "ERROR_BUILD_ENV"}
+errors.update(dict((v,k) for k,v in errors.iteritems())) # Converts errors to a two-way dict
 
 class Nav:
 
@@ -43,41 +49,132 @@ class Nav:
     self.logger = logger
     self.logger.debug("Passed-in data stored to Nav object")
 
-  def start(self):
-    """Do any setup of nav here"""
+  def start(self, doLoop=True):
+    """Setup nav here. Finds path from cwd to qwe directory and then sets up paths from cwd to required files. Opens a file
+    descriptor for /dev/null that can be used to suppress output. Compiles SBPL using a bash script. Unless doLoop param is True,
+    calls the inf loop function to wait on motion commands to be placed in the qMove_nav queue.
+
+    :param doLoop: Boolean value that when false prevents nav from entering the inf loop that processes movement commands. This
+    can be helpful for testing."""
     self.logger.info("Started nav")
 
-    # TODO Add setup code here
+    # Find path to ./qwe directory. Allows for flexibility in the location nav is run from.
+    # TODO Could make this arbitrary by counting the number of slashes
+    if os.getcwd().endswith("high-level"):
+      path_to_qwe = "./qwe/"
+    elif os.getcwd().endswith("high-level/qwe"):
+      path_to_qwe = "./"
+    elif os.getcwd().endswith("high-level/qwe/navigation"):
+      path_to_qwe = "../"
+    elif os.getcwd().endswith("high-level/qwe/navigation/tests"):
+      path_to_qwe = "../../"
+    else:
+      self.logger.critical("Unexpected CWD: " + str(os.getcwd()))
+      return errors["ERROR_BAD_CWD"]
 
-    # Call main loop that will handle movement commands passed in via qMove_nav
-    self.logger.debug("Calling main loop function")
-    self.loop()
+    # Setup paths to required files
+    self.build_env_script = path_to_qwe + "../scripts/build_env_file.sh"
+    self.build_sbpl_script = path_to_qwe + "navigation/build_sbpl.sh"
+    self.sbpl_executable = path_to_qwe + "navigation/cmake_build/bin/test_sbpl"
+    self.env_file = path_to_qwe + "navigation/envs/env.cfg"
+    self.mprim_file = path_to_qwe + "navigation/mprim/all_file.mprim" # TODO Need actual mprims from Neal
+    self.map_file = path_to_qwe + "navigation/maps/binary_map.txt"
+    self.sol_file = path_to_qwe + "navigation/sols/sol.txt"
+    self.sbpl_build_dir = path_to_qwe + "navigation/cmake_build"
+
+    # Open /dev/null for suppressing SBPL output
+    self.devnull = open("/dev/null", "w")
+    self.logger.info("Opened file descriptor for writing to /dev/null")
+
+    # Compile SBPL
+    build_rv = call([self.build_sbpl_script, self.sbpl_build_dir])
+    if build_rv != 0:
+      self.logger.critical("Failed to build SBPL. Script return value was: " + str(build_rv))
+      return errors["ERROR_SBPL_BUILD"]
+
+    if doLoop: # Call main loop that will handle movement commands passed in via qMove_nav
+      self.logger.debug("Calling main loop function")
+      self.loop()
+    else: # Don't call loop, return to caller 
+      self.logger.info("Not calling loop. Individual functions should be called by the owner of this class object.")
 
   def loop(self):
     """Main loop of nav. Blocks and waits for motion commands passed in on qMove_nav"""
 
-    self.logger.debug("Entering loop")
+    self.logger.debug("Entering inf motion command handling loop")
     while True:
-      # TODO Handle movement logic here
+      # TODO Expand movement logic here
       move_cmd = self.qMove_nav.get()
-      self.logger.debug("Recieved move command")
+      self.logger.info("Received move command")
 
       if type(move_cmd) == macro_move:
-        self.logger.debug("Move command is if type macro")
+        self.logger.info("Move command is if type macro")
         self.macroMove(x=move_cmd.x, y=move_cmd.y, theta=move_cmd.theta)
       elif type(move_cmd) == micro_move:
-        self.logger.debug("Move command is if type micro")
+        self.logger.info("Move command is if type micro")
         self.microMove(speed=move_cmd.speed, direction=move_cmd.direction)
       else:
         self.logger.warn("Move command is of unknown type")
 
-  def macroMove(self):
-    """Handle global movement commands. Accept a goal pose and use SBPL + other logic to navigate to that goal pose."""
-    self.logger.debug("Handling macro move")
+  def macroMove(self, x, y, theta):
+    """Handle global movement commands. Accept a goal pose and use SBPL + other logic to navigate to that goal pose.
 
-  def microMove(self):
-    """Handle simple movements on a small scale. Used for small adjustments by vision or planner when very close to objects."""
+    :param x: X coordinate of goal pose
+    :param y: Y coordinate of goal pose
+    :param theta: Angle of goal pose"""
+
+    self.logger.debug("Handling macro move")
+    # TODO This needs more logic
+
+    self.genSol(x, y, theta)
+
+  def microMove(self, speed, direction):
+    """Handle simple movements on a small scale. Used for small adjustments by vision or planner when very close to objects.
+
+    :param speed: Speed of bot during movement
+    :param direction: Direction of bot travel during movement"""
+
     self.logger.debug("Handling micro move")
+    # TODO This needs more logic
+
+  def genSol(self, goal_x, goal_y, goal_theta):
+    """Use SBPL to generate a series of steps, within some set of acceptable motion primitives, that move the robot from the
+    current location to the goal pose
+
+    Eventually the SBPL code will be modified such that it can be called directly from here and params can be passed in-memory, to
+    avoid file IP and spawning new processes.
+
+    :param goal_x: X coordinate of goal pose
+    :param goal_y: Y coordinate of goal pose
+    :param goal_theta: Angle of goal pose"""
+
+    self.logger.debug("Generating plan")
+
+    # Build environment file for input into SBPL
+    # TODO Upgrade this to call SBPL directly, as described above
+    # Usage: ./build_env_file.sh <start_x> <start_y> <start_theta> <end_x> <end_y> <end_theta> [<env_file> <map_file]
+    build_env_rv = call([self.build_env_script, str(self.bot_loc["x"]), str(self.bot_loc["y"]), str(self.bot_loc["theta"]), \
+      str(goal_x), str(goal_y), str(goal_theta), str(self.env_file), str(self.map_file)])
+
+    # Check results of build_env_script call
+    if build_env_rv < 0:
+      self.logger.critical("Failed to build env file. Script return value was: " + str(build_env_rv))
+      return errors["ERROR_BUILD_ENV"]
+    self.logger.info("Successfully built env file. Return value was: " + str(build_env_rv))
+
+    # Run SBPL
+    sbpl_rv = call([self.sbpl_executable, self.env_file, self.mprim_file])
+
+    # Check results of SBPL run
+    if sbpl_rv < 0:
+      self.logger.critical("Failed to run SBPL. SBPL return value was: " + str(sbpl_rv))
+      return errors["ERROR_SBPL_RUN"]
+    if sbpl_rv == 1:
+      # No solution found
+      self.logger.warning("SBPL failed to find a solution")
+    self.logger.info("Successfully ran SBPL. Return value was: " + str(sbpl_rv))
+
+    # TODO Read solution file into memory and return it
 
 def run(bot_loc, course_map, waypoints, qNav_loc, si, bot_state, qMove_nav):
   """Function that accepts initial data from controller and kicks off nav. Will eventually involve instantiating a class.
@@ -92,15 +189,12 @@ def run(bot_loc, course_map, waypoints, qNav_loc, si, bot_state, qMove_nav):
   """
 
   # Setup logging
-  logging.config.fileConfig("logging.conf")
+  logging.config.fileConfig("logging.conf") # TODO This will break if not called from qwe. Add check to fix based on cwd?
   logger = logging.getLogger(__name__)
-  logger.debug("Logger setup in nav")
+  logger.debug("Logger is set up")
 
   # Build nav object and start it
   logger.debug("Executing run function of nav")
   nav = Nav(bot_loc, course_map, waypoints, qNav_loc, si, bot_state, qMove_nav, logger)
-  logger.info("Built Nav object")
-  nav.start()
-  logger.info("Started nav, exiting run in nav")
-
-
+  logger.debug("Built Nav object")
+  return nav.start()
