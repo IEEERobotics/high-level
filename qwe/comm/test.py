@@ -1,33 +1,34 @@
 import sys
-import serial_interface as si
+from multiprocessing import Process, Queue, Manager
+import serial_interface
 
-def testPoly(serialInterface, numSides=4, sideLength=1000, dir=1):
+def testPoly(sc, numSides=4, sideLength=1000, dir=1):
   turnAngle = dir * 360 / numSides
   
   for i in range(numSides):
     print "testPoly(): Command : botMove({0})".format(sideLength)
-    response = serialInterface.botMove(sideLength)
+    response = sc.botMove(sideLength)
     print "testPoly(): Response: {0}".format(response)
     
-    print "testPoly(): Command : botTurn({0})".format(turnAngle)
-    response = serialInterface.botTurn(turnAngle)
+    print "testPoly(): Command : botTurnRel({0})".format(turnAngle)
+    response = sc.botTurnRel(turnAngle)
     print "testPoly(): Response: {0}".format(response)
 
 
-def testArm(serialInterface, arm):
+def testArm(sc, arm):
   print "testArm(): Command : armUp({0})".format(arm)
-  response = serialInterface.armUp(arm)
+  response = sc.armUp(arm)
   print "testArm(): Response: {0}".format(response)
   
   print "testArm(): Command : armDown({0})".format(arm)
-  response = serialInterface.armDown(arm)
+  response = sc.armDown(arm)
   print "testArm(): Response: {0}".format(response)
 
 
 def main():
-  port = si.default_port
-  baudrate = si.default_baudrate
-  timeout = si.default_timeout
+  port = serial_interface.default_port
+  baudrate = serial_interface.default_baudrate
+  timeout = serial_interface.default_timeout
   
   if len(sys.argv) > 1:
     port = sys.argv[1]
@@ -37,20 +38,25 @@ def main():
         timeout = None if sys.argv[3] == "None" else float(sys.argv[3])
   
   print "main(): Creating SerialInterface(port=\"{port}\", baudrate={baudrate}, timeout={timeout})".format(port=port, baudrate=baudrate, timeout=(-1 if timeout is None else timeout))
-  serialInterface = si.SerialInterface(port, baudrate, timeout)
-  if not serialInterface.start():
-    return
+  si_commands = Queue(serial_interface.default_queue_maxsize)  # queue to store commands, process-safe; NOTE Windows-only
+  manager = Manager()  # manager service to share data across processes; NOTE Windows-only
+  si_responses = manager.dict()  # shared dict to store responses, process-safe; NOTE Windows-only
+  si = SerialInterface(port, baudrate, timeout, si_commands, si_responses)  # NOTE commands and responses need to be passed in on Windows only; SerialInterface creates its own otherwise
+  si.start()
+  
+  sc = SerialCommand(si)
   
   # Test suite
-  serialInterface.botStop()
-  testPoly(serialInterface, 4)
-  serialInterface.botStop()
-  testArm(serialInterface, si.left_arm)
-  serialInterface.botStop()
-  testArm(serialInterface, si.right_arm)
-  serialInterface.botStop()
+  sc.botStop()
+  testPoly(sc, 4)
+  sc.botStop()
+  testArm(sc, serial_interface.left_arm)
+  sc.botStop()
+  testArm(sc, serial_interface.right_arm)
+  sc.botStop()
   
-  serialInterface.stop()
+  sc.quit()
+  sc.join()
   print "main(): Done."
 
 if __name__ == "__main__":
