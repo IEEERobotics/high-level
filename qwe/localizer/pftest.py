@@ -12,18 +12,30 @@ from pose import Pose
 import std_sensors
 import std_noise
 
+import argparse
 import signal
 import sys
+
 def signal_handler(signal, frame):
   print
+  print score
+  print error
   sys.exit(0)
 signal.signal(signal.SIGINT, signal_handler)
 
-m = map.Map('maps/test3.map')
-#m = map.Map('maps/map_walls.txt')
+score = []
+error = []
 
-start_x = m.xdim / 2
-start_y = m.ydim / 2
+parser = argparse.ArgumentParser(description='Particle Filter Tester')
+parser.add_argument('-n', '--num', help='Number of partiles', type=int, default='500' )
+parser.add_argument('-m', '--map', help='Map file', default='maps/test3.map' )
+parser.add_argument('-r', '--res', help='Map res (inchs/block)', type=float, default='3.0' )
+args = parser.parse_args()
+
+m = map.Map(args.map, args.res)
+
+start_x = m.x_inches / 2
+start_y = m.y_inches / 2
 
 start_pose = Pose(start_x, start_y, 0.0)
 noise_params = std_noise.noise_params
@@ -45,8 +57,7 @@ simbot = robot.SimRobot(pose = start_pose, sensors = std_sensors.sensors, noise_
 
 # create a localizer using the robot as a model
 # TODO: decide if we shold be using an ideal or noisy movement/sensors
-#ploc = particles.ParticleLocalizer(std_sensors.sensors, noise_params, map = m, pcount = 1500)
-ploc = particles.ParticleLocalizer(std_sensors.sensors, noise_params, map = m, pcount = 1500)
+ploc = particles.ParticleLocalizer(std_sensors.sensors, noise_params, m, args.num)
 dloc = localizer.DumbLocalizer(start_pose)
 
 print "Start: ", simbot
@@ -84,12 +95,20 @@ while True:
   print "Dumb Guess: ", dguess, 
   print " Error: %0.2f @ %0.2f" % (derr_xy, derr_theta)
 
-  pguess = ploc.guess()
+  pguess = ploc.guess_mean()
   perr_xy = norm([simbot.x - pguess.x, simbot.y - pguess.y])
   perr_theta = abs(simbot.theta - pguess.theta)
   if perr_theta > pi:
     perr_theta = 2*pi - perr_theta
   print "Part Guess (mean): ", pguess,
+  print " Error: %0.2f @ %0.2f" % (perr_xy, perr_theta)
+
+  bguess = ploc.guess_best()
+  perr_xy = norm([simbot.x - bguess.x, simbot.y - bguess.y])
+  perr_theta = abs(simbot.theta - bguess.theta)
+  if perr_theta > pi:
+    perr_theta = 2*pi - perr_theta
+  print "Part Guess (best): ", bguess,
   print " Error: %0.2f @ %0.2f" % (perr_xy, perr_theta)
 
   pwguess = ploc.guess_wmean()
@@ -99,6 +118,9 @@ while True:
     perr_theta = 2*pi - perr_theta
   print "Part Guess (weighted): ", pwguess,
   print " Error: %0.2f @ %0.2f" % (perr_xy, perr_theta)
+
+  score.append( ploc.score() )
+  error.append( perr_xy )
 
   print
 

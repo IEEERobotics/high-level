@@ -30,6 +30,14 @@ class Map():
   def ydim(self):
     return len(self.data)
 
+  @property
+  def x_inches(self):
+    return len(self.data[0]) * self.scale
+
+  @property
+  def y_inches(self):
+    return len(self.data) * self.scale
+
   def __str__(self):
     return "Map: (%d, %d) = (%0.2f, %0.2f) inches" % (self.xdim, self.ydim, self.xdim * self.scale, self.ydim * self.scale)
 

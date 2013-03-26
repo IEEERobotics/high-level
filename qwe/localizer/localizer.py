@@ -7,6 +7,7 @@ import time  # sleep
 
 import std_sensors, std_noise
 
+# blocks status + map = walls 
 def run( start_x, start_y, start_theta, ipc_channel = None, shared_data = {}, map_data = None ):
 
   start_pose = pose.Pose(start_x,start_y,start_theta)
@@ -52,6 +53,7 @@ class Fake_IPC(object):
     move = random.random() 
     self.simbot.move(turn,move)
     measured = self.simbot.sense(self.map)
+    # %todo: x, y, theta -> dx, dy, dtheta
     msg = {'turn': turn, 'move': move, 'sensors': measured}
     time.sleep(self.delay)
     return msg
