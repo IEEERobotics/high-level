@@ -29,12 +29,12 @@ class MapPlot(HasTraits):
 
     data_xy = self.map.xy()
 
-    x_ds = ArrayDataSource(data_xy[:,0])
-    y_ds = ArrayDataSource(data_xy[:,1])
+    x_ds = ArrayDataSource(data_xy[:,0] * self.map.scale)
+    y_ds = ArrayDataSource(data_xy[:,1] * self.map.scale)
     x_dr = DataRange1D(x_ds)
     y_dr = DataRange1D(y_ds)
-    x_dr.set_bounds(0, self.map.xdim)  # auto ranging won't work if a side has no walls
-    y_dr.set_bounds(0, self.map.ydim)
+    x_dr.set_bounds(0, self.map.x_inches)  # auto ranging won't work if a side has no walls
+    y_dr.set_bounds(0, self.map.y_inches)
 
     markersize = max( min(475/self.map.ydim, 500/self.map.xdim), 1 )
 

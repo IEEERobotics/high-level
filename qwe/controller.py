@@ -35,7 +35,7 @@ if __name__ == "__main__":
   # Start serial communication to low-level board
   si = comm.SerialInterface()
   si.start() # Displays an error if port not found (not running on Pandaboard)
-  logger.info("Serial interface setup")
+  logger.info("Serial interface set up")
 
   # Build shared data structures
   # Not wrapping them in a mutable container, as it's more complex for other devs

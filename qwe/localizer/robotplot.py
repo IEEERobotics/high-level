@@ -16,8 +16,8 @@ class RobotPlotter(HasTraits):
   robot = Instance(Robot)
   plot = Instance(Component)
   vsize = Int(10)
-  xsize = Int
-  ysize = Int
+  xsize = Float
+  ysize = Float
 
   color = Color('red')
 
@@ -63,9 +63,3 @@ class RobotPlotter(HasTraits):
     plot.aspect_ratio = float(self.xsize) / float(self.ysize)
     return plot
      
-
-if __name__ == "__main__":
-  r = Robot( x = 5.0, y = 5.0, theta = 0.0 )
-  plot = RobotPlot(robot = r)
-  plot.configure_traits()
-

@@ -1,6 +1,6 @@
 # Enthought library imports
 from enable.api import Component, ComponentEditor
-from traits.api import HasTraits, Instance, Property, Int, Array, Range, cached_property
+from traits.api import HasTraits, Instance, Property, Int, Float, Array, Range, cached_property
 from traitsui.api import Item, View, Group
 
 # Chaco imports
@@ -17,8 +17,8 @@ class ParticlePlotter(HasTraits):
     vsize = Int(10)
  
     # field dimensions, should we just hook in the map object and use it's values directly?
-    xsize = Int
-    ysize = Int
+    xsize = Float
+    ysize = Float
 
     particles = Instance(Particles)
    
