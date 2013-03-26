@@ -23,6 +23,7 @@ default_servo_ramp = 10
 
 command_eol = "\r\n"
 is_sequential = True  # force sequential execution of commands
+fake_delay = 0.25  # secs.; duration to sleep for when faking serial comm.
 
 # TODO move arm info out into action, creating an Arm class to encapsulate?
 left_arm = 0
@@ -137,10 +138,6 @@ class SerialInterface(Process):
       self.device.close()
       print "SerialInterface.run(): Serial port closed"
   
-  def quit(self):
-    """Terminate threads and quit."""
-    self.putCommand("quit")  # special command "quit" is not serviced, it simply terminates the send and receive thread(s)
-  
   def sendLoop(self, block=True):
     """Monitor queue for commands and send them until signaled to quit."""
     print "SerialInterface.sendLoop(): [SEND] loop starting..."
@@ -189,30 +186,6 @@ class SerialInterface(Process):
         pass  # if queue is empty (after timeout), simply loop back and wait for more commands
     print "SerialInterface.execLoop(): [EXEC] loop terminated."
   
-  def putCommand(self, command):  # priority=0
-    """Add command to queue, assigning a unique identifier."""
-    id = random.randrange(sys.maxint)  # generate unique command id; TODO if id is sent to motor-control, make sure it is in range
-    self.commands.put((id, command))  # insert command into queue as 2-tuple (id, command)
-    # TODO insert into appropriate queue by priority?
-    return id  # return id
-  
-  def getResponse(self, id, block=True):
-    """Get response for given id from responses dict and return."""
-    if block:
-      while not id in self.responses:
-        pass  # if blocking, wait till command has been serviced
-    elif not id in self.responses:
-      return None  # if non-blocking and command hasn't been serviced, return None
-    
-    response = self.responses.pop(id)  # get response and remove it
-    return response
-  
-  def runCommand(self, command):
-    """Add command to queue, block for response and return it."""
-    id = self.putCommand(command)
-    response = self.getResponse(id)
-    return response
-  
   def send(self, id, command):
     """Send a command, adding terminating EOL char(s)."""
     try:
@@ -252,12 +225,12 @@ class SerialInterface(Process):
       print "[EXEC] Error:", e
   
   def fakeSend(self, id, command):
-    print "[FAKE-SEND] {id} {command}".format(id=id, command=command)
-    sleep(0.5)
+    print "[FAKE-SEND] ({id}) {command}".format(id=id, command=command)
+    sleep(fake_delay)
     return True
   
   def fakeRecv(self):
-    sleep(0.5)
+    sleep(fake_delay)
     response = { 'result': True, 'msg': "" }
     print "[FAKE-RECV] {response}".format(response=response)
     return response
@@ -266,33 +239,62 @@ class SerialInterface(Process):
 class SerialCommand:
   """Exposes a set of methods for sending different navigation, action and sensor commands via a SerialInterface."""
   
-  def __init__(self, serialInterface):
-    self.si = serialInterface
+  def __init__(self, commands, responses):
+    self.commands = commands   # shared Queue
+    self.responses = responses  # shared dict
+  
+  def putCommand(self, command):  # priority=0
+    """Add command to queue, assigning a unique identifier."""
+    id = random.randrange(sys.maxint)  # generate unique command id; TODO if id is sent to motor-control, make sure it is in range
+    self.commands.put((id, command))  # insert command into queue as 2-tuple (id, command)
+    # TODO insert into appropriate queue by priority?
+    return id  # return id
+  
+  def getResponse(self, id, block=True):
+    """Get response for given id from responses dict and return."""
+    if block:
+      while not id in self.responses:
+        pass  # if blocking, wait till command has been serviced
+    elif not id in self.responses:
+      return None  # if non-blocking and command hasn't been serviced, return None
+    
+    response = self.responses.pop(id)  # get response and remove it
+    return response
+  
+  def runCommand(self, command):
+    """Add command to queue, block for response and return it."""
+    id = self.putCommand(command)
+    response = self.getResponse(id)
+    return response
+  
+  def quit(self):
+    """Terminate threads and quit."""
+    self.putCommand("quit")  # special command "quit" is not serviced, it simply terminates the send and receive thread(s)
   
   def botStop(self):
     """Stop immediately."""
-    response = self.si.runCommand("stop")  # TODO use putCommand() to make "stop" an immediate command (with no response)
+    response = self.runCommand("stop")  # TODO use putCommand() to make "stop" an immediate command (with no response)
     return response.get('result', False)
   
   def botSetSpeed(self, left, right):
     """Set individual wheel/side speeds (units: PWM values 0 - 10000)."""
-    response = self.si.runCommand("pwm_drive {left} {right}".format(left=left, right=right))  # TODO use putCommand() [see botStop()]
+    response = self.runCommand("pwm_drive {left} {right}".format(left=left, right=right))  # TODO use putCommand() [see botStop()]
     return response.get('result', False)
   
   def botMove(self, distance, speed=default_speed):
-    response = self.si.runCommand("move {speed} {distance}".format(speed=speed, distance=distance))
+    response = self.runCommand("move {speed} {distance}".format(speed=speed, distance=distance))
     return int(response.get('distance', 0))
   
   def botTurnAbs(self, angle):
-    response = self.si.runCommand("turn_abs {angle}".format(angle=int(angle * 10.0)))  # angle is 10ths of a degree
+    response = self.runCommand("turn_abs {angle}".format(angle=int(angle * 10.0)))  # angle is 10ths of a degree
     return float(response.get('absHeading', 0)) / 10.0  # TODO make 10.0 factor a parameter
   
   def botTurnRel(self, angle):
-    response = self.si.runCommand("turn_rel {angle}".format(angle=int(angle * 10.0)))  # angle is 10ths of a degree
+    response = self.runCommand("turn_rel {angle}".format(angle=int(angle * 10.0)))  # angle is 10ths of a degree
     return float(response.get('relHeading', 0)) / 10.0  # TODO make 10.0 factor a parameter
   
   def armSetAngle(self, arm, angle, ramp=default_servo_ramp):
-    response = self.si.runCommand("servo {channel} {ramp} {angle}".format(channel=arm, ramp=ramp, angle=angle))
+    response = self.runCommand("servo {channel} {ramp} {angle}".format(channel=arm, ramp=ramp, angle=angle))
     # TODO wait here for servo to reach angle?
     return response.get('result', False)
   
@@ -303,7 +305,7 @@ class SerialCommand:
     return self.armSetAngle(arm, arm_angles[arm][1])
   
   def gripperSetAngle(self, arm, angle, ramp=default_servo_ramp):
-    response = self.si.runCommand("servo {channel} {ramp} {angle}".format(channel=grippers[arm], ramp=ramp, angle=angle))
+    response = self.runCommand("servo {channel} {ramp} {angle}".format(channel=grippers[arm], ramp=ramp, angle=angle))
     # TODO wait here for servo to reach angle?
     return response.get('result', False)
   
@@ -316,11 +318,11 @@ class SerialCommand:
     return gripperSetAngle(gripper, gripper_angles[gripper][1])
   
   def getAllSensorData(self):
-    return self.si.runCommand("sensors")  # return the entire dict full of sensor data
+    return self.runCommand("sensors")  # return the entire dict full of sensor data
   
   def getSensorData(self, sensorId):
     """Fetches current value of a sensor. Handles only scalar sensors, i.e. ones that return a single int value."""
-    response = self.si.runCommand("sensor {sensorId}".format(sensorId=sensorId))
+    response = self.runCommand("sensor {sensorId}".format(sensorId=sensorId))
     # TODO timestamp sensor data here?
     return int(response.get('data', -1))  # NOTE this only handles single-value data
   
@@ -355,46 +357,49 @@ def main():
   # Serial interface
   print "main(): Creating SerialInterface(port=\"{port}\", baudrate={baudrate}, timeout={timeout}) process...".format(port=port, baudrate=baudrate, timeout=(-1 if timeout is None else timeout))
   
-  si_commands = Queue(default_queue_maxsize)  # queue to store commands, process-safe; NOTE Windows-only
-  manager = Manager()  # manager service to share data across processes; NOTE Windows-only
-  si_responses = manager.dict()  # shared dict to store responses, process-safe; NOTE Windows-only
-  si = SerialInterface(port, baudrate, timeout, si_commands, si_responses)  # NOTE commands and responses need to be passed in on Windows only; SerialInterface creates its own otherwise
+  #manager = Manager()  # manager service to share data across processes; NOTE must on Windows
+  #si_commands = Queue(default_queue_maxsize)  # queue to store commands, process-safe; NOTE must on Windows
+  #si_responses = manager.dict()  # shared dict to store responses, process-safe; NOTE must on Windows
+  #si = SerialInterface(port, baudrate, timeout, si_commands, si_responses)  # NOTE commands and responses need not be passed in (other than in Windows?); SerialInterface creates its own otherwise
+  si = SerialInterface(port, baudrate, timeout)
   si.start()
   
-  # Serial command
-  sc = SerialCommand(si)  # NOTE pass in the single SerialInterface object to create a SerialCommand wrapper object
+  # Serial command(s): Wrappers for serial interface
+  sc1 = SerialCommand(si.commands, si.responses)  # pass in shared commands and responses structures to create a SerialCommand wrapper object
   # NOTE pass this SerialCommand object to anything that needs to call high-level methods (botMove, botTurn*, getSensorData, etc.)
-  # NOTE multiple SerialCommand objects can be created if needed; the underlying SerialInterface data structures are process- and thread- safe
+  sc2 = SerialCommand(si.commands, si.responses) # multiple SerialCommand objects can be created if needed; the underlying SerialInterface data structures are process- and thread- safe
   
   # Test sequence, non-interactive
   print "main(): Starting test sequence...\n"
-  sc.botStop()
-  #pTest = Process(target=test.testPoly, args=(sc,))
-  #pTest.start()  # parallel
-  test.testPoly(sc)  # sequential
-  sc.botStop()
+  sc1.botStop()
+  pTest = Process(target=test.testPoly, args=(sc1,))
+  pTest.start()  # start test process
   
   # Interactive session
-  print "main(): Starting interactive session [\"quit\" to end]...\n"
+  print "main(): Starting interactive session [Ctrl+D or \"quit\" to end]...\n"
   while True:
     try:
       command = raw_input("Me    > ")  # input command from user
     except EOFError:
       command = "quit"
     
-    id = si.putCommand(command)
     if command == "quit":
-      print "\nmain(): Exiting interactive session..."
+      print "\nmain(): Quiting interactive session..."
       break
-    response = si.getResponse(id)
-    print "Device: {response} [{id}]".format(response=response, id=id)
+    
+    response = sc2.runCommand(command)  # equiv. to putCommand()..getResponse()
+    #id = sc2.putCommand(command)
+    #response = sc2.getResponse(id)
+    print "Device: {response}".format(response=response)
   print "main(): Interactive session terminated."
   
   # Clean-up
-  #pTest.join()
+  sc1.botStop()  # stop bot, if moving
+  pTest.join()  # wait for test process to join
   print "main(): Test sequence terminated."
   
-  # Wait till "quit" has been processed
+  # Wait for SerialInterface to terminate
+  sc2.quit()
   si.join()
   print "main(): Done."
 
