@@ -13,15 +13,14 @@ errors = {100 : "ERROR_BAD_CWD"}
 errors.update(dict((v,k) for k,v in errors.iteritems())) # Converts errors to a two-way dict
 
 # Find path to ./qwe directory. Allows for flexibility in the location tests are fired from.
-if os.getcwd().endswith("high-level"):
-  path_to_qwe = "./qwe/"
-elif os.getcwd().endswith("high-level/qwe"):
+if os.getcwd().endswith("qwe"):
   path_to_qwe = "./"
-elif os.getcwd().endswith("high-level/qwe/navigation"):
+elif os.getcwd().endswith("qwe/navigation"):
   path_to_qwe = "../"
-elif os.getcwd().endswith("high-level/qwe/navigation/tests"):
+elif os.getcwd().endswith("qwe/navigation/tests"):
   path_to_qwe = "../../"
 else:
+  print "Error: Bad CWD" 
   sys.exit(errors["ERROR_BAD_CWD"])
 
 sys.path.append(path_to_qwe) # Makes local module imports work as if in qwe
@@ -62,6 +61,7 @@ class TestFileGeneration(unittest.TestCase):
      
     # Start serial communication to low-level board
     self.si = comm.SerialInterface()
+    # FIXME Currently, SIs threads hang and prevent tests from finishing
     self.si.start() # Displays an error if port not found (not running on Pandaboard)
     self.logger.info("Serial interface set up")
 
