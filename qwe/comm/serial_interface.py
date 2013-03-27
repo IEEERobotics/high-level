@@ -18,11 +18,13 @@ default_baudrate = 19200
 default_timeout = 10  # seconds; float allowed
 default_queue_maxsize = 10
 
-default_speed = 400
-default_servo_ramp = 10
+default_speed = 400  # TODO set correct default speed when units are established
+default_servo_ramp = 10  # 0-63; 10 is a good number
 
 command_eol = "\r\n"
 is_sequential = True  # force sequential execution of commands
+prefix_id = False  # send id pre-pended with commands?
+servo_delay = 1.0  # secs.; duration to sleep after sending a servo command to let it finish (motor-controller returns immediately)
 fake_delay = 0.25  # secs.; duration to sleep for when faking serial comm.
 
 # TODO move arm info out into action, creating an Arm class to encapsulate?
@@ -189,9 +191,9 @@ class SerialInterface(Process):
   def send(self, id, command):
     """Send a command, adding terminating EOL char(s)."""
     try:
-      #self.device.write(str(id) + ' ') # TODO add id in the command message itself so that response can be mapped back
-      self.device.write(command)
-      self.device.write(command_eol)  # add EOL char(s)
+      if prefix_id:
+        self.device.write(str(id) + ' ') # TODO add id in the command message itself so that response can be mapped back
+      self.device.write(command + command_eol)  # add EOL char(s)
       return True
     except Exception as e:
       print "SerialInterface.send(): Error:", e
@@ -225,7 +227,9 @@ class SerialInterface(Process):
       print "[EXEC] Error:", e
   
   def fakeSend(self, id, command):
-    print "[FAKE-SEND] ({id}) {command}".format(id=id, command=command)
+    if prefix_id:
+      command = str(id) + ' ' + command
+    print "[FAKE-SEND] {command}".format(command=command)
     sleep(fake_delay)
     return True
   
@@ -295,7 +299,7 @@ class SerialCommand:
   
   def armSetAngle(self, arm, angle, ramp=default_servo_ramp):
     response = self.runCommand("servo {channel} {ramp} {angle}".format(channel=arm, ramp=ramp, angle=angle))
-    # TODO wait here for servo to reach angle?
+    sleep(servo_delay)  # wait here for servo to reach angle
     return response.get('result', False)
   
   def armUp(self, arm):
@@ -306,7 +310,7 @@ class SerialCommand:
   
   def gripperSetAngle(self, arm, angle, ramp=default_servo_ramp):
     response = self.runCommand("servo {channel} {ramp} {angle}".format(channel=grippers[arm], ramp=ramp, angle=angle))
-    # TODO wait here for servo to reach angle?
+    sleep(servo_delay)  # wait here for servo to reach angle
     return response.get('result', False)
   
   def gripperOpen(self, arm):
