@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 """
 Ricker Snow
 this is a short script that makes the map by calling the mk_map() function from CV_Map.py, flips the map, makes the waypoints, and pickles the map and waypoints.  map2txt can also be called to make text files of the map to verify the map visually. 
