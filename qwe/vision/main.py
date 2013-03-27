@@ -7,8 +7,8 @@ import cv2
 from util import KeyCode, isImageFile
 from base import FrameProcessor
 
-def main(processorType=FrameProcessor):
-    """Run a FrameProcessor on a static image (repeatedly) or on frames from a camera/video."""
+def main(processor=FrameProcessor(options={ 'gui': True, 'debug': True })):  # default options
+    """Run a FrameProcessor object on a static image (repeatedly) or on frames from a camera/video."""
     # * Initialize parameters and flags
     delay = 10  # ms
     delayS = delay / 1000.0  # sec; only used in non-GUI mode, so this can be set to 0
@@ -56,8 +56,7 @@ def main(processorType=FrameProcessor):
             print "main(): Error opening camera; giving up now."
             return
     
-    # * Create FrameProcessor object, initialize supporting variables
-    processor = processorType()
+    # * Initialize supporting variables
     fresh = True
     
     # * Processing loop

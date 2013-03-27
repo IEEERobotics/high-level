@@ -85,8 +85,3 @@ class LineWalker(DependentFrameProcessor):
         self.heading += 1.0
     
     return True
-
-
-# Run a LineWalker instance using pycv.main.main()
-if __name__ == "__main__":
-  main(LineWalker)

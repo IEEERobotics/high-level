@@ -287,6 +287,6 @@ class ColorFilterProcessor(FrameProcessor):
       return True
 
 
-# Run a ColorFilterProcessor instance using main.main()
 if __name__ == "__main__":
-  main(ColorFilterProcessor)
+  options = { 'gui': True, 'debug': True }
+  main(ColorFilterProcessor(options))  # run a ColorFilterProcessor instance using main.main()

@@ -8,8 +8,8 @@ class FrameProcessor:
   """Processes a sequence of images (frames)."""
   
   def __init__(self, options):
-    self.gui = options['gui']
-    self.debug = options['debug']
+    self.gui = options.get('gui', False)
+    self.debug = options.get('debug', False)
     self.active = False  # set to True once initialized
     # NOTE Subclasses should call FrameProcessor.__init__(self, options) and process options
   

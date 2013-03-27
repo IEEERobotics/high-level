@@ -5,7 +5,7 @@ from math import sqrt, atan2, degrees
 import numpy as np
 import cv2
 from util import Enum
-from base import DependentFrameProcessor
+from base import DependentFrameProcessor, FrameProcessorPipeline
 from main import main
 from colorfilter import ColorFilterProcessor
 
@@ -171,7 +171,6 @@ class LineDetector(DependentFrameProcessor):
     #self.logd("process", "[{0}]".format(LineDetector.State.toString(self.state)));
     return True, self.imageOut
 
-
-# Run a LineDetector instance using pycv.main.main()
 if __name__ == "__main__":
-  main(LineDetector)
+  options = { 'gui': True, 'debug': True }
+  main(LineDetector(options, FrameProcessorPipeline(options, [])))  # run a LineDetector instance using main.main()

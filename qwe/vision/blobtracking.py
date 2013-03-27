@@ -223,7 +223,3 @@ class BlobTracker(DependentFrameProcessor):
         minDist = dist
         nearestBlob = blob
     return nearestBlob
-
-# Run a BlobTracker instance using pycv.main.main()
-if __name__ == "__main__":
-    main(BlobTracker)
