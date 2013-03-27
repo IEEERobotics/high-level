@@ -60,9 +60,9 @@ class TestFileGeneration(unittest.TestCase):
     self.logger.debug("Logger is set up")
      
     # Start serial communication to low-level board
-    self.si = comm.SerialInterface()
     # FIXME Currently, SIs threads hang and prevent tests from finishing
-    self.si.start() # Displays an error if port not found (not running on Pandaboard)
+    self.si = comm.SerialInterface()
+    #self.si.start() # Displays an error if port not found (not running on Pandaboard)
     self.logger.info("Serial interface set up")
 
     # Build shared data structures
