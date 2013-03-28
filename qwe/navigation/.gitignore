@@ -6,6 +6,6 @@ cmake_build/libsbpl.a
 cmake_build/CMakeFiles/
 envs/env.cfg
 maps/map1.txt
-tests/debug.txt
-tests/envdebug.txt
-tests/sol.txt
+sols/debug.txt
+sols/envdebug.txt
+sols/sol.txt
