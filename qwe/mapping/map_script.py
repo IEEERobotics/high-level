@@ -25,7 +25,7 @@ def main():
 	map_real_vars = {}	#raw map variables with units inches
 	map_prop_vars= {}	#descriptive map variables used in mk_map() that may need to be passed to vision or localization process 
 
-	map_real_vars['height'] = 73	#Upper platform width
+	map_real_vars['height'] = 73	#height of entire course
 	map_real_vars['width'] = 97	#width of entire course
 	map_real_vars['upPltW'] = 24	#Upper platform width
 	map_real_vars['upPltH'] = 24	#Upper platform height
@@ -45,10 +45,10 @@ def main():
 	map_real_vars['sea_long'] = 4
 	map_real_vars['land_long'] = 5		
 	map_real_vars['stor_long'] = 6	
-	map_real_vars['EdgetoSea'] = 8.5  #from edge of upper platform to start of sea area
-	map_real_vars['Start2Sea'] = 8.5
+	map_real_vars['EdgetoSea'] = 8.25  #from edge of upper platform to start of sea area
+	map_real_vars['Start2Sea'] = 8.25
 	map_real_vars['edge2storage'] = 14.875
-	map_real_vars['start2land'] = 31.75 #distance b/w start and land
+	map_real_vars['start2land'] = 32.25 #distance b/w start and land
 	map_real_vars['cargoL'] = 42.5
 	map_real_vars['seaH'] = 18.5
 	map_real_vars['landW'] = 18.5
@@ -57,25 +57,25 @@ def main():
 
 	#map property variables
 	#status vars
-	map_prop_vars['filled'] = 0
-	map_prop_vars['empty'] = 1
+	map_prop_vars['filled'] = 'a'
+	map_prop_vars['empty'] = 'b'
 	#color vars
-	map_prop_vars['unk'] = 0
-	map_prop_vars['blue'] = 1
-	map_prop_vars['black'] = 2
-	map_prop_vars['green'] = 3
-	map_prop_vars['yellow'] = 4
-	map_prop_vars['red'] = 5
-	map_prop_vars['brown'] = 6
-	map_prop_vars['white'] = 7
+	map_prop_vars['unk'] = 'c'
+	map_prop_vars['blue'] = 'd'
+	map_prop_vars['black'] = 'e'
+	map_prop_vars['green'] = 'f'
+	map_prop_vars['yellow'] = 'g'
+	map_prop_vars['red'] = 'h'
+	map_prop_vars['brown'] = 'i'
+	map_prop_vars['white'] = 'j'
 	#level vars
-	map_prop_vars['ground'] = 0
-	map_prop_vars['ramp'] = 1
-	map_prop_vars['lwr_plat'] = 2
-	map_prop_vars['upp_plat'] = 3
+	map_prop_vars['ground'] = 'k'
+	map_prop_vars['ramp'] = 'l'
+	map_prop_vars['lwr_plat'] = 'm'
+	map_prop_vars['upp_plat'] = 'n'
 	#path vars
-	map_prop_vars['path'] = 0
-	map_prop_vars['not_path'] = 1
+	map_prop_vars['path'] = 'o'
+	map_prop_vars['not_path'] = 'p'
 	#desc variables
 	map_prop_vars['driv_srfc'] = 0
 	map_prop_vars['start'] = 1

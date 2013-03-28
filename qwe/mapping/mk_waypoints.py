@@ -22,7 +22,7 @@ def mk_waypoints(res, map_grid_vars):
 
 	#calculate x and y for sea
 	sea_grid_x = map_grid_vars['wall']+map_grid_vars['sea_long']+map_grid_vars['whiteLine']+map_grid_vars['bot_width']
-	sea_grid_y = int(map_grid_vars['wall']+map_grid_vars['startH']+4.5*map_grid_vars['whiteLine']+map_grid_vars['Start2Sea']+3*map_grid_vars['zone_short']+map_grid_vars['bot_width'])
+	sea_grid_y = int(map_grid_vars['wall']+map_grid_vars['startH']+4.5*map_grid_vars['whiteLine']+map_grid_vars['Start2Sea']+3*map_grid_vars['zone_short'])
 	sea_grid = (sea_grid_x, sea_grid_y)
 	sea_real = (float(sea_grid_x)/res, float(sea_grid_y)/res)
 	waypoints['sea'] = (sea_grid,sea_real, 0)	#midpoint of sea locations
@@ -81,7 +81,7 @@ def mk_waypoints(res, map_grid_vars):
 	waypoints['St02'] = ((xstor_grid[0][1],St_grid_y),(xstor_real[0][1],St_real_y),0)		
 	waypoints['St03'] = ((xstor_grid[0][2],St_grid_y),(xstor_real[0][2],St_real_y),0)		
 	waypoints['St04'] = ((xstor_grid[0][3],St_grid_y),(xstor_real[0][3],St_real_y),0)		
-	waypoints['St05'] = ((xstor_grid[0][4],St_grid_y),(xstor_real[0][5],St_real_y),0)		
+	waypoints['St05'] = ((xstor_grid[0][4],St_grid_y),(xstor_real[0][4],St_real_y),0)		
 	waypoints['St06'] = ((xstor_grid[0][5],St_grid_y),(xstor_real[0][5],St_real_y),0)		
 	waypoints['St07'] = ((xstor_grid[0][6],St_grid_y),(xstor_real[0][6],St_real_y),0)		
 	waypoints['St08'] = ((xstor_grid[0][7],St_grid_y),(xstor_real[0][7],St_real_y),0)		
@@ -103,27 +103,27 @@ def mk_waypoints(res, map_grid_vars):
 	#center of land locations
 	xland_grid = np.zeros((1,6), dtype = np.uint16)	
 	xland_real = np.zeros((1,6), dtype = np.float16)	
-	L01_grid_x = map_grid_vars['width'] - map_grid_vars['start2land']	#loc of 1st land zone
+	L01_grid_x = int(map_grid_vars['width'] - map_grid_vars['wall'] - map_grid_vars['start2land'] - map_grid_vars['whiteLine'] - map_grid_vars['zone_short']/2)	#loc of 1st land zone
 	for x in range(0,6):	#calc each x coord for remaining land locations
 			xland_grid[0][x] = L01_grid_x - x*(map_grid_vars['zone_short']+map_grid_vars['whiteLine'])
 			xland_real[0][x] = float(L01_grid_x - x*(map_grid_vars['zone_short']+map_grid_vars['whiteLine']))/res
 
 	L_grid_y = int(map_grid_vars['wall']+map_grid_vars['land_long']/2)
 	L_real_y = float(L_grid_y)/res
-	waypoints['L01'] = ((xland_grid[0][0],L_grid_y),(xland_real[0][0],L_real_y),0)
-	waypoints['L02'] = ((xland_grid[0][1],L_grid_y),(xland_real[0][1],L_real_y),0)
-	waypoints['L03'] = ((xland_grid[0][2],L_grid_y),(xland_real[0][2],L_real_y),0)
-	waypoints['L04'] = ((xland_grid[0][3],L_grid_y),(xland_real[0][3],L_real_y),0)
-	waypoints['L05'] = ((xland_grid[0][4],L_grid_y),(xland_real[0][4],L_real_y),0)
-	waypoints['L06'] = ((xland_grid[0][5],L_grid_y),(xland_real[0][5],L_real_y),0)
+	waypoints['L06'] = ((xland_grid[0][0],L_grid_y),(xland_real[0][0],L_real_y),0)
+	waypoints['L05'] = ((xland_grid[0][1],L_grid_y),(xland_real[0][1],L_real_y),0)
+	waypoints['L04'] = ((xland_grid[0][2],L_grid_y),(xland_real[0][2],L_real_y),0)
+	waypoints['L03'] = ((xland_grid[0][3],L_grid_y),(xland_real[0][3],L_real_y),0)
+	waypoints['L02'] = ((xland_grid[0][4],L_grid_y),(xland_real[0][4],L_real_y),0)
+	waypoints['L01'] = ((xland_grid[0][5],L_grid_y),(xland_real[0][5],L_real_y),0)
 
 	#center of sea locations
 	ysea_grid = np.zeros((1,6), dtype = np.uint16)	
 	ysea_real = np.zeros((1,6), dtype = np.float16)
 	Se01_grid_y = int(map_grid_vars['height']-map_grid_vars['upPltH']-map_grid_vars['wall']-map_grid_vars['EdgetoSea']-map_grid_vars['whiteLine']-map_grid_vars['zone_short']/2)	#loc of 1st sea zone
 	for x in range(0,6):	#calc each x coord for remaining sea locations
-			ysea_grid[0][x] = Se01_grid_y + x*(map_grid_vars['zone_short']+map_grid_vars['whiteLine'])
-			ysea_real[0][x] = float(Se01_grid_y + x*(map_grid_vars['zone_short']+map_grid_vars['whiteLine']))/res
+			ysea_grid[0][x] = Se01_grid_y - x * (map_grid_vars['zone_short'] + map_grid_vars['whiteLine'])
+			ysea_real[0][x] = float(Se01_grid_y - x * (map_grid_vars['zone_short'] + map_grid_vars['whiteLine']))/res
 	Sea_grid_x = int(map_grid_vars['wall']+map_grid_vars['sea_long']/2)
 	waypoints['Se01'] = ((Sea_grid_x,ysea_grid[0][0]),(float(Sea_grid_x)/res, ysea_real[0][0]),0)
 	waypoints['Se02'] = ((Sea_grid_x,ysea_grid[0][1]),(float(Sea_grid_x)/res, ysea_real[0][1]),0)
