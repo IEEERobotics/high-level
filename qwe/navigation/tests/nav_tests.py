@@ -109,9 +109,9 @@ class TestFileGeneration(unittest.TestCase):
     genSol_rv = self.Nav.genSol(.35, .3, 0) # Same params used in the env1.txt example file
 
     # Check return value of call to Nav.genSol
-    if genSol_rv is not None:
+    if type(genSol_rv) is not list and genSol_rv in nav.errors:
       self.logger.error("Return value of Nav.genSol was: " + nav.errors[genSol_rv])
-    self.assertTrue(genSol_rv is None, "Nav.genSol returned " + str(genSol_rv))
+      self.assertTrue(genSol_rv not in nav.errors, "Nav.genSol failed with " + nav.errors[genSol_rv])
 
     # Confirm that env file was generated
     self.assertTrue(os.path.isfile(path_to_env), "Env file not found at " + path_to_env)

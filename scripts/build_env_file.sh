@@ -1,22 +1,31 @@
 #!/usr/bin/env bash
-# Example call: Usage: ./build_env_file.sh <start_x> <start_y> <start_theta> <end_x> <end_y> <end_theta> [<env_file> <map_file>]
+# Example call: Usage: Usage: ./build_env_file.sh <obsthresh> <cost_inscribed_thresh> <cost_possibly_circumscribed_thresh>
+# <cellsize> <nominalvel> <timetoturn45degsinplace> <start_x> <start_y> <start_theta> <end_x> <end_y> <end_theta> [<env_file>
+# <map_file>]
 
 # Confirm that correct number of params were given
-if [ $# -ne 6 -a $# -ne 8 ]
+if [ $# -ne 12 -a $# -ne 14 ]
 then
-  echo "Usage: ./build_env_file.sh <start_x> <start_y> <start_theta> <end_x> <end_y> <end_theta> [<env_file> <map_file>]"
+  echo "You gave $# arguments, expected 12 or 14"
+  echo "Usage: ./build_env_file.sh <obsthresh> <cost_inscribed_thresh> <cost_possibly_circumscribed_thresh> <cellsize> <nominalvel> <timetoturn45degsinplace> <start_x> <start_y> <start_theta> <end_x> <end_y> <end_theta> [<env_file> <map_file>]"
   exit 1
 fi
 
-# Read in start and end poses from call params
-start_x=$1
-start_y=$2
-start_theta=$3
-end_x=$4
-end_y=$5
-end_theta=$6
+# Read and store call params
+obsthresh=$1
+cost_inscribed_thresh=$2
+cost_possibly_circumscribed_thresh=$3
+cellsize=$4 # Meters
+nominalvel=$5 # Meters per second
+timetoturn45degsinplace=$6 # Seconds
+start_x=$7
+start_y=$8
+start_theta=$9
+end_x=${10}
+end_y=${11}
+end_theta=${12}
 
-if [ $# -eq 6 ]
+if [ $# -eq 12 ]
 then
   # File and directory locations not given, assume being called from ./scripts
   echo "Using default files"
@@ -24,26 +33,19 @@ then
   MAP_FILE="../qwe/navigation/maps/binary_map.txt"
 fi
 
-if [ $# -eq 8 ]
+if [ $# -eq 14 ]
 then
   # File and directory locations given by caller
-  ENV_FILE=$7
-  MAP_FILE=$8
+  ENV_FILE=${13}
+  MAP_FILE=${14}
 fi
-
-# Constant environment configuration vars
-obsthresh=1
-cost_inscribed_thresh=1
-cost_possibly_circumscribed_thresh=0
-cellsize=0.025 # Meters TODO This is a fake value
-nominalvel=1.0 # Meters per second TODO This is a fake value
-timetoturn45degsinplace=2.0 # Seconds TODO This is a fake value
 
 # Get size of course in cells
 y_len=$(cat $MAP_FILE | tr -cd "01\n" | wc -l)
 total_bytes=$(cat $MAP_FILE | tr -cd "01" | wc -c)
 x_len=$(expr $total_bytes / $y_len)
 
+# Append env information
 echo "discretization(cells):" $x_len $y_len > $ENV_FILE 
 echo "obsthresh:" $obsthresh >> $ENV_FILE
 echo "cost_inscribed_thresh:" $cost_inscribed_thresh >> $ENV_FILE

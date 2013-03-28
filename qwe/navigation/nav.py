@@ -18,8 +18,13 @@ macro_move = namedtuple("macro_move", ["x", "y", "theta", "timestamp"])
 micro_move = namedtuple("micro_move", ["speed", "direction", "timestamp"])
 
 # Dict of error codes and their human-readable names
-errors = {100 : "ERROR_BAD_CWD",  101 : "ERROR_SBPL_BUILD", 102 : "ERROR_SBPL_RUN", 103 : "ERROR_BUILD_ENV"}
+errors = {100 : "ERROR_BAD_CWD",  101 : "ERROR_SBPL_BUILD", 102 : "ERROR_SBPL_RUN", 103 : "ERROR_BUILD_ENV", 
+  104 : "ERROR_BAD_RESOLUTION"}
 errors.update(dict((v,k) for k,v in errors.iteritems())) # Converts errors to a two-way dict
+
+# TODO These need to be calibrated
+env_config = { "obsthresh" : "1", "cost_ins" : "1", "cost_cir" : "0", "cellsize" : "0.0625", "nominalvel" : "1.0", 
+  "timetoturn45" : "2.0" }
 
 class Nav:
 
@@ -60,13 +65,11 @@ class Nav:
 
     # Find path to ./qwe directory. Allows for flexibility in the location nav is run from.
     # TODO Could make this arbitrary by counting the number of slashes
-    if os.getcwd().endswith("high-level"):
-      path_to_qwe = "./qwe/"
-    elif os.getcwd().endswith("high-level/qwe"):
+    if os.getcwd().endswith("qwe"):
       path_to_qwe = "./"
-    elif os.getcwd().endswith("high-level/qwe/navigation"):
+    elif os.getcwd().endswith("qwe/navigation"):
       path_to_qwe = "../"
-    elif os.getcwd().endswith("high-level/qwe/navigation/tests"):
+    elif os.getcwd().endswith("qwe/navigation/tests"):
       path_to_qwe = "../../"
     else:
       self.logger.critical("Unexpected CWD: " + str(os.getcwd()))
@@ -77,9 +80,10 @@ class Nav:
     self.build_sbpl_script = path_to_qwe + "navigation/build_sbpl.sh"
     self.sbpl_executable = path_to_qwe + "navigation/cmake_build/bin/test_sbpl"
     self.env_file = path_to_qwe + "navigation/envs/env.cfg"
-    self.mprim_file = path_to_qwe + "navigation/mprim/all_file.mprim" # TODO Need actual mprims from Neal
+    self.mprim_file = path_to_qwe + "navigation/mprim/prim_16thinch_16turns_with_tip"
     self.map_file = path_to_qwe + "navigation/maps/binary_map.txt"
     self.sol_file = path_to_qwe + "navigation/sols/sol.txt"
+    self.sol_dir = path_to_qwe + "navigation/sols"
     self.sbpl_build_dir = path_to_qwe + "navigation/cmake_build"
 
     # Open /dev/null for suppressing SBPL output
@@ -98,6 +102,79 @@ class Nav:
     else: # Don't call loop, return to caller 
       self.logger.info("Not calling loop. Individual functions should be called by the owner of this class object.")
 
+  def genSol(self, goal_x, goal_y, goal_theta, env_config=env_config):
+    """Use SBPL to generate a series of steps, within some set of acceptable motion primitives, that move the robot from the
+    current location to the goal pose
+
+    Eventually the SBPL code will be modified such that it can be called directly from here and params can be passed in-memory, to
+    avoid file IP and spawning new processes.
+
+    :param goal_x: X coordinate of goal pose
+    :param goal_y: Y coordinate of goal pose
+    :param goal_theta: Angle of goal pose
+    :param env_config: Values used by SBPL in env.cfg file"""
+
+    self.logger.debug("Generating plan")
+
+    # Build environment file for input into SBPL
+    # TODO Upgrade this to call SBPL directly, as described above
+    # "Usage: ./build_env_file.sh <obsthresh> <cost_inscribed_thresh> <cost_possibly_circumscribed_thresh> <cellsize> <nominalvel>
+    # <timetoturn45degsinplace> <start_x> <start_y> <start_theta> <end_x> <end_y> <end_theta> [<env_file> <map_file>]"
+    self.logger.debug("env_config: " + "{obsthresh} {cost_ins} {cost_cir} {cellsize} {nominalvel} {timetoturn45}".format(**env_config))
+    self.logger.debug("Current pose: " + str(self.bot_loc["x"]) + str(self.bot_loc["y"]) + str(self.bot_loc["theta"]))
+    self.logger.debug("Goal pose: " + str(goal_x) + str(goal_y) + str(goal_theta))
+    self.logger.debug("Map file: " + str(self.map_file))
+    self.logger.debug("Environment file to write: " + str(self.env_file))
+
+    build_env_rv = call([self.build_env_script, env_config["obsthresh"],
+                                                env_config["cost_ins"],
+                                                env_config["cost_cir"],
+                                                env_config["cellsize"],
+                                                env_config["nominalvel"],
+                                                env_config["timetoturn45"],
+                                                str(self.bot_loc["x"]),
+                                                str(self.bot_loc["y"]),
+                                                str(self.bot_loc["theta"]),
+                                                str(goal_x),
+                                                str(goal_y),
+                                                str(goal_theta),
+                                                str(self.env_file),
+                                                str(self.map_file)])
+
+    # Check results of build_env_script call
+    if build_env_rv != 0:
+      self.logger.critical("Failed to build env file. Script return value was: " + str(build_env_rv))
+      return errors["ERROR_BUILD_ENV"]
+    self.logger.info("Successfully built env file. Return value was: " + str(build_env_rv))
+
+    # Run SBPL
+    origCWD = os.getcwd()
+    os.chdir(self.sol_dir)
+    sbpl_rv = call([self.sbpl_executable, self.env_file, self.mprim_file])
+    os.chdir(origCWD)
+
+    # Check results of SBPL run
+    if sbpl_rv == -6:
+      self.logger.critical("Failed to run SBPL. SBPL return value was: " + str(sbpl_rv))
+      return errors["ERROR_BAD_RESOLUTION"]
+    if sbpl_rv < 0:
+      self.logger.critical("Failed to run SBPL. SBPL return value was: " + str(sbpl_rv))
+      return errors["ERROR_SBPL_RUN"]
+    if sbpl_rv == 1:
+      # No solution found
+      self.logger.warning("SBPL failed to find a solution")
+    self.logger.info("Successfully ran SBPL. Return value was: " + str(sbpl_rv))
+
+    # Read solution file into memory and return it
+    sol = []
+    sol_lables = ["x", "y", "theta", "cont_x", "cont_y", "cont_theta"]
+    for line in open(self.sol_file, "r").readlines():
+      self.logger.debug("Read sol step: " + str(line))
+      sol.append(dict(zip(lables, line.split())))
+    self.logger.debug("Built sol list of dicts: " + str(sol))
+
+    return sol
+      
   def loop(self):
     """Main loop of nav. Blocks and waits for motion commands passed in on qMove_nav"""
 
@@ -137,44 +214,6 @@ class Nav:
     self.logger.debug("Handling micro move")
     # TODO This needs more logic
 
-  def genSol(self, goal_x, goal_y, goal_theta):
-    """Use SBPL to generate a series of steps, within some set of acceptable motion primitives, that move the robot from the
-    current location to the goal pose
-
-    Eventually the SBPL code will be modified such that it can be called directly from here and params can be passed in-memory, to
-    avoid file IP and spawning new processes.
-
-    :param goal_x: X coordinate of goal pose
-    :param goal_y: Y coordinate of goal pose
-    :param goal_theta: Angle of goal pose"""
-
-    self.logger.debug("Generating plan")
-
-    # Build environment file for input into SBPL
-    # TODO Upgrade this to call SBPL directly, as described above
-    # Usage: ./build_env_file.sh <start_x> <start_y> <start_theta> <end_x> <end_y> <end_theta> [<env_file> <map_file]
-    build_env_rv = call([self.build_env_script, str(self.bot_loc["x"]), str(self.bot_loc["y"]), str(self.bot_loc["theta"]), \
-      str(goal_x), str(goal_y), str(goal_theta), str(self.env_file), str(self.map_file)])
-
-    # Check results of build_env_script call
-    if build_env_rv < 0:
-      self.logger.critical("Failed to build env file. Script return value was: " + str(build_env_rv))
-      return errors["ERROR_BUILD_ENV"]
-    self.logger.info("Successfully built env file. Return value was: " + str(build_env_rv))
-
-    # Run SBPL
-    sbpl_rv = call([self.sbpl_executable, self.env_file, self.mprim_file])
-
-    # Check results of SBPL run
-    if sbpl_rv < 0:
-      self.logger.critical("Failed to run SBPL. SBPL return value was: " + str(sbpl_rv))
-      return errors["ERROR_SBPL_RUN"]
-    if sbpl_rv == 1:
-      # No solution found
-      self.logger.warning("SBPL failed to find a solution")
-    self.logger.info("Successfully ran SBPL. Return value was: " + str(sbpl_rv))
-
-    # TODO Read solution file into memory and return it
 
 def run(bot_loc, course_map, waypoints, qNav_loc, si, bot_state, qMove_nav):
   """Function that accepts initial data from controller and kicks off nav. Will eventually involve instantiating a class.
