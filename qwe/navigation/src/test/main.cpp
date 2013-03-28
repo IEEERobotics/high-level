@@ -378,8 +378,10 @@ int planxythetalat(PlannerType plannerType, char* envCfgFilename, char* motPrimF
 		int y;
 		int theta;
 		environment_navxythetalat.GetCoordFromState(solution_stateIDs_V[i], x, y, theta);
-    //Note: This is where xytheta solution is written to sol.txt
-		fprintf(fSol, "%d %d %d\t\t%.3f %.3f %.3f\n", x, y, theta, DISCXY2CONT(x, 0.1), DISCXY2CONT(y, 0.1), DiscTheta2Cont(theta, 16));
+    //Note: xytheta solution is written to sol.txt here. TODO These hard coded values are bad! Should be cell size and numangles
+		//fprintf(fSol, "%d %d %d\t\t%.3f %.3f %.3f\n", x, y, theta, DISCXY2CONT(x, 0.1), DISCXY2CONT(y, 0.1), DiscTheta2Cont(theta, 16));
+    sixteenth_in = .0625
+		fprintf(fSol, "%d %d %d\t\t%.3f %.3f %.3f\n", x, y, theta, DISCXY2CONT(x, sixteenth_in), DISCXY2CONT(y, sixteenth_in), DiscTheta2Cont(theta, 16));
 	}
 
 	// write the continuous solution to file
