@@ -14,12 +14,13 @@ from linedetection import LineDetector
 from linewalking import LineWalker
 
 class VisionManager:
-  def __init__(self, bot_loc, blocks, zones, corners, waypoints, options=None, standalone=False):
+  def __init__(self, bot_loc, blobs, blocks, zones, corners, waypoints, sc, bot_state, options=None, standalone=False):
     self.bot_loc = bot_loc
     self.blocks = blocks
     self.zones = zones
     self.corners = corners
     self.waypoints = waypoints
+    # TODO save other shared structures
     
     # * Get parameters and flags from options dict
     # ** Populate options first, if none given
