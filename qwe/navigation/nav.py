@@ -170,7 +170,7 @@ class Nav:
     sol_lables = ["x", "y", "theta", "cont_x", "cont_y", "cont_theta"]
     for line in open(self.sol_file, "r").readlines():
       self.logger.debug("Read sol step: " + str(line))
-      sol.append(dict(zip(lables, line.split())))
+      sol.append(dict(zip(sol_lables, line.split())))
     self.logger.debug("Built sol list of dicts: " + str(sol))
 
     return sol
