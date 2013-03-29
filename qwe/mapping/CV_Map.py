@@ -81,6 +81,7 @@ def mk_map(res, map_grid_vars, map_prop_vars):
 	for y in xrange(map_grid_vars['height'] - map_grid_vars['wall'] - map_grid_vars['startH'], map_grid_vars['height'] - map_grid_vars['wall']):
 		for x in xrange(map_grid_vars['wall'], map_grid_vars['wall'] + map_grid_vars['startW']):
 			myMap.grid[y][x]['desc'] = map_prop_vars['start']
+			myMap.grid[y][x]['color'] = map_prop_vars['black']
 
 	"""air loading zone"""
 	#air loading zone - white outline - includes enclosed space, next 2 loops fix
@@ -100,7 +101,7 @@ def mk_map(res, map_grid_vars, map_prop_vars):
 
 	"""cargo area"""
 	#cargo storage - white outline - includes enclosed area, next loop fixes
-	for y in xrange(map_grid_vars['upPltH']+map_grid_vars['wall'], map_grid_vars['upPltH']+map_grid_vars['wall']+map_grid_vars['land_long']+map_grid_vars['whiteLine']):
+	for y in xrange(map_grid_vars['upPltH']+map_grid_vars['wall'], map_grid_vars['upPltH']+map_grid_vars['wall']+map_grid_vars['stor_long']+map_grid_vars['whiteLine']):
 		for x in xrange(map_grid_vars['wall']+map_grid_vars['edge2storage'], map_grid_vars['wall']+map_grid_vars['edge2storage']+map_grid_vars['cargoL']):
 			myMap.grid[y][x]['desc'] = map_prop_vars['line']
 			myMap.grid[y][x]['color'] = map_prop_vars['white']
@@ -109,7 +110,7 @@ def mk_map(res, map_grid_vars, map_prop_vars):
 	m = map_grid_vars['wall'] + map_grid_vars['edge2storage']+map_grid_vars['whiteLine']	#number of tiles until the first seperating white line
 	#print("width=", width, "height=", height) #debug
 	while k<=13:	#there are thirteen seperating lines (14 storage slots)
-		p = m + map_grid_vars['air_long']*k
+		p = m + (map_grid_vars['zone_short'] + map_grid_vars['whiteLine'])*k
 		#m = m + map_grid_vars['air_long']*k
 		for y in xrange(map_grid_vars['upPltH']+map_grid_vars['wall'], map_grid_vars['upPltH']+map_grid_vars['wall']+map_grid_vars['stor_long']):
 			for x in xrange(p,p+map_grid_vars['zone_short']):
@@ -138,7 +139,7 @@ def mk_map(res, map_grid_vars, map_prop_vars):
 
 	"""land loading zone"""
 	#white outline of land zone
-	for y in xrange(map_grid_vars['height']-map_grid_vars['wall']-map_grid_vars['land_long']+map_grid_vars['whiteLine'], map_grid_vars['height'] - map_grid_vars['wall']):
+	for y in xrange(map_grid_vars['height']-map_grid_vars['wall']-map_grid_vars['land_long']-map_grid_vars['whiteLine'], map_grid_vars['height'] - map_grid_vars['wall']):
 		for x in xrange(map_grid_vars['wall']+map_grid_vars['startW']+map_grid_vars['whiteLine']+map_grid_vars['start2land'],map_grid_vars['wall']+map_grid_vars['startW']+map_grid_vars['whiteLine']+map_grid_vars['start2land']+map_grid_vars['landW']):
 			myMap.grid[y][x]['desc'] = map_prop_vars['line']	#marker
 			myMap.grid[y][x]['color'] = map_prop_vars['white']	#white
@@ -146,7 +147,7 @@ def mk_map(res, map_grid_vars, map_prop_vars):
 	k = 0
 	m = map_grid_vars['wall'] + map_grid_vars['startW']+map_grid_vars['whiteLine']+map_grid_vars['start2land']+map_grid_vars['whiteLine']
 	while k<=5:
-		p = m + map_grid_vars['air_long']*k
+		p = m + (map_grid_vars['zone_short']+map_grid_vars['whiteLine'])*k
 		#m = m+map_grid_vars['air_long']*k
 		for y in xrange(map_grid_vars['height']-map_grid_vars['wall']-map_grid_vars['land_long'],map_grid_vars['height']-map_grid_vars['wall']):
 			for x in xrange(p,p+map_grid_vars['zone_short']):
