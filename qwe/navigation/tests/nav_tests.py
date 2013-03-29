@@ -7,7 +7,9 @@ import logging
 import logging.config
 from multiprocessing import Process, Manager, Queue
 import os
-import pprint
+import pprint as pp
+from datetime import datetime
+from time import sleep
 
 # Dict of error codes and their human-readable names
 errors = {100 : "ERROR_BAD_CWD"}
@@ -43,21 +45,21 @@ class TestFileGeneration(unittest.TestCase):
     """Create nav object and feed it appropriate data"""
     
     # Create file and stream handlers
-    file_handler = logging.handlers.RotatingFileHandler(path_to_qwe + "logs/unittests.log", maxBytes=512000, backupCount=50)
-    file_handler.setLevel(logging.DEBUG)
-    stream_handler = logging.StreamHandler()
-    stream_handler.setLevel(logging.WARN)
+    self.file_handler = logging.handlers.RotatingFileHandler(path_to_qwe + "logs/unittests.log", maxBytes=512000, backupCount=50)
+    self.file_handler.setLevel(logging.DEBUG)
+    self.stream_handler = logging.StreamHandler()
+    self.stream_handler.setLevel(logging.WARN)
 
     # Create formatter and add to handlers
     formatter = logging.Formatter('%(asctime)s | %(name)s | %(levelname)s | %(message)s')
-    file_handler.setFormatter(formatter)
-    stream_handler.setFormatter(formatter)
+    self.file_handler.setFormatter(formatter)
+    self.stream_handler.setFormatter(formatter)
 
     # Create logger and add handlers
     self.logger = logging.getLogger("unittest")
     self.logger.setLevel(logging.DEBUG)
-    self.logger.addHandler(file_handler)
-    self.logger.addHandler(stream_handler)
+    self.logger.addHandler(self.file_handler)
+    self.logger.addHandler(self.stream_handler)
     self.logger.debug("Logger is set up")
      
     # Start serial communication to low-level board
@@ -93,6 +95,9 @@ class TestFileGeneration(unittest.TestCase):
   def tearDown(self):
     """Close serial interface threads"""
 
+    self.logger.removeHandler(self.file_handler)
+    self.logger.removeHandler(self.stream_handler)
+
     self.scNav.quit()
     self.si.join()
 
@@ -122,7 +127,7 @@ class TestFileGeneration(unittest.TestCase):
     self.assertTrue(start_rv is None, "Nav.start returned " + str(start_rv))
 
     # Generate env file
-    end_x =  self.waypoints["A01"][0][0]* float(nav.env_config["cellsize"])
+    end_x =  self.waypoints["grnd2ramp"][0][0]* float(nav.env_config["cellsize"])
     end_y =  self.waypoints["grnd2ramp"][0][1]* float(nav.env_config["cellsize"])
     genSol_rv = self.Nav.genSol(end_x, end_y, 0)
 
@@ -134,27 +139,227 @@ class TestFileGeneration(unittest.TestCase):
     # Confirm that env file was generated
     self.assertTrue(os.path.isfile(path_to_env), "Env file not found at " + path_to_env)
 
+
+class TestFullInteraction(unittest.TestCase):
+
+  def setUp(self):
+    """Create nav object and feed it appropriate data"""
+    
+    # Create file and stream handlers
+    self.file_handler = logging.handlers.RotatingFileHandler(path_to_qwe + "logs/unittests.log", maxBytes=512000, backupCount=50)
+    self.file_handler.setLevel(logging.DEBUG)
+    self.stream_handler = logging.StreamHandler()
+    self.stream_handler.setLevel(logging.WARN)
+
+    # Create formatter and add to handlers
+    formatter = logging.Formatter('%(asctime)s | %(name)s | %(levelname)s | %(message)s')
+    self.file_handler.setFormatter(formatter)
+    self.stream_handler.setFormatter(formatter)
+
+    # Create logger and add handlers
+    self.logger = logging.getLogger("unittest")
+    self.logger.setLevel(logging.DEBUG)
+    self.logger.addHandler(self.file_handler)
+    self.logger.addHandler(self.stream_handler)
+    self.logger.debug("Logger is set up")
+     
+    # Start serial communication to low-level board
+    self.si = comm.SerialInterface()
+    self.si.start() # Displays an error if port not found (not running on Pandaboard)
+    self.logger.info("Serial interface set up")
+
+    # Build Queue objects for IPC. Name shows producer_consumer.
+    self.qNav_loc = Queue()
+    self.qMove_nav = Queue()
+    self.logger.debug("Queue objects created")
+
+    # Get map, waypoints and map properties
+    self.course_map = mapper.unpickle_map(path_to_qwe + "mapping/map.pkl")
+    self.logger.info("Map unpickled")
+    self.waypoints = mapper.unpickle_waypoints(path_to_qwe + "mapping/waypoints.pkl")
+    self.logger.info("Waypoints unpickled")
+
+    # Build shared data structures
+    self.manager = Manager()
+    self.start_x = self.waypoints["start"][0][0] * float(nav.env_config["cellsize"])
+    self.start_y = self.waypoints["start"][0][1] * float(nav.env_config["cellsize"])
+    self.start_theta = 0
+    self.bot_loc = self.manager.dict(x=self.start_x, y=self.start_y, theta=self.start_theta)
+    self.bot_state = self.manager.dict(nav_type=None, action_type=None)
+    self.logger.debug("Shared data structures created")
+
+    # Start nav process
+    self.scNav = comm.SerialCommand(self.si.commands, self.si.responses)
+    self.pNav = Process(target=nav.run, args=(self.bot_loc, self.course_map, self.waypoints, self.qNav_loc, self.scNav, \
+      self.bot_state, self.qMove_nav, self.logger))
+    self.pNav.start()
+    self.logger.info("Navigator process started")
+
+  def tearDown(self):
+    """Close serial interface threads"""
+
+    self.logger.removeHandler(self.file_handler)
+    self.logger.removeHandler(self.stream_handler)
+
+    self.scNav.quit()
+    self.si.join()
+    self.pNav.join()
+    self.logger.info("Joined navigation process")
+
+  @unittest.skip("Hangs while attempting to put item in queue")
+  def test_start_at_goal(self):
+    """Pass in a goal pose that's the same as the start pose"""
+
+    # Build goal pose that's the same as the start pose
+    goal_pose = nav.macro_move(self.start_x, self.start_y, self.start_theta, datetime.now())
+    self.logger.debug("Created goal pose: " + pp.pformat(goal_pose))
+
+    # Send goal pose to nav via queue
+    self.logger.debug("Putting into queue")
+    self.logger.debug("Queue ID: " + pp.pformat(self.qMove_nav))
+    self.logger.debug("Queue size: " + pp.pformat(self.Move_nav.qsize()))
+    qMove_nav.put(goal_pose)
+    self.logger.debug("Goal pose put in queue")
+
+
+class TestSimpleHelpers(unittest.TestCase):
+
+  def setUp(self):
+    """Create nav object and feed it appropriate data"""
+
+    # Create file and stream handlers
+    self.file_handler = logging.handlers.RotatingFileHandler(path_to_qwe + "logs/unittests.log", maxBytes=512000, backupCount=50)
+    self.file_handler.setLevel(logging.DEBUG)
+    self.stream_handler = logging.StreamHandler()
+    self.stream_handler.setLevel(logging.WARN)
+
+    # Create formatter and add to handlers
+    formatter = logging.Formatter('%(asctime)s | %(name)s | %(levelname)s | %(message)s')
+    self.file_handler.setFormatter(formatter)
+    self.stream_handler.setFormatter(formatter)
+
+    # Create logger and add handlers
+    self.logger = logging.getLogger("unittest")
+    self.logger.setLevel(logging.DEBUG)
+    self.logger.addHandler(self.file_handler)
+    self.logger.addHandler(self.stream_handler)
+    self.logger.debug("Logger is set up")
+     
+    # Start serial communication to low-level board
+    self.si = comm.SerialInterface()
+    self.si.start() # Displays an error if port not found (not running on Pandaboard)
+    self.logger.info("Serial interface set up")
+
+    # Build Queue objects for IPC. Name shows producer_consumer.
+    self.qNav_loc = Queue()
+    self.qMove_nav = Queue()
+    self.logger.debug("Queue objects created")
+
+    # Get map, waypoints and map properties
+    self.course_map = mapper.unpickle_map(path_to_qwe + "mapping/map.pkl")
+    self.logger.info("Map unpickled")
+    self.waypoints = mapper.unpickle_waypoints(path_to_qwe + "mapping/waypoints.pkl")
+    self.logger.info("Waypoints unpickled")
+
+    # Build shared data structures
+    self.manager = Manager()
+    self.start_x = self.waypoints["start"][0][0] * float(nav.env_config["cellsize"])
+    self.start_y = self.waypoints["start"][0][1] * float(nav.env_config["cellsize"])
+    self.start_theta = 0
+    self.bot_loc = self.manager.dict(x=self.start_x, y=self.start_y, theta=self.start_theta)
+    self.bot_state = self.manager.dict(nav_type=None, action_type=None)
+    self.logger.debug("Shared data structures created")
+
+    # Build nav object
+    self.scNav = comm.SerialCommand(self.si.commands, self.si.responses)
+    self.Nav = nav.Nav(self.bot_loc, self.course_map, self.waypoints, self.qNav_loc, self.scNav, self.bot_state, self.qMove_nav, \
+      self.logger)
+    self.logger.info("Nav object instantiated")
+
+  def tearDown(self):
+    """Close serial interface threads"""
+
+    self.logger.removeHandler(self.file_handler)
+    self.logger.removeHandler(self.stream_handler)
+
+    self.scNav.quit()
+    self.si.join()
+
+    # Create formatter and add to handlers
+    formatter = logging.Formatter('%(asctime)s | %(name)s | %(levelname)s | %(message)s')
+
+  def test_atGoal_exact(self):
+    """Test function that checks if a goal pose is the same as the bot's current location. Use goal pose that's exactly the bot's
+    current location"""
+
+    goal_x = self.start_x
+    goal_y = self.start_y
+    goal_theta = self.start_theta
+
+    self.logger.info("Testing atGoal with goal {} {} {} and position {} {} {}".format(goal_x, goal_y, goal_theta, self.start_x, \
+      self.start_y, self.start_theta))
+
+    result = self.Nav.atGoal(goal_x, goal_y, goal_theta)
+
+    self.logger.debug("atGoal returned {}".format(str(result)))
+
+    self.assertTrue(result, "atGoal returned False when exactly at goal")
+
+  def test_atGoal_3_sig_figs_off_3(self):
+    """Test function that checks if a goal pose is the same as the bot's current location. Use goal pose that's off by 3 sig figs
+    and accept a tolerance of 3 sig figs."""
+
+    goal_x = self.start_x + .001
+    goal_y = self.start_y + .001
+    goal_theta = self.start_theta + .001
+
+    self.logger.info("Testing atGoal with goal {} {} {} and position {} {} {}".format(goal_x, goal_y, goal_theta, self.start_x, \
+      self.start_y, self.start_theta))
+
+    result = self.Nav.atGoal(goal_x, goal_y, goal_theta, sig_figs=3)
+
+    self.logger.debug("atGoal returned {}".format(str(result)))
+
+    self.assertTrue(result, "atGoal returned False when 3 sig figs from goal and sig_figs=3")
+
+  def test_atGoal_4_sig_figs_off_3(self):
+    """Test function that checks if a goal pose is the same as the bot's current location. Use goal pose that's off by 3 sig figs
+    and accept a tolerance of 4 sig figs."""
+
+    goal_x = self.start_x + .001
+    goal_y = self.start_y + .001
+    goal_theta = self.start_theta + .001
+
+    self.logger.info("Testing atGoal with goal {} {} {} and position {} {} {}".format(goal_x, goal_y, goal_theta, self.start_x, \
+      self.start_y, self.start_theta))
+
+    result = self.Nav.atGoal(goal_x, goal_y, goal_theta, sig_figs=4)
+
+    self.logger.debug("atGoal returned {}".format(str(result)))
+
+    self.assertFalse(result, "atGoal returned True when 3 sig figs from goal and sig_figs=4")
+
 class TestXYxorTheta(unittest.TestCase):
 
   def setUp(self):
     """Create nav object and feed it appropriate data"""
     
     # Create file and stream handlers
-    file_handler = logging.handlers.RotatingFileHandler(path_to_qwe + "logs/unittests.log", maxBytes=512000, backupCount=50)
-    file_handler.setLevel(logging.DEBUG)
-    stream_handler = logging.StreamHandler()
-    stream_handler.setLevel(logging.WARN)
+    self.file_handler = logging.handlers.RotatingFileHandler(path_to_qwe + "logs/unittests.log", maxBytes=512000, backupCount=50)
+    self.file_handler.setLevel(logging.DEBUG)
+    self.stream_handler = logging.StreamHandler()
+    self.stream_handler.setLevel(logging.WARN)
 
     # Create formatter and add to handlers
     formatter = logging.Formatter('%(asctime)s | %(name)s | %(levelname)s | %(message)s')
-    file_handler.setFormatter(formatter)
-    stream_handler.setFormatter(formatter)
+    self.file_handler.setFormatter(formatter)
+    self.stream_handler.setFormatter(formatter)
 
     # Create logger and add handlers
     self.logger = logging.getLogger("unittest")
     self.logger.setLevel(logging.DEBUG)
-    self.logger.addHandler(file_handler)
-    self.logger.addHandler(stream_handler)
+    self.logger.addHandler(self.file_handler)
+    self.logger.addHandler(self.stream_handler)
     self.logger.debug("Logger is set up")
      
     # Start serial communication to low-level board
@@ -188,6 +393,9 @@ class TestXYxorTheta(unittest.TestCase):
   def tearDown(self):
     """Close serial interface threads"""
 
+    self.logger.removeHandler(self.file_handler)
+    self.logger.removeHandler(self.stream_handler)
+
     self.scNav.quit()
     self.si.join()
 
@@ -209,7 +417,7 @@ class TestXYxorTheta(unittest.TestCase):
     'x': '32',
     'y': '32'}]
 
-    self.logger.debug("Testing XYxorTheta with sol: " + pprint.pformat(sol))
+    self.logger.debug("Testing XYxorTheta with sol: " + pp.pformat(sol))
 
     result = self.Nav.XYxorTheta(sol[0], sol[1])
 
@@ -235,7 +443,7 @@ class TestXYxorTheta(unittest.TestCase):
     'x': '32',
     'y': '40'}]
 
-    self.logger.debug("Testing XYxorTheta with sol: " + pprint.pformat(sol))
+    self.logger.debug("Testing XYxorTheta with sol: " + pp.pformat(sol))
 
     result = self.Nav.XYxorTheta(sol[0], sol[1])
 
@@ -261,7 +469,7 @@ class TestXYxorTheta(unittest.TestCase):
     'x': '24',
     'y': '17'}]
 
-    self.logger.debug("Testing XYxorTheta with sol: " + pprint.pformat(sol))
+    self.logger.debug("Testing XYxorTheta with sol: " + pp.pformat(sol))
 
     result = self.Nav.XYxorTheta(sol[0], sol[1])
 
@@ -287,7 +495,7 @@ class TestXYxorTheta(unittest.TestCase):
     'x': '24',
     'y': '17'}]
 
-    self.logger.debug("Testing XYxorTheta with sol: " + pprint.pformat(sol))
+    self.logger.debug("Testing XYxorTheta with sol: " + pp.pformat(sol))
 
     result = self.Nav.XYxorTheta(sol[0], sol[1])
 
@@ -313,7 +521,7 @@ class TestXYxorTheta(unittest.TestCase):
     'x': '32',
     'y': '40'}]
 
-    self.logger.debug("Testing XYxorTheta with sol: " + pprint.pformat(sol))
+    self.logger.debug("Testing XYxorTheta with sol: " + pp.pformat(sol))
 
     result = self.Nav.XYxorTheta(sol[0], sol[1])
 
@@ -339,7 +547,7 @@ class TestXYxorTheta(unittest.TestCase):
     'x': '24',
     'y': '40'}]
 
-    self.logger.debug("Testing XYxorTheta with sol: " + pprint.pformat(sol))
+    self.logger.debug("Testing XYxorTheta with sol: " + pp.pformat(sol))
 
     result = self.Nav.XYxorTheta(sol[0], sol[1])
 
@@ -365,7 +573,7 @@ class TestXYxorTheta(unittest.TestCase):
     'x': '24',
     'y': '40'}]
 
-    self.logger.debug("Testing XYxorTheta with sol: " + pprint.pformat(sol))
+    self.logger.debug("Testing XYxorTheta with sol: " + pp.pformat(sol))
 
     result = self.Nav.XYxorTheta(sol[0], sol[1])
 
@@ -390,7 +598,7 @@ class TestXYxorTheta(unittest.TestCase):
     'x': '33',
     'y': '32'}]
 
-    self.logger.debug("Testing XYxorTheta with sol: " + pprint.pformat(sol))
+    self.logger.debug("Testing XYxorTheta with sol: " + pp.pformat(sol))
 
     result = self.Nav.XYxorTheta(sol[0], sol[1])
 
@@ -405,21 +613,21 @@ class TestWhichXYTheta(unittest.TestCase):
     """Create nav object and feed it appropriate data"""
     
     # Create file and stream handlers
-    file_handler = logging.handlers.RotatingFileHandler(path_to_qwe + "logs/unittests.log", maxBytes=512000, backupCount=50)
-    file_handler.setLevel(logging.DEBUG)
-    stream_handler = logging.StreamHandler()
-    stream_handler.setLevel(logging.WARN)
+    self.file_handler = logging.handlers.RotatingFileHandler(path_to_qwe + "logs/unittests.log", maxBytes=512000, backupCount=50)
+    self.file_handler.setLevel(logging.DEBUG)
+    self.stream_handler = logging.StreamHandler()
+    self.stream_handler.setLevel(logging.WARN)
 
     # Create formatter and add to handlers
     formatter = logging.Formatter('%(asctime)s | %(name)s | %(levelname)s | %(message)s')
-    file_handler.setFormatter(formatter)
-    stream_handler.setFormatter(formatter)
+    self.file_handler.setFormatter(formatter)
+    self.stream_handler.setFormatter(formatter)
 
     # Create logger and add handlers
     self.logger = logging.getLogger("unittest")
     self.logger.setLevel(logging.DEBUG)
-    self.logger.addHandler(file_handler)
-    self.logger.addHandler(stream_handler)
+    self.logger.addHandler(self.file_handler)
+    self.logger.addHandler(self.stream_handler)
     self.logger.debug("Logger is set up")
      
     # Start serial communication to low-level board
@@ -453,6 +661,9 @@ class TestWhichXYTheta(unittest.TestCase):
   def tearDown(self):
     """Close serial interface threads"""
 
+    self.logger.removeHandler(self.file_handler)
+    self.logger.removeHandler(self.stream_handler)
+
     self.scNav.quit()
     self.si.join()
 
@@ -474,7 +685,7 @@ class TestWhichXYTheta(unittest.TestCase):
     'x': '32',
     'y': '32'}]
 
-    self.logger.debug("Testing whichXYTheta with sol: " + pprint.pformat(sol))
+    self.logger.debug("Testing whichXYTheta with sol: " + pp.pformat(sol))
 
     result = self.Nav.whichXYTheta(sol[0], sol[1])
 
@@ -499,7 +710,7 @@ class TestWhichXYTheta(unittest.TestCase):
     'x': '32',
     'y': '40'}]
 
-    self.logger.debug("Testing whichXYTheta with sol: " + pprint.pformat(sol))
+    self.logger.debug("Testing whichXYTheta with sol: " + pp.pformat(sol))
 
     result = self.Nav.whichXYTheta(sol[0], sol[1])
 
@@ -524,7 +735,7 @@ class TestWhichXYTheta(unittest.TestCase):
     'x': '24',
     'y': '17'}]
 
-    self.logger.debug("Testing whichXYTheta with sol: " + pprint.pformat(sol))
+    self.logger.debug("Testing whichXYTheta with sol: " + pp.pformat(sol))
 
     result = self.Nav.whichXYTheta(sol[0], sol[1])
 
@@ -549,7 +760,7 @@ class TestWhichXYTheta(unittest.TestCase):
     'x': '33',
     'y': '32'}]
 
-    self.logger.debug("Testing whichXYTheta with sol: " + pprint.pformat(sol))
+    self.logger.debug("Testing whichXYTheta with sol: " + pp.pformat(sol))
 
     result = self.Nav.whichXYTheta(sol[0], sol[1])
 
@@ -575,7 +786,7 @@ class TestWhichXYTheta(unittest.TestCase):
     'x': '32',
     'y': '32'}]
 
-    self.logger.debug("Testing whichXYTheta with sol: " + pprint.pformat(sol))
+    self.logger.debug("Testing whichXYTheta with sol: " + pp.pformat(sol))
 
     result = self.Nav.whichXYTheta(sol[0], sol[1])
 
@@ -600,7 +811,7 @@ class TestWhichXYTheta(unittest.TestCase):
     'x': '32',
     'y': '32'}]
 
-    self.logger.debug("Testing whichXYTheta with sol: " + pprint.pformat(sol))
+    self.logger.debug("Testing whichXYTheta with sol: " + pp.pformat(sol))
 
     result = self.Nav.whichXYTheta(sol[0], sol[1])
 
@@ -625,7 +836,7 @@ class TestWhichXYTheta(unittest.TestCase):
     'x': '32',
     'y': '32'}]
 
-    self.logger.debug("Testing whichXYTheta with sol: " + pprint.pformat(sol))
+    self.logger.debug("Testing whichXYTheta with sol: " + pp.pformat(sol))
 
     result = self.Nav.whichXYTheta(sol[0], sol[1])
 
@@ -650,7 +861,7 @@ class TestWhichXYTheta(unittest.TestCase):
     'x': '32',
     'y': '32'}]
 
-    self.logger.debug("Testing whichXYTheta with sol: " + pprint.pformat(sol))
+    self.logger.debug("Testing whichXYTheta with sol: " + pp.pformat(sol))
 
     result = self.Nav.whichXYTheta(sol[0], sol[1])
 
@@ -675,7 +886,7 @@ class TestWhichXYTheta(unittest.TestCase):
     'x': '32',
     'y': '32'}]
 
-    self.logger.debug("Testing whichXYTheta with sol: " + pprint.pformat(sol))
+    self.logger.debug("Testing whichXYTheta with sol: " + pp.pformat(sol))
 
     result = self.Nav.whichXYTheta(sol[0], sol[1])
 
@@ -700,7 +911,7 @@ class TestWhichXYTheta(unittest.TestCase):
     'x': '32',
     'y': '32'}]
 
-    self.logger.debug("Testing whichXYTheta with sol: " + pprint.pformat(sol))
+    self.logger.debug("Testing whichXYTheta with sol: " + pp.pformat(sol))
 
     result = self.Nav.whichXYTheta(sol[0], sol[1])
 
@@ -725,7 +936,7 @@ class TestWhichXYTheta(unittest.TestCase):
     'x': '33',
     'y': '32'}]
 
-    self.logger.debug("Testing whichXYTheta with sol: " + pprint.pformat(sol))
+    self.logger.debug("Testing whichXYTheta with sol: " + pp.pformat(sol))
 
     result = self.Nav.whichXYTheta(sol[0], sol[1])
 
@@ -751,7 +962,7 @@ class TestWhichXYTheta(unittest.TestCase):
     'x': '33',
     'y': '32'}]
 
-    self.logger.debug("Testing whichXYTheta with sol: " + pprint.pformat(sol))
+    self.logger.debug("Testing whichXYTheta with sol: " + pp.pformat(sol))
 
     result = self.Nav.whichXYTheta(sol[0], sol[1])
 

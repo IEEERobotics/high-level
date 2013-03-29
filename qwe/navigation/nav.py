@@ -12,7 +12,7 @@ import logging.config
 from collections import namedtuple
 from subprocess import call
 import os
-from math import sqrt, sin, cos
+from math import sqrt, sin, cos, pi
 from datetime import datetime
 import pprint as pp
 
@@ -186,8 +186,9 @@ class Nav:
     self.logger.debug("Entering inf motion command handling loop")
     while True:
       # TODO Expand movement logic here
+      self.logger.info("Blocking while waiting for command from queue with ID: " + pp.pformat(self.qMove_nav))
       move_cmd = self.qMove_nav.get()
-      self.logger.info("Received move command")
+      self.logger.info("Received move command: " + pp.pformat(move_cmd))
 
       if type(move_cmd) == macro_move:
         self.logger.info("Move command is if type macro")
@@ -352,9 +353,9 @@ class Nav:
     """Converts the result returned by a call to comm.botTurn* to radians.
 
     :param commResult: Raw result returned by comm.botTurnRel or comm.botTurnAbs"""
-    # TODO Need to know the units of commResult
+    # TODO Need to know the format of commResult
 
-    return commResult
+    return commResult * pi / 180
 
   def diffMoveTheta(self, commResult_rads, goal_angle_rads):
     """Find the difference between the desired rotation in radians and the actual rotation in radians as reported by comm.
@@ -445,7 +446,7 @@ class Nav:
         self.logger.error("The previous and current steps have the same continuous values")
         return errors["ERROR_NO_CHANGE"]
 
-  def atGoal(self, x, y, theta):
+  def atGoal(self, x, y, theta, sig_figs=3):
     """Contains logic for checking if the current pose is the same as or within some acceptable tolerance of the goal pose
 
     :param x: X coordinate of goal pose
@@ -454,13 +455,31 @@ class Nav:
 
     self.logger.debug("Checking if goal pose reached")
 
+    # Accept goal poses that are exacly correct
     if x == self.bot_loc["x"] and y == self.bot_loc["y"] and theta == self.bot_loc["theta"]:
       self.logger.info("Reached goal pose exactly")
       return True
 
-    # TODO Add logic to accept poses that are nearly correct?
-    self.logger.info("Did not reach goal pose exactly")
+    # Accept goal poses that are nearly correct
+    if self.nearly_equal(x, self.bot_loc["x"], sig_figs) and self.nearly_equal(y, self.bot_loc["y"], sig_figs) \
+                                               and self.nearly_equal(theta, self.bot_loc["theta"], sig_figs):
+      self.logger.info("Reach goal pose to {} significant figures".format(sig_figs))
+      return True
+
+    # Rejct goal poses that are not correct
+    self.logger.info("Have not reached goal pose")
     return False
+
+  def nearly_equal(self, a, b, sig_fig=3):
+    """Check if two numbers are equal to 5 sig figs
+    Cite: http://goo.gl/iNDIS
+
+    :param a: First number to compare
+    :param b: Second number to compare
+    :param sig_fig: Number of significant figures to compare them with"""
+    return ( a==b or 
+             int(a*10**(sig_fig-1)) == int(b*10**(sig_fig-1))
+           )
 
   def microMove(self, speed, direction):
     """Handle simple movements on a small scale. Used for small adjustments by vision or planner when very close to objects.
@@ -472,7 +491,7 @@ class Nav:
     # TODO This needs more logic
 
 
-def run(bot_loc, course_map, waypoints, qNav_loc, scNav, bot_state, qMove_nav):
+def run(bot_loc, course_map, waypoints, qNav_loc, scNav, bot_state, qMove_nav, logger=None):
   """Function that accepts initial data from controller and kicks off nav. Will eventually involve instantiating a class.
 
   :param bot_loc: Shared dict updated with best-guess location of bot by localizer
@@ -485,9 +504,10 @@ def run(bot_loc, course_map, waypoints, qNav_loc, scNav, bot_state, qMove_nav):
   """
 
   # Setup logging
-  logging.config.fileConfig("logging.conf") # TODO This will break if not called from qwe. Add check to fix based on cwd?
-  logger = logging.getLogger(__name__)
-  logger.debug("Logger is set up")
+  if logger is None:
+    logging.config.fileConfig("logging.conf") # TODO This will break if not called from qwe. Add check to fix based on cwd?
+    logger = logging.getLogger(__name__)
+    logger.debug("Logger is set up")
 
   # Build nav object and start it
   logger.debug("Executing run function of nav")

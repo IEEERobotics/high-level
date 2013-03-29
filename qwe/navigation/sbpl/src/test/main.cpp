@@ -570,7 +570,7 @@ int planxythetalat(PlannerType plannerType, char* envCfgFilename, char* motPrimF
 		int theta;
 		environment_navxythetalat.GetCoordFromState(solution_stateIDs_V[i], x, y, theta);
 
-		fprintf(fSol, "%d %d %d\t\t%.3f %.3f %.3f\n", x, y, theta, DISCXY2CONT(x, 0.0015875), DISCXY2CONT(y, 0.0015875), DiscTheta2Cont(theta, 16));
+		fprintf(fSol, "%d %d %d\t\t%.7f %.7f %.7f\n", x, y, theta, DISCXY2CONT(x, 0.0015875), DISCXY2CONT(y, 0.0015875), DiscTheta2Cont(theta, 16));
 	}
 
 	// write the continuous solution to file
