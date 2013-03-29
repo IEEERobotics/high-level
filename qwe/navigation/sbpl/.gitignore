@@ -1,0 +1,6 @@
+cmake_build/CMakeCache.txt
+cmake_build/CMakeFiles/
+cmake_build/Makefile
+cmake_build/bin/
+cmake_build/cmake_install.cmake
+cmake_build/libsbpl.a
