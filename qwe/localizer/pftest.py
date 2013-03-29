@@ -49,7 +49,7 @@ ideal = robot.SimRobot(pose = start_pose)
 #  - keeps track of where the robot would actually be
 #  - movement updates are noisy, so our x,y,theta don't match ideal
 #  - noisy sensors, responses based on the map we're simulating
-simbot = robot.SimRobot(pose = start_pose, sensors = std_sensors.sensors, noise_params = noise_params)
+simbot = robot.SimRobot(pose = start_pose, sensors = std_sensors.default, noise_params = noise_params)
 
 # particle filter based localization logic
 # TODO: need to be able to pass in a "tightness" (variance of the resampling gaussian)
@@ -57,14 +57,13 @@ simbot = robot.SimRobot(pose = start_pose, sensors = std_sensors.sensors, noise_
 
 # create a localizer using the robot as a model
 # TODO: decide if we shold be using an ideal or noisy movement/sensors
-ploc = particles.ParticleLocalizer(std_sensors.sensors, noise_params, m, args.num)
+ploc = particles.ParticleLocalizer(std_sensors.default, noise_params, m, args.num)
 dloc = localizer.DumbLocalizer(start_pose)
 
 print "Start: ", simbot
 print
 
 while True:
-#for n in range(20):
   # turn and move commands would normally be received from navigator over IPC queue
   turn = random() * pi - pi/2
   move = random() * 1

@@ -53,7 +53,7 @@ class ParticleLocalizer(object):
     std = self.weight.std()
     raw = self.raw_error.mean()
     self.score_hist.append(mean)
-    print "Scores: mean: %0.4f, best: %0.4f, std %0.4f, raw: %0.2f" % (mean, best, std, raw)
+    #print "Scores: mean: %0.4f, best: %0.4f, std %0.4f, raw: %0.2f" % (mean, best, std, raw)
     return mean
 
   def calc_weights(self, measured):
@@ -87,7 +87,7 @@ class ParticleLocalizer(object):
     weight = self.weight
     # resample (x, y, theta) using wheel resampler
     rand_count = int(self.pcount * (rand_percent/100.0))  # use some% entirely random
-    print "New random: %d" % rand_count
+    #print "New random: %d" % rand_count
     new = self.random_particles(rand_count)
     step = max(weight) * 2.0
     cur = int(random.random() * self.pcount)

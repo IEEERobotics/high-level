@@ -55,7 +55,7 @@ class Simulator(HasTraits):
     traits_view = View(
                        #Item('robot', editor=InstanceEditor(), style='custom'),
                        Item('container', editor=ComponentEditor(), show_label=False),
-                       Group(Item('actual'), Item('guess'),Item('score'), orientation = 'horizontal'),
+                       Group(Item('actual'), Item('guess'),Item('score',springy=True), orientation = 'horizontal'),
                        Group(Item('sense'),Item('update'), orientation = 'horizontal'),
                        Group(Item('random'), 
                              Item('move'),
@@ -109,14 +109,15 @@ class Simulator(HasTraits):
       self.map_scale = map.scale
       self.map_info = "%s" % map
 
-      self.noise_sensor = std_sensors.sensors[0].noise
+      self.noise_sensor = std_sensors.default[0].noise
       self.noise_move = noise_params['move']
       self.noise_turn = noise_params['turn']
 
       start_pose = Pose(map.x_inches/2, map.y_inches/2, 0.0)
-      robot = SimRobot(start_pose, std_sensors.sensors, noise_params = noise_params)
+      robot = SimRobot(start_pose, std_sensors.centered_cone, noise_params = noise_params)
       rplotter = RobotPlotter(robot = robot, xsize = map.x_inches, ysize = map.y_inches)
-      localizer = ParticleLocalizer(std_sensors.sensors, noise_params, map, particle_count)
+
+      localizer = ParticleLocalizer(std_sensors.centered_cone, noise_params, map, particle_count)
       pplotter = ParticlePlotter(particles = localizer.p, xsize = map.x_inches, ysize = map.y_inches, color = 'red')
 
       guessbot = Robot(start_pose)

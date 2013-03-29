@@ -15,6 +15,8 @@ class Map():
     self.scale = scale  # inches per element
 
   def xy(self):
+    """ Converts from matrix of 0s and 1s to an array of xy pairs.
+        New coordinates are offset by 0.5 to represent center of wall (for plotting) """
     xy = []
     for y in range(len(self.data)):
       for x in range(len(self.data[0])):
