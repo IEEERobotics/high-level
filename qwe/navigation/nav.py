@@ -14,6 +14,7 @@ from subprocess import call
 import os
 from math import sqrt, sin, cos
 from datetime import datetime
+import pprint as pp
 
 # Movement objects for issuing macro or micro movement commands to nav. Populate and pass to qMove_nav queue.
 macro_move = namedtuple("macro_move", ["x", "y", "theta", "timestamp"])
@@ -21,11 +22,12 @@ micro_move = namedtuple("micro_move", ["speed", "direction", "timestamp"])
 
 # Dict of error codes and their human-readable names
 errors = { 100 : "ERROR_BAD_CWD",  101 : "ERROR_SBPL_BUILD", 102 : "ERROR_SBPL_RUN", 103 : "ERROR_BUILD_ENV", 
-  104 : "ERROR_BAD_RESOLUTION", 105 : "ERROR_SHORT_SOL", 106 : "ERROR_ARCS_DISALLOWED", 107 : "ERROR_DYNAMIC_DEM_UNKN" }
+  104 : "ERROR_BAD_RESOLUTION", 105 : "ERROR_SHORT_SOL", 106 : "ERROR_ARCS_DISALLOWED", 107 : "ERROR_DYNAMIC_DEM_UNKN", 108 :
+  "ERROR_NO_CHANGE" }
 errors.update(dict((v,k) for k,v in errors.iteritems())) # Converts errors to a two-way dict
 
 # TODO These need to be calibrated
-env_config = { "obsthresh" : "1", "cost_ins" : "1", "cost_cir" : "0", "cellsize" : "0.0625", "nominalvel" : "1.0", 
+env_config = { "obsthresh" : "1", "cost_ins" : "1", "cost_cir" : "0", "cellsize" : "0.0015875", "nominalvel" : "1.0", 
   "timetoturn45" : "2.0" }
 
 class Nav:
@@ -82,7 +84,7 @@ class Nav:
     self.build_sbpl_script = path_to_qwe + "navigation/build_sbpl.sh"
     self.sbpl_executable = path_to_qwe + "navigation/cmake_build/bin/test_sbpl"
     self.env_file = path_to_qwe + "navigation/envs/env.cfg"
-    self.mprim_file = path_to_qwe + "navigation/mprim/prim_16thinch_16turns_with_tip"
+    self.mprim_file = path_to_qwe + "navigation/mprim/prim_tip_priority_6.299213e+002inch_step5" # FIXME Actually 0.0015875 res 
     self.map_file = path_to_qwe + "navigation/maps/binary_map.txt"
     self.sol_file = path_to_qwe + "navigation/sols/sol.txt"
     self.sol_dir = path_to_qwe + "navigation/sols"
@@ -172,9 +174,9 @@ class Nav:
     sol = []
     sol_lables = ["x", "y", "theta", "cont_x", "cont_y", "cont_theta"]
     for line in open(self.sol_file, "r").readlines():
-      self.logger.debug("Read sol step: " + str(line))
+      self.logger.debug("Read sol step: " + str(line).rstrip("\n"))
       sol.append(dict(zip(sol_lables, line.split())))
-    self.logger.debug("Built sol list of dicts: " + str(sol))
+    self.logger.debug("Built sol list of dicts: " + pp.pformat(sol))
 
     return sol
       
@@ -383,15 +385,17 @@ class Nav:
     :param step_prev: The older of the two steps. This was the move executed during the last cycle (or the start position)
     :param step_cur: Current solution step being executed"""
 
-    if step_prev["x_cont"] is not step_cur["x_cont"] or step_prev["y_cont"] is not step_cur["y_cont"]:
-      if step_prev["theta_cont"] is not step_cur["theta_cont"]:
+    self.logger.debug("XYxorTheta step_prev is {} and step_cur is {}".format(pp.pformat(step_prev), pp.pformat(step_cur)))
+
+    if step_prev["cont_x"] is not step_cur["cont_x"] or step_prev["cont_y"] is not step_cur["cont_y"]:
+      if step_prev["cont_theta"] is not step_cur["cont_theta"]:
         self.logger.debug("Invalid: (X or Y) and theta changed")
         return False
       else:
         self.logger.debug("Valid: (X or Y) but not theta changed")
         return True
-    elif step_prev["theta_cont"] is not step_cur["theta_cont"]:
-      if step_prev["x_cont"] is not step_cur["x_cont"] or step_prev["y_cont"] is not step_cur["y_cont"]:
+    elif step_prev["cont_theta"] is not step_cur["cont_theta"]:
+      if step_prev["cont_x"] is not step_cur["cont_x"] or step_prev["cont_y"] is not step_cur["cont_y"]:
         self.logger.debug("Invalid: (X or Y) and theta changed")
         return False
       else:
@@ -402,7 +406,7 @@ class Nav:
       return errors["ERROR_NO_CHANGE"]
 
   def whichXYTheta(self, step_prev, step_cur):
-    """Find if movement is to be in the XY plane or the theta dimension.
+    """Find if movement is to be in the XY plane or the theta dimension. Assumes that XYxorTheta returns true on these params.
 
     :param step_prev: The older of the two steps. This was the move executed during the last cycle (or the start position)
     :param step_cur: Current solution step being executed"""
