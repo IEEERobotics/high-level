@@ -3,11 +3,11 @@
 
 if [ $# -ne 1 ]
 then
-  cd ./cmake_build &> /dev/null
+  cd ./sbpl/cmake_build &> /dev/null
   cd_return=$?
   if [ $cd_return -ne "0" ]
   then
-    cd ./navigation/cmake_build &> /dev/null
+    cd ./navigation/sbpl/cmake_build &> /dev/null
     cd2_return=$?
     if [ $cd2_return -ne "0" ]
       then

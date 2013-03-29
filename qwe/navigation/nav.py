@@ -82,13 +82,13 @@ class Nav:
     # Setup paths to required files
     self.build_env_script = path_to_qwe + "../scripts/build_env_file.sh"
     self.build_sbpl_script = path_to_qwe + "navigation/build_sbpl.sh"
-    self.sbpl_executable = path_to_qwe + "navigation/cmake_build/bin/test_sbpl"
+    self.sbpl_executable = path_to_qwe + "navigation/sbpl/cmake_build/bin/test_sbpl"
     self.env_file = path_to_qwe + "navigation/envs/env.cfg"
     self.mprim_file = path_to_qwe + "navigation/mprim/prim_tip_priority_6.299213e+002inch_step5" # FIXME Actually 0.0015875 res 
     self.map_file = path_to_qwe + "navigation/maps/binary_map.txt"
     self.sol_file = path_to_qwe + "navigation/sols/sol.txt"
     self.sol_dir = path_to_qwe + "navigation/sols"
-    self.sbpl_build_dir = path_to_qwe + "navigation/cmake_build"
+    self.sbpl_build_dir = path_to_qwe + "navigation/sbpl/cmake_build"
 
     # Open /dev/null for suppressing SBPL output
     self.devnull = open("/dev/null", "w")

@@ -34,7 +34,7 @@ import comm.serial_interface as comm
 
 # Paths to various files from qwe
 path_to_env = path_to_qwe + "navigation/envs/env.cfg"
-path_to_sbpl = path_to_qwe + "navigation/cmake_build/bin/test_sbpl"
+path_to_sbpl = path_to_qwe + "navigation/sbpl/cmake_build/bin/test_sbpl"
 path_to_sol = path_to_qwe + "navigation/sols/sol.txt"
 
 class TestFileGeneration(unittest.TestCase):
