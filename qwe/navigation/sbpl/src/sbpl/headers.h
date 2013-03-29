@@ -36,6 +36,7 @@
 #include <vector>
 #include <set>
 #include <stdlib.h>
+#include <limits>
 
 #include "sbpl_exception.h"
 #include "config.h"

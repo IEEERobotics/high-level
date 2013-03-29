@@ -564,22 +564,22 @@ int planxythetalat(PlannerType plannerType, char* envCfgFilename, char* motPrimF
 	}
 
 	// write the discrete solution to file
-//	for (size_t i = 0; i < solution_stateIDs_V.size(); i++) {
-//		int x;
-//		int y;
-//		int theta;
-//		environment_navxythetalat.GetCoordFromState(solution_stateIDs_V[i], x, y, theta);
-//
-//		fprintf(fSol, "%d %d %d\t\t%.3f %.3f %.3f\n", x, y, theta, DISCXY2CONT(x, 0.1), DISCXY2CONT(y, 0.1), DiscTheta2Cont(theta, 16));
-//	}
+	for (size_t i = 0; i < solution_stateIDs_V.size(); i++) {
+		int x;
+		int y;
+		int theta;
+		environment_navxythetalat.GetCoordFromState(solution_stateIDs_V[i], x, y, theta);
+
+		fprintf(fSol, "%d %d %d\t\t%.3f %.3f %.3f\n", x, y, theta, DISCXY2CONT(x, 0.0015875), DISCXY2CONT(y, 0.0015875), DiscTheta2Cont(theta, 16));
+	}
 
 	// write the continuous solution to file
-	vector<sbpl_xy_theta_pt_t> xythetaPath;
-	environment_navxythetalat.ConvertStateIDPathintoXYThetaPath(&solution_stateIDs_V, &xythetaPath);
-	printf("solution size=%d\n", (unsigned int)xythetaPath.size());
-	for (unsigned int i = 0; i < xythetaPath.size(); i++) {
-		fprintf(fSol, "%.3f %.3f %.3f\n", xythetaPath.at(i).x, xythetaPath.at(i).y, xythetaPath.at(i).theta);
-	}
+//	vector<sbpl_xy_theta_pt_t> xythetaPath;
+//	environment_navxythetalat.ConvertStateIDPathintoXYThetaPath(&solution_stateIDs_V, &xythetaPath);
+//	printf("solution size=%d\n", (unsigned int)xythetaPath.size());
+//	for (unsigned int i = 0; i < xythetaPath.size(); i++) {
+//		fprintf(fSol, "%.3f %.3f %.3f\n", xythetaPath.at(i).x, xythetaPath.at(i).y, xythetaPath.at(i).theta);
+//	}
 	fclose(fSol);
 
 	environment_navxythetalat.PrintTimeStat(stdout);
