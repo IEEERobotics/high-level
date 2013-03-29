@@ -19,7 +19,7 @@ class Planner:
   nlbl = twd.TwoWayDict()
   
   
-  def __init__(self, bot_loc, blocks, zones, waypoints, si, bot_state, qMove_nav):
+  def __init__(self, bot_loc, blobs, blocks, zones, waypoints, scPlanner, bot_state, qMove_nav):
     """Setup navigation class
 
     :param bot_loc: Shared dict updated with best-guess location of bot by localizer
@@ -32,15 +32,16 @@ class Planner:
     """    
     # Store passed-in data
     self.bot_loc = bot_loc
+    self.blobs = blobs
     self.blocks = blocks
     self.zones = zones
     self.waypoints = waypoints
-    self.si = si
+    self.scPlanner = scPlanner
     self.bot_state = bot_state
     self.qMove_nav = qMove_nav
     
-    #self.armID[0] = self.si.right_arm
-    #self.armID[0] = self.si.left_arm
+    self.armID[0] = self.scPlanner.right_arm 
+    self.armID[0] = self.scPlanner.left_arm
   
   #get current location
   def getCurrentLocation(self):
@@ -221,9 +222,8 @@ class Planner:
             print "arm 0 first"
             self.placeBlock(armList[0], self.nlbl[armList[0].getColor()], 0)
             self.placeBlock(armList[1], self.nlbl[armList[1].getColor()], 1)
-
         
-          #place A and B in the closeness order (land.ColorLoc)
+        #place A and B in the closeness order (land.ColorLoc)
 
         #One arm contains sea block and other contains land block
         elif armList[0].getSize() == "medium" and armList[1].getSize() == "large":
@@ -285,10 +285,10 @@ class Planner:
     self.moveTo(self.getCurrentLocation(), blockLoc)
     print "Picking Up Block at ", blockLoc, "with Arm", armId
     
-    #self.si.gripperOpen(armId)
-    #self.si.armDown(armId)
-    #self.si.gripperClose(armId)
-    #self.si.armUp(armId)
+    self.scPlanner.gripperOpen(armId)
+    self.scPlanner.armDown(armId)
+    self.scPlanner.gripperClose(armId)
+    self.scPlanner.armUp(armId)
     
   def placeBlock(self, block, blockLoc, arm):
     armId = self.armID[arm]
@@ -296,10 +296,10 @@ class Planner:
     self.moveTo(self.getCurrentLocation(), blockLoc)
     print "Placing block from ", self.armID[arm], "at", blockLoc
     
-    #self.si.armDown(armId)
-    #self.si.gripperOpen(armId)
-    #self.si.armUp(armId)
-    #self.si.gripperClose(armId)
+    self.scPlanner.armDown(armId)
+    self.scPlanner.gripperOpen(armId)
+    self.scPlanner.armUp(armId)
+    self.scPlanner.gripperClose(armId)
 
     
   def test(self):
@@ -323,9 +323,9 @@ class Planner:
     print "**************************************"
     self.processAir()
 
-def run(bot_loc, blocks, zones, waypoints, si, bot_state, qMove_nav):
+def run(bot_loc, blobs, blocks, zones, waypoints, scPlanner, bot_state, qMove_nav):
   # TODO Handle shared data, start your process from here
-  plan = Planner(bot_loc, blocks, zones, waypoints, si, bot_state, qMove_nav)
+  plan = Planner(bot_loc, blobs, blocks, zones, waypoints, scPlanner, bot_state, qMove_nav)
   plan.test()
   #plan.start()
   
