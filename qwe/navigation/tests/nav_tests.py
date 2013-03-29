@@ -67,7 +67,7 @@ class TestFileGeneration(unittest.TestCase):
 
     # Build shared data structures
     self.manager = Manager()
-    self.bot_loc = self.manager.dict(x=.11, y=.11, theta=0) # Same params used in the env1.txt example file
+    self.bot_loc = self.manager.dict(x=1, y=1, theta=0) # Same params used in the env1.txt example file
     self.bot_state = self.manager.dict(nav_type=None, action_type=None)
     self.logger.debug("Shared data structures created")
 
@@ -106,7 +106,7 @@ class TestFileGeneration(unittest.TestCase):
     self.assertTrue(start_rv is None, "Nav.start returned " + str(start_rv))
 
     # Generate env file
-    genSol_rv = self.Nav.genSol(.35, .3, 0) # Same params used in the env1.txt example file
+    genSol_rv = self.Nav.genSol(2, 2, 0) # Same params used in the env1.txt example file
 
     # Check return value of call to Nav.genSol
     if type(genSol_rv) is not list and genSol_rv in nav.errors:
