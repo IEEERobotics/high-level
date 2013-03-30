@@ -18,8 +18,8 @@ class ParticleLocalizer(object):
   #
   # public: move(), update(), score()
   #
-  def __init__(self, sensor_list, noise_params, map, pcount):
-    self.p = Particles(sensor_list, noise_params, map, pcount)
+  def __init__(self, sensor_list, noise_params, map, pcount, start_pose = None):
+    self.p = Particles(sensor_list, noise_params, map, pcount, start_pose)
     self.pcount = pcount
     self.weight = zeros(pcount)    # probability measurement, "weight"
     self.raw_error = zeros(pcount)
@@ -143,7 +143,7 @@ class ParticleLocalizer(object):
 class Particles(object):
   """ Essentially a large array of simbots (pose, sensor list, and noise params) """
 
-  def __init__(self, sensors, noise, map, pcount = 100):
+  def __init__(self, sensors, noise, map, pcount = 100, start_pose = None):
     # initialize particle filter
     #  - number of particles
     #  - map
@@ -155,10 +155,17 @@ class Particles(object):
     self.noise = noise
 
     # Create starting points for the vectors.
-    self.x = sort(random.random(self.pcount)) * map.x_inches  # only sorted for gui axis auto sizing?
-    self.y = random.random(self.pcount) * map.y_inches
-    self.theta = random.random(self.pcount)*2*pi
 
+    if not start_pose:
+      self.x = sort(random.random(self.pcount)) * map.x_inches  # only sorted for gui axis auto sizing?
+      self.y = random.random(self.pcount) * map.y_inches
+      self.theta = random.random(self.pcount)*2*pi
+    else:
+      xy_var = noise['move']
+      theta_var = noise['turn']
+      self.x = random.randn(self.pcount) * xy_var + start_pose.x
+      self.y = random.randn(self.pcount) * xy_var + start_pose.y
+      self.theta = random.randn(self.pcount) * theta_var + start_pose.theta
 
   def __str__(self):
     out = "Particles:\n"

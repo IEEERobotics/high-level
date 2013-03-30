@@ -12,19 +12,20 @@ from pose import Pose
 import std_sensors
 import std_noise
 
+import matplotlib.pyplot as plt
+
 import argparse
 import signal
 import sys
 
 def signal_handler(signal, frame):
   print
-  print score
-  print error
   sys.exit(0)
 signal.signal(signal.SIGINT, signal_handler)
 
-score = []
-error = []
+p_score = []
+p_error = []
+d_error = []
 
 parser = argparse.ArgumentParser(description='Particle Filter Tester')
 parser.add_argument('-n', '--num', help='Number of partiles', type=int, default='500' )
@@ -57,16 +58,22 @@ simbot = robot.SimRobot(pose = start_pose, sensors = std_sensors.default, noise_
 
 # create a localizer using the robot as a model
 # TODO: decide if we shold be using an ideal or noisy movement/sensors
-ploc = particles.ParticleLocalizer(std_sensors.default, noise_params, m, args.num)
+ploc = particles.ParticleLocalizer(std_sensors.default, noise_params, m, args.num, start_pose)
 dloc = localizer.DumbLocalizer(start_pose)
 
 print "Start: ", simbot
 print
 
+def plot_error():
+  plt.clf()
+  n = range(len(p_error))
+  plt.plot(n, d_error)
+  plt.plot(n, p_error)
+
 while True:
   # turn and move commands would normally be received from navigator over IPC queue
   turn = random() * pi - pi/2
-  move = random() * 1
+  move = random() * 2
   print "Turn: %+0.2f, Move: %0.2f" % (turn, move)
 
   # this is what would happen in a perfect world
@@ -93,6 +100,7 @@ while True:
     derr_theta = 2*pi - derr_theta
   print "Dumb Guess: ", dguess, 
   print " Error: %0.2f @ %0.2f" % (derr_xy, derr_theta)
+  d_error.append( derr_xy )
 
   pguess = ploc.guess_mean()
   perr_xy = norm([simbot.x - pguess.x, simbot.y - pguess.y])
@@ -117,9 +125,8 @@ while True:
     perr_theta = 2*pi - perr_theta
   print "Part Guess (weighted): ", pwguess,
   print " Error: %0.2f @ %0.2f" % (perr_xy, perr_theta)
-
-  score.append( ploc.score() )
-  error.append( perr_xy )
+  p_score.append( ploc.score() )
+  p_error.append( perr_xy )
 
   print
 

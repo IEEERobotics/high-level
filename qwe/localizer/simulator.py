@@ -117,7 +117,7 @@ class Simulator(HasTraits):
       robot = SimRobot(start_pose, std_sensors.centered_cone, noise_params = noise_params)
       rplotter = RobotPlotter(robot = robot, xsize = map.x_inches, ysize = map.y_inches)
 
-      localizer = ParticleLocalizer(std_sensors.centered_cone, noise_params, map, particle_count)
+      localizer = ParticleLocalizer(std_sensors.centered_cone, noise_params, map, particle_count, start_pose)
       pplotter = ParticlePlotter(particles = localizer.p, xsize = map.x_inches, ysize = map.y_inches, color = 'red')
 
       guessbot = Robot(start_pose)

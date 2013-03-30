@@ -17,7 +17,6 @@ def run( start_x, start_y, start_theta, ipc_channel = None, shared_data = {}, ma
     print "Using stub IPC"
     ipc_channel = Fake_IPC(start_pose, map_data, delay = 1.0)
 
-
   print "Start: ", start_pose
   print
 
