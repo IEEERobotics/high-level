@@ -25,7 +25,7 @@ micro_move_theta = namedtuple("micro_move_theta", ["angle", "timestamp"])
 # Dict of error codes and their human-readable names
 errors = { 100 : "ERROR_BAD_CWD",  101 : "ERROR_SBPL_BUILD", 102 : "ERROR_SBPL_RUN", 103 : "ERROR_BUILD_ENV", 
   104 : "ERROR_BAD_RESOLUTION", 105 : "ERROR_SHORT_SOL", 106 : "ERROR_ARCS_DISALLOWED", 107 : "ERROR_DYNAMIC_DEM_UNKN", 108 :
-  "ERROR_NO_CHANGE", 109 : "ERROR_FAILED_MOVE"}
+  "ERROR_NO_CHANGE", 109 : "ERROR_FAILED_MOVE", 110 : "NO_SOL" }
 errors.update(dict((v,k) for k,v in errors.iteritems())) # Converts errors to a two-way dict
 
 # TODO These need to be calibrated
@@ -338,7 +338,10 @@ class Nav:
           self.logger.error("Unknown whichXYTheta result: " + str(dyn_dem))
           return errors["ERROR_DYNAMIC_DEM_UNKN"]
 
-      # Localize TODO How?
+      # Localize TODO How? Assume move was perfect for now
+      self.bot_loc["x"] = self.XYTobot_locUC(sol[i]["cont_x"])
+      self.bot_loc["y"] = self.XYTobot_locUC(sol[i]["cont_y"])
+      self.bot_loc["theta"] = self.thetaTobot_locUC(sol[i]["cont_theta"])
 
       # Translate bot_loc into internal units
       curX = self.XYFrombot_locUC(self.bot_loc["x"])
@@ -357,80 +360,81 @@ class Nav:
   def distToCommUC(self, dist):
     """Convert from internal distance units (meters) to units used by comm for distances
 
-    :param dist: Distance to convert from meters to comm distance units"""
-    # TODO Stub
-    return dist
+    :param dist: Distance to convert from meters to comm distance units (mm)"""
+    return float(dist) * 100
 
   def angleToCommUC(self, angle):
     """Convert from internal angle units (radians) to units used by comm for angles (tenths of degrees)
 
     :param angle: Angle to convert from radians to comm angle units"""
-    # TODO Stub
-    return angle
+    return float(angle) * 57.2957795 * 10
 
   def distFromCommUC(self, commResult):
     """Convert result returned by comm for distance moves to internal units (meters)
 
-    :param commResult: Distance result returned by comm to convert to meters"""
-    # TODO Stub
-    return commResult
+    :param commResult: Distance result returned by comm (mm) to convert to meters"""
+    return float(commResult) / 100
 
   def angleFromCommUC(self, commResult):
     """Convert result returned by comm for angle moves to internal units (radians)
 
     :param commResult: Angle result returned by comm to convert to radians"""
-    # TODO Stub
-    return commResult
+    return float(commResult) / 10 / 57.2957795
 
   def distToLocUC(self, dist):
     """Convert from internal distance units (meters) to units used by localizer for distances
 
-    :param dist: Distance to convert from meters to localizer distance units"""
-    # TODO Stub
-    return dist
+    :param dist: Distance to convert from meters to localizer distance units (inches)"""
+    return float(dist) / 0.0254
 
-  def angleToLocUC(self, dist):
+  def angleToLocUC(self, angle):
     """Convert from internal angle units (radians) to units used by localizer for angles
 
-    :param dist: Angle to convert from radians to localizer angle units"""
-    # TODO Stub
-    return dist
+    :param dist: Angle to convert from radians to localizer angle units (radians)"""
+    return float(angle)
 
   def XYFromMoveQUC(self, XY):
     """Convert XY value given by planner via qMove_nav to internal units (meters)
 
-    :param XY: X or Y value given by planner via qMove_nav to convert to meters"""
-    # TODO Stub
-    return XY
+    :param XY: X or Y value (inches) given by planner via qMove_nav to convert to meters"""
+    return 0.0254 * float(XY)
 
   def thetaFromMoveQUC(self, theta):
     """Convert theta value given by planner via qMove_nav to internal units (radians)
 
-    :param XY: theta value given by planner via qMove_nav to convert to radians"""
-    # TODO Stub
-    return theta
+    :param XY: theta value given by planner via qMove_nav (radians) to convert to radians"""
+    return float(theta)
 
   def speedFromMoveQUC(self, speed):
     """Convert speed value given by planner via qMove_nav to internal units
 
-    :param speed: speed value given by planner via qMove_nav to convert to internal units"""
-    # TODO Stub
-    return theta
+    :param speed: speed value given by planner via qMove_nav (in/sec) to convert to internal units (m/sec)"""
+    return 0.0254 * float(speed)
 
   def XYFrombot_locUC(self, XY):
     """Convert XY value in bot_loc shared data to internal units (meters)
 
-    :param XY: X or Y value used by bot_loc to convert to internal units (meters)"""
-    # TODO Stub
-    return XY
+    :param XY: X or Y value used by bot_loc (inches) to convert to internal units (meters)"""
+    return 0.0254 * float(XY)
 
   def thetaFrombot_locUC(self, theta):
     """Convert theta value in bot_loc shared data to internal units (radians)
 
-    :param theta: theta value used by bot_loc to convert to internal units (radians)"""
-    # TODO Stub
-    return theta
+    :param theta: theta value used by bot_loc (radians) to convert to internal units (radians)"""
+    return float(theta)
   
+  def XYTobot_locUC(self, XY):
+    """Convert XY value in internal units (meters) to bot_loc shared data units (inches)
+
+    :param XY: X or Y internal value (meters) to convert to units used by bot_loc (inches)"""
+    return float(XY) / 0.0254  
+
+  def thetaTobot_locUC(self, theta):
+    """Convert theta value in internal units (radians) to bot_loc shared data units (radians)
+
+    :param theta: theta internal value (radians) to convert to bot_loc units (radians)"""
+    return float(theta)
+
   def feedLocalizerXY(self, commResult_m):
     """Give localizer information about XP plane move results. Also, package up sensor information and a timestamp.
 
@@ -525,11 +529,15 @@ class Nav:
     :param y: Y coordinate of goal pose
     :param theta: Angle of goal pose"""
 
-    self.logger.debug("Checking if goal pose reached")
+    self.logger.debug("Checking if goal pose {} {} {} reached".format(x, y, theta))
 
+    # Find current location (converted from inches to meters)
     curX = self.XYFrombot_locUC(self.bot_loc["x"])
     curY = self.XYFrombot_locUC(self.bot_loc["y"])
     curTheta = self.thetaFrombot_locUC(self.bot_loc["theta"])
+
+    self.logger.debug("Current location is {} {} {}".format(curX, curY, curTheta))
+
     # Accept goal poses that are exacly correct
     if x == curX and y == curY and theta == curTheta:
       self.logger.info("Reached goal pose exactly")

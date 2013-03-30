@@ -80,8 +80,8 @@ class TestFileGeneration(unittest.TestCase):
 
     # Build shared data structures
     self.manager = Manager()
-    start_x = self.waypoints["start"][0][0] * float(nav.env_config["cellsize"])
-    start_y = self.waypoints["start"][0][1] * float(nav.env_config["cellsize"])
+    start_x = self.waypoints["start"][0][0] * float(nav.env_config["cellsize"]) * 39.3701
+    start_y = self.waypoints["start"][0][1] * float(nav.env_config["cellsize"]) * 39.3701
     self.bot_loc = self.manager.dict(x=start_x, y=start_y, theta=0)
     self.bot_state = self.manager.dict(nav_type=None, action_type=None)
     self.logger.debug("Shared data structures created")
@@ -180,8 +180,8 @@ class TestFullInteraction(unittest.TestCase):
     self.logger.info("Waypoints unpickled")
 
     # Find start location
-    self.start_x = self.waypoints["start"][0][0] * float(nav.env_config["cellsize"])
-    self.start_y = self.waypoints["start"][0][1] * float(nav.env_config["cellsize"])
+    self.start_x = self.waypoints["start"][0][0] * float(nav.env_config["cellsize"]) * 39.3701
+    self.start_y = self.waypoints["start"][0][1] * float(nav.env_config["cellsize"]) * 39.3701
     self.start_theta = 0
 
     # Build shared data structures
@@ -286,8 +286,8 @@ class TestSimpleHelpers(unittest.TestCase):
 
     # Build shared data structures
     self.manager = Manager()
-    self.start_x = self.waypoints["start"][0][0] * float(nav.env_config["cellsize"])
-    self.start_y = self.waypoints["start"][0][1] * float(nav.env_config["cellsize"])
+    self.start_x = self.waypoints["start"][0][0] * float(nav.env_config["cellsize"]) * 39.3701
+    self.start_y = self.waypoints["start"][0][1] * float(nav.env_config["cellsize"]) * 39.3701
     self.start_theta = 0
     self.bot_loc = self.manager.dict(x=self.start_x, y=self.start_y, theta=self.start_theta)
     self.bot_state = self.manager.dict(nav_type=None, action_type=None)
@@ -315,8 +315,9 @@ class TestSimpleHelpers(unittest.TestCase):
     """Test function that checks if a goal pose is the same as the bot's current location. Use goal pose that's exactly the bot's
     current location"""
 
-    goal_x = self.start_x
-    goal_y = self.start_y
+    # Need to convert to meters here, because we're bypassing where nav does that normally
+    goal_x = self.start_x * 0.0254
+    goal_y = self.start_y * 0.0254
     goal_theta = self.start_theta
 
     self.logger.info("Testing atGoal with goal {} {} {} and position {} {} {}".format(goal_x, goal_y, goal_theta, self.start_x, \
@@ -332,8 +333,8 @@ class TestSimpleHelpers(unittest.TestCase):
     """Test function that checks if a goal pose is the same as the bot's current location. Use goal pose that's off by 3 sig figs
     and accept a tolerance of 3 sig figs."""
 
-    goal_x = self.start_x + .001
-    goal_y = self.start_y + .001
+    goal_x = (self.start_x + .001) * 0.0254
+    goal_y = (self.start_y + .001) * 0.0254
     goal_theta = self.start_theta + .001
 
     self.logger.info("Testing atGoal with goal {} {} {} and position {} {} {}".format(goal_x, goal_y, goal_theta, self.start_x, \
@@ -349,8 +350,8 @@ class TestSimpleHelpers(unittest.TestCase):
     """Test function that checks if a goal pose is the same as the bot's current location. Use goal pose that's off by 3 sig figs
     and accept a tolerance of 4 sig figs."""
 
-    goal_x = self.start_x + .001
-    goal_y = self.start_y + .001
+    goal_x = (self.start_x + .001) * 0.0254
+    goal_y = (self.start_y + .001) * 0.0254
     goal_theta = self.start_theta + .001
 
     self.logger.info("Testing atGoal with goal {} {} {} and position {} {} {}".format(goal_x, goal_y, goal_theta, self.start_x, \
