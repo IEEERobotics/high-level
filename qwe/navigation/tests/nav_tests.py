@@ -179,11 +179,13 @@ class TestFullInteraction(unittest.TestCase):
     self.waypoints = mapper.unpickle_waypoints(path_to_qwe + "mapping/waypoints.pkl")
     self.logger.info("Waypoints unpickled")
 
-    # Build shared data structures
-    self.manager = Manager()
+    # Find start location
     self.start_x = self.waypoints["start"][0][0] * float(nav.env_config["cellsize"])
     self.start_y = self.waypoints["start"][0][1] * float(nav.env_config["cellsize"])
     self.start_theta = 0
+
+    # Build shared data structures
+    self.manager = Manager()
     self.bot_loc = self.manager.dict(x=self.start_x, y=self.start_y, theta=self.start_theta)
     self.bot_state = self.manager.dict(nav_type=None, action_type=None)
     self.logger.debug("Shared data structures created")
@@ -209,6 +211,14 @@ class TestFullInteraction(unittest.TestCase):
   @unittest.skip("Hangs while attempting to put item in queue")
   def test_start_at_goal(self):
     """Pass in a goal pose that's the same as the start pose"""
+    # Build goal pose that's the same as the start pose
+    goal_pose = nav.macro_move(self.start_x, self.start_y, self.start_theta, datetime.now())
+
+    # Send goal pose via queue
+    self.logger.debug("Created goal pose {}".format(pp.pformat(goal_pose)))
+    self.logger.debug("About to send goal pose to queue with ID {}".format(str(self.qMove_nav)))
+    self.qMove_nav.put(goal_pose)
+    self.logger.debug("Put goal pose into queue")
 
     # Build goal pose that's the same as the start pose
     goal_pose = nav.macro_move(self.start_x, self.start_y, self.start_theta, datetime.now())
@@ -217,7 +227,6 @@ class TestFullInteraction(unittest.TestCase):
     # Send goal pose to nav via queue
     self.logger.debug("Putting into queue")
     self.logger.debug("Queue ID: " + pp.pformat(self.qMove_nav))
-    self.logger.debug("Queue size: " + pp.pformat(self.Move_nav.qsize()))
     qMove_nav.put(goal_pose)
     self.logger.debug("Goal pose put in queue")
 
