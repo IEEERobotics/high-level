@@ -34,7 +34,8 @@ if __name__ == "__main__":
   logger.debug("Logger is set up")
 
   # Start serial communication to low-level board
-  si = comm.SerialInterface()  # TODO create shared structures commands and responses here and pass on to si? currently it creates them internally)
+  # TODO Create shared structures commands and responses here and pass on to si? Currently it creates them internally.
+  si = comm.SerialInterface()  
   si.start() # Displays an error if port not found (not running on Pandaboard)
   logger.info("Serial interface set up")
 
@@ -52,7 +53,7 @@ if __name__ == "__main__":
   blocks = manager.list()
   zones = manager.list()
   corners = manager.list()
-  bot_state = manager.dict(nav_type=None, action_type=None)
+  bot_state = manager.dict(nav_type=None, action_type=None, naving=False)
   logger.debug("Shared data structures created")
 
   # Get map, waypoints and map properties
