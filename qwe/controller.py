@@ -12,6 +12,7 @@ sys.path.append("./mapping")
 from multiprocessing import Process, Manager, Queue
 import logging.config
 import os
+from datetime import datetime
 
 # Local module imports
 import planning.Planner as planner
@@ -37,22 +38,22 @@ if __name__ == "__main__":
   si.start() # Displays an error if port not found (not running on Pandaboard)
   logger.info("Serial interface set up")
 
+  # Find start location
+  start_x = waypoints["start"][0][0] * float(nav.env_config["cellsize"])
+  start_y = waypoints["start"][0][1] * float(nav.env_config["cellsize"])
+  start_theta = 0
+
   # Build shared data structures
   # Not wrapping them in a mutable container, as it's more complex for other devs
   # See the following for details: http://goo.gl/SNNAs
   manager = Manager()
-  bot_loc = manager.dict(x=None, y=None, theta=None)
+  bot_loc = manager.dict(x=start_x, y=start_y, theta=start_theta)
   blobs = manager.list()  # for communication between vision and planner
   blocks = manager.list()
   zones = manager.list()
   corners = manager.list()
   bot_state = manager.dict(nav_type=None, action_type=None)
   logger.debug("Shared data structures created")
-
-  # Build Queue objects for IPC. Name shows producer_consumer.
-  qNav_loc = Queue()
-  qMove_nav = Queue()
-  logger.debug("Queue objects created")
 
   # Get map, waypoints and map properties
   course_map = mapper.unpickle_map("./mapping/map.pkl")
@@ -61,6 +62,11 @@ if __name__ == "__main__":
   logger.info("Waypoints unpickled")
   map_properties = mapper.unpickle_map_prop_vars("./mapping/map_prop_vars.pkl")
   logger.info("Map properties unpickled")
+
+  # Build Queue objects for IPC. Name shows producer_consumer.
+  qNav_loc = Queue()
+  qMove_nav = Queue()
+  logger.debug("Queue objects created")
 
   # Start planner process, pass it shared data
   scPlanner = comm.SerialCommand(si.commands, si.responses)  # create one SerialCommand wrapper for each client
