@@ -51,7 +51,7 @@ class TestFileGeneration(unittest.TestCase):
     self.stream_handler.setLevel(logging.WARN)
 
     # Create formatter and add to handlers
-    formatter = logging.Formatter('%(asctime)s | %(name)s | %(levelname)s | %(message)s')
+    formatter = logging.Formatter('%(asctime)s | %(levelname)s | %(filename)s | %(funcName)s | %(lineno)d | %(message)s')
     self.file_handler.setFormatter(formatter)
     self.stream_handler.setFormatter(formatter)
 
@@ -152,7 +152,7 @@ class TestFullInteraction(unittest.TestCase):
     self.stream_handler.setLevel(logging.WARN)
 
     # Create formatter and add to handlers
-    formatter = logging.Formatter('%(asctime)s | %(name)s | %(levelname)s | %(message)s')
+    formatter = logging.Formatter('%(asctime)s | %(levelname)s | %(filename)s | %(funcName)s | %(lineno)d | %(message)s')
     self.file_handler.setFormatter(formatter)
     self.stream_handler.setFormatter(formatter)
 
@@ -200,35 +200,49 @@ class TestFullInteraction(unittest.TestCase):
   def tearDown(self):
     """Close serial interface threads"""
 
+    # Join nav process
+    self.pNav.join() 
+    self.logger.info("Joined navigation process")
+
+    # Join serial interface process
+    self.scNav.quit()
+    self.si.join()
+    self.logger.info("Joined serial interface process")
+
+    # Remove loggers. Not doing this results in the same log entry being written many times.
     self.logger.removeHandler(self.file_handler)
     self.logger.removeHandler(self.stream_handler)
 
-    self.scNav.quit()
-    self.si.join()
-    self.pNav.join()
-    self.logger.info("Joined navigation process")
-
-  @unittest.skip("Hangs while attempting to put item in queue")
   def test_start_at_goal(self):
     """Pass in a goal pose that's the same as the start pose"""
     # Build goal pose that's the same as the start pose
     goal_pose = nav.macro_move(self.start_x, self.start_y, self.start_theta, datetime.now())
+    self.logger.debug("Created goal pose {}".format(pp.pformat(goal_pose)))
 
     # Send goal pose via queue
-    self.logger.debug("Created goal pose {}".format(pp.pformat(goal_pose)))
     self.logger.debug("About to send goal pose to queue with ID {}".format(str(self.qMove_nav)))
     self.qMove_nav.put(goal_pose)
     self.logger.debug("Put goal pose into queue")
 
-    # Build goal pose that's the same as the start pose
-    goal_pose = nav.macro_move(self.start_x, self.start_y, self.start_theta, datetime.now())
-    self.logger.debug("Created goal pose: " + pp.pformat(goal_pose))
+    # Pass a die command to nav
+    self.logger.info("Telling nav to die")
+    self.qMove_nav.put("die")
 
-    # Send goal pose to nav via queue
-    self.logger.debug("Putting into queue")
-    self.logger.debug("Queue ID: " + pp.pformat(self.qMove_nav))
-    qMove_nav.put(goal_pose)
-    self.logger.debug("Goal pose put in queue")
+  @unittest.skip("Runs forever")
+  def test_simple_XY_move(self):
+    """Pass in a goal pose that's the same as the start pose"""
+    # Build goal pose that's the same as the start pose
+    goal_pose = nav.macro_move(self.start_x + .05, self.start_y + .05, self.start_theta, datetime.now())
+    self.logger.debug("Created goal pose {}".format(pp.pformat(goal_pose)))
+
+    # Send goal pose via queue
+    self.logger.debug("About to send goal pose to queue with ID {}".format(str(self.qMove_nav)))
+    self.qMove_nav.put(goal_pose)
+    self.logger.debug("Put goal pose into queue")
+
+    # Pass a die command to nav
+    self.logger.info("Telling nav to die")
+    self.qMove_nav.put("die")
 
 
 class TestSimpleHelpers(unittest.TestCase):
@@ -243,7 +257,7 @@ class TestSimpleHelpers(unittest.TestCase):
     self.stream_handler.setLevel(logging.WARN)
 
     # Create formatter and add to handlers
-    formatter = logging.Formatter('%(asctime)s | %(name)s | %(levelname)s | %(message)s')
+    formatter = logging.Formatter('%(asctime)s | %(levelname)s | %(filename)s | %(funcName)s | %(lineno)d | %(message)s')
     self.file_handler.setFormatter(formatter)
     self.stream_handler.setFormatter(formatter)
 
@@ -295,7 +309,7 @@ class TestSimpleHelpers(unittest.TestCase):
     self.si.join()
 
     # Create formatter and add to handlers
-    formatter = logging.Formatter('%(asctime)s | %(name)s | %(levelname)s | %(message)s')
+    formatter = logging.Formatter('%(asctime)s | %(levelname)s | %(filename)s | %(funcName)s | %(lineno)d | %(message)s')
 
   def test_atGoal_exact(self):
     """Test function that checks if a goal pose is the same as the bot's current location. Use goal pose that's exactly the bot's
@@ -360,7 +374,7 @@ class TestXYxorTheta(unittest.TestCase):
     self.stream_handler.setLevel(logging.WARN)
 
     # Create formatter and add to handlers
-    formatter = logging.Formatter('%(asctime)s | %(name)s | %(levelname)s | %(message)s')
+    formatter = logging.Formatter('%(asctime)s | %(levelname)s | %(filename)s | %(funcName)s | %(lineno)d | %(message)s')
     self.file_handler.setFormatter(formatter)
     self.stream_handler.setFormatter(formatter)
 
@@ -408,23 +422,45 @@ class TestXYxorTheta(unittest.TestCase):
     self.scNav.quit()
     self.si.join()
 
+  def test_bugcheck0(self):
+
+    sol =  [{'cont_theta': 0.0000000,
+    'cont_x': 0.1746250,
+    'cont_y': 0.1746250,
+    'theta': 0,
+    'x': 27,
+    'y': 27}, {'cont_theta': 0.3926991,
+    'cont_x': 0.1746250,
+    'cont_y': 0.1746250,
+    'theta': 1,
+    'x': 27,
+    'y': 27}]
+ 
+    self.logger.debug("Testing XYxorTheta with sol: " + pp.pformat(sol))
+
+    result = self.Nav.XYxorTheta(sol[0], sol[1])
+
+    self.logger.info("XYxorTheta returned: {}".format(result))
+
+    self.assertTrue(result, "Expected True but received {}".format(result))
+
   def test_XYxorTheta_x_change(self):
     """Test helper function that checks if the previous and current steps changed in the XY plane or the theta dimension, but not
     both. This test checks steps with changes in x only."""
 
 
-    sol = [{'cont_theta': '0.000',
-    'cont_x': '3.350',
-    'cont_y': '3.250',
-    'theta': '0',
-    'x': '33',
-    'y': '32'},
-    {'cont_theta': '0.000',
-    'cont_x': '3.250',
-    'cont_y': '3.250',
-    'theta': '0',
-    'x': '32',
-    'y': '32'}]
+    sol = [{'cont_theta': 0.000,
+    'cont_x': 3.350,
+    'cont_y': 3.250,
+    'theta': 0,
+    'x': 33,
+    'y': 32},
+    {'cont_theta': 0.000,
+    'cont_x': 3.250,
+    'cont_y': 3.250,
+    'theta': 0,
+    'x': 32,
+    'y': 32}]
 
     self.logger.debug("Testing XYxorTheta with sol: " + pp.pformat(sol))
 
@@ -439,18 +475,18 @@ class TestXYxorTheta(unittest.TestCase):
     both. This test checks steps with changes in y only."""
 
 
-    sol = [{'cont_theta': '0.000',
-    'cont_x': '3.250',
-    'cont_y': '3.250',
-    'theta': '0',
-    'x': '32',
-    'y': '32'},
-    {'cont_theta': '0.000',
-    'cont_x': '3.250',
-    'cont_y': '4.250',
-    'theta': '0',
-    'x': '32',
-    'y': '40'}]
+    sol = [{'cont_theta': 0.000,
+    'cont_x': 3.250,
+    'cont_y': 3.250,
+    'theta': 0,
+    'x': 32,
+    'y': 32},
+    {'cont_theta': 0.000,
+    'cont_x': 3.250,
+    'cont_y': 4.250,
+    'theta': 0,
+    'x': 32,
+    'y': 40}]
 
     self.logger.debug("Testing XYxorTheta with sol: " + pp.pformat(sol))
 
@@ -465,18 +501,18 @@ class TestXYxorTheta(unittest.TestCase):
     both. This test checks steps with changes in theta only."""
 
 
-    sol = [{'cont_theta': '0.393',
-    'cont_x': '2.450',
-    'cont_y': '1.750',
-    'theta': '1',
-    'x': '24',
-    'y': '17'},
-    {'cont_theta': '0.785',
-    'cont_x': '2.450',
-    'cont_y': '1.750',
-    'theta': '2',
-    'x': '24',
-    'y': '17'}]
+    sol = [{'cont_theta': 0.393,
+    'cont_x': 2.450,
+    'cont_y': 1.750,
+    'theta': 1,
+    'x': 24,
+    'y': 17},
+    {'cont_theta': 0.785,
+    'cont_x': 2.450,
+    'cont_y': 1.750,
+    'theta': 2,
+    'x': 24,
+    'y': 17}]
 
     self.logger.debug("Testing XYxorTheta with sol: " + pp.pformat(sol))
 
@@ -491,18 +527,18 @@ class TestXYxorTheta(unittest.TestCase):
     both. This test checks steps with changes in x and theta."""
 
 
-    sol = [{'cont_theta': '0.393',
-    'cont_x': '3.250',
-    'cont_y': '1.750',
-    'theta': '1',
-    'x': '32',
-    'y': '17'},
-    {'cont_theta': '0.785',
-    'cont_x': '2.450',
-    'cont_y': '1.750',
-    'theta': '2',
-    'x': '24',
-    'y': '17'}]
+    sol = [{'cont_theta': 0.393,
+    'cont_x': 3.250,
+    'cont_y': 1.750,
+    'theta': 1,
+    'x': 32,
+    'y': 17},
+    {'cont_theta': 0.785,
+    'cont_x': 2.450,
+    'cont_y': 1.750,
+    'theta': 2,
+    'x': 24,
+    'y': 17}]
 
     self.logger.debug("Testing XYxorTheta with sol: " + pp.pformat(sol))
 
@@ -517,18 +553,18 @@ class TestXYxorTheta(unittest.TestCase):
     both. This test checks steps with changes in y and theta."""
 
 
-    sol = [{'cont_theta': '0.393',
-    'cont_x': '3.250',
-    'cont_y': '1.750',
-    'theta': '1',
-    'x': '32',
-    'y': '17'},
-    {'cont_theta': '0.785',
-    'cont_x': '3.250',
-    'cont_y': '4.250',
-    'theta': '2',
-    'x': '32',
-    'y': '40'}]
+    sol = [{'cont_theta': 0.393,
+    'cont_x': 3.250,
+    'cont_y': 1.750,
+    'theta': 1,
+    'x': 32,
+    'y': 17},
+    {'cont_theta': 0.785,
+    'cont_x': 3.250,
+    'cont_y': 4.250,
+    'theta': 2,
+    'x': 32,
+    'y': 40}]
 
     self.logger.debug("Testing XYxorTheta with sol: " + pp.pformat(sol))
 
@@ -543,18 +579,18 @@ class TestXYxorTheta(unittest.TestCase):
     both. This test checks steps with changes in x and y."""
 
 
-    sol = [{'cont_theta': '0.393',
-    'cont_x': '3.250',
-    'cont_y': '1.750',
-    'theta': '1',
-    'x': '32',
-    'y': '17'},
-    {'cont_theta': '0.393',
-    'cont_x': '2.450',
-    'cont_y': '4.250',
-    'theta': '1',
-    'x': '24',
-    'y': '40'}]
+    sol = [{'cont_theta': 0.393,
+    'cont_x': 3.250,
+    'cont_y': 1.750,
+    'theta': 1,
+    'x': 32,
+    'y': 17},
+    {'cont_theta': 0.393,
+    'cont_x': 2.450,
+    'cont_y': 4.250,
+    'theta': 1,
+    'x': 24,
+    'y': 40}]
 
     self.logger.debug("Testing XYxorTheta with sol: " + pp.pformat(sol))
 
@@ -569,18 +605,18 @@ class TestXYxorTheta(unittest.TestCase):
     both. This test checks steps with changes in x, y and theta."""
 
 
-    sol = [{'cont_theta': '0.392',
-    'cont_x': '3.250',
-    'cont_y': '1.750',
-    'theta': '1',
-    'x': '32',
-    'y': '17'},
-    {'cont_theta': '0.393',
-    'cont_x': '2.450',
-    'cont_y': '4.250',
-    'theta': '2',
-    'x': '24',
-    'y': '40'}]
+    sol = [{'cont_theta': 0.392,
+    'cont_x': 3.250,
+    'cont_y': 1.750,
+    'theta': 1,
+    'x': 32,
+    'y': 17},
+    {'cont_theta': 0.393,
+    'cont_x': 2.450,
+    'cont_y': 4.250,
+    'theta': 2,
+    'x': 24,
+    'y': 40}]
 
     self.logger.debug("Testing XYxorTheta with sol: " + pp.pformat(sol))
 
@@ -594,18 +630,18 @@ class TestXYxorTheta(unittest.TestCase):
     """Test helper function that checks if the previous and current steps changed in the XY plane or the theta dimension, but not
     both. This test checks steps with no change in any attribute"""
 
-    sol = [{'cont_theta': '0.000',
-    'cont_x': '3.350',
-    'cont_y': '3.250',
-    'theta': '0',
-    'x': '33',
-    'y': '32'},
-    {'cont_theta': '0.000',
-    'cont_x': '3.350',
-    'cont_y': '3.250',
-    'theta': '0',
-    'x': '33',
-    'y': '32'}]
+    sol = [{'cont_theta': 0.000,
+    'cont_x': 3.350,
+    'cont_y': 3.250,
+    'theta': 0,
+    'x': 33,
+    'y': 32},
+    {'cont_theta': 0.000,
+    'cont_x': 3.350,
+    'cont_y': 3.250,
+    'theta': 0,
+    'x': 33,
+    'y': 32}]
 
     self.logger.debug("Testing XYxorTheta with sol: " + pp.pformat(sol))
 
@@ -628,7 +664,7 @@ class TestWhichXYTheta(unittest.TestCase):
     self.stream_handler.setLevel(logging.WARN)
 
     # Create formatter and add to handlers
-    formatter = logging.Formatter('%(asctime)s | %(name)s | %(levelname)s | %(message)s')
+    formatter = logging.Formatter('%(asctime)s | %(levelname)s | %(filename)s | %(funcName)s | %(lineno)d | %(message)s')
     self.file_handler.setFormatter(formatter)
     self.stream_handler.setFormatter(formatter)
 
@@ -681,18 +717,18 @@ class TestWhichXYTheta(unittest.TestCase):
     """Test helper function that finds if movement is to be in the XY plane or the theta dimension. This test checks steps with
     no previous move a difference in x value."""
 
-    sol = [{'cont_theta': '0.000',
-    'cont_x': '3.350',
-    'cont_y': '3.250',
-    'theta': '0',
-    'x': '33',
-    'y': '32'},
-    {'cont_theta': '0.000',
-    'cont_x': '3.250',
-    'cont_y': '3.250',
-    'theta': '0',
-    'x': '32',
-    'y': '32'}]
+    sol = [{'cont_theta': 0.000,
+    'cont_x': 3.350,
+    'cont_y': 3.250,
+    'theta': 0,
+    'x': 33,
+    'y': 32},
+    {'cont_theta': 0.000,
+    'cont_x': 3.250,
+    'cont_y': 3.250,
+    'theta': 0,
+    'x': 32,
+    'y': 32}]
 
     self.logger.debug("Testing whichXYTheta with sol: " + pp.pformat(sol))
 
@@ -706,18 +742,18 @@ class TestWhichXYTheta(unittest.TestCase):
     """Test helper function that finds if movement is to be in the XY plane or the theta dimension. This test checks steps with
     no previous move a difference in y value."""
 
-    sol = [{'cont_theta': '0.000',
-    'cont_x': '3.250',
-    'cont_y': '3.250',
-    'theta': '0',
-    'x': '32',
-    'y': '32'},
-    {'cont_theta': '0.000',
-    'cont_x': '3.250',
-    'cont_y': '4.250',
-    'theta': '0',
-    'x': '32',
-    'y': '40'}]
+    sol = [{'cont_theta': 0.000,
+    'cont_x': 3.250,
+    'cont_y': 3.250,
+    'theta': 0,
+    'x': 32,
+    'y': 32},
+    {'cont_theta': 0.000,
+    'cont_x': 3.250,
+    'cont_y': 4.250,
+    'theta': 0,
+    'x': 32,
+    'y': 40}]
 
     self.logger.debug("Testing whichXYTheta with sol: " + pp.pformat(sol))
 
@@ -731,18 +767,18 @@ class TestWhichXYTheta(unittest.TestCase):
     """Test helper function that finds if movement is to be in the XY plane or the theta dimension. This test checks steps with
     no previous move a difference in theta value."""
 
-    sol = [{'cont_theta': '0.393',
-    'cont_x': '2.450',
-    'cont_y': '1.750',
-    'theta': '1',
-    'x': '24',
-    'y': '17'},
-    {'cont_theta': '0.785',
-    'cont_x': '2.450',
-    'cont_y': '1.750',
-    'theta': '2',
-    'x': '24',
-    'y': '17'}]
+    sol = [{'cont_theta': 0.393,
+    'cont_x': 2.450,
+    'cont_y': 1.750,
+    'theta': 1,
+    'x': 24,
+    'y': 17},
+    {'cont_theta': 0.785,
+    'cont_x': 2.450,
+    'cont_y': 1.750,
+    'theta': 2,
+    'x': 24,
+    'y': 17}]
 
     self.logger.debug("Testing whichXYTheta with sol: " + pp.pformat(sol))
 
@@ -756,18 +792,18 @@ class TestWhichXYTheta(unittest.TestCase):
     """Test helper function that finds if movement is to be in the XY plane or the theta dimension. This test checks steps with
     no previous move and no difference in any attribute."""
 
-    sol = [{'cont_theta': '0.000',
-    'cont_x': '3.350',
-    'cont_y': '3.250',
-    'theta': '0',
-    'x': '33',
-    'y': '32'},
-    {'cont_theta': '0.000',
-    'cont_x': '3.350',
-    'cont_y': '3.250',
-    'theta': '0',
-    'x': '33',
-    'y': '32'}]
+    sol = [{'cont_theta': 0.000,
+    'cont_x': 3.350,
+    'cont_y': 3.250,
+    'theta': 0,
+    'x': 33,
+    'y': 32},
+    {'cont_theta': 0.000,
+    'cont_x': 3.350,
+    'cont_y': 3.250,
+    'theta': 0,
+    'x': 33,
+    'y': 32}]
 
     self.logger.debug("Testing whichXYTheta with sol: " + pp.pformat(sol))
 
@@ -782,18 +818,18 @@ class TestWhichXYTheta(unittest.TestCase):
     """Test helper function that finds if movement is to be in the XY plane or the theta dimension. This test checks steps with
     previous move in XY plane and difference in x value."""
 
-    sol = [{'cont_theta': '0.000',
-    'cont_x': '3.350',
-    'cont_y': '3.250',
-    'theta': '0',
+    sol = [{'cont_theta': 0.000,
+    'cont_x': 3.350,
+    'cont_y': 3.250,
+    'theta': 0,
     'x': None,
     'y': None},
-    {'cont_theta': '0.000',
-    'cont_x': '3.250',
-    'cont_y': '3.250',
-    'theta': '0',
-    'x': '32',
-    'y': '32'}]
+    {'cont_theta': 0.000,
+    'cont_x': 3.250,
+    'cont_y': 3.250,
+    'theta': 0,
+    'x': 32,
+    'y': 32}]
 
     self.logger.debug("Testing whichXYTheta with sol: " + pp.pformat(sol))
 
@@ -807,18 +843,18 @@ class TestWhichXYTheta(unittest.TestCase):
     """Test helper function that finds if movement is to be in the XY plane or the theta dimension. This test checks steps with
     previous move in XY plane and difference in y value."""
 
-    sol = [{'cont_theta': '0.000',
-    'cont_x': '3.350',
-    'cont_y': '3.250',
-    'theta': '0',
+    sol = [{'cont_theta': 0.000,
+    'cont_x': 3.350,
+    'cont_y': 3.250,
+    'theta': 0,
     'x': None,
     'y': None},
-    {'cont_theta': '0.000',
-    'cont_x': '3.250',
-    'cont_y': '3.250',
-    'theta': '0',
-    'x': '32',
-    'y': '32'}]
+    {'cont_theta': 0.000,
+    'cont_x': 3.250,
+    'cont_y': 3.250,
+    'theta': 0,
+    'x': 32,
+    'y': 32}]
 
     self.logger.debug("Testing whichXYTheta with sol: " + pp.pformat(sol))
 
@@ -832,18 +868,18 @@ class TestWhichXYTheta(unittest.TestCase):
     """Test helper function that finds if movement is to be in the XY plane or the theta dimension. This test checks steps with
     previous move in XY plane and difference in y value."""
 
-    sol = [{'cont_theta': '0.000',
-    'cont_x': '3.350',
-    'cont_y': '3.250',
-    'theta': '1',
+    sol = [{'cont_theta': 0.000,
+    'cont_x': 3.350,
+    'cont_y': 3.250,
+    'theta': 1,
     'x': None,
     'y': None},
-    {'cont_theta': '0.0625',
-    'cont_x': '3.350',
-    'cont_y': '3.250',
-    'theta': '0',
-    'x': '32',
-    'y': '32'}]
+    {'cont_theta': 0.0625,
+    'cont_x': 3.350,
+    'cont_y': 3.250,
+    'theta': 0,
+    'x': 32,
+    'y': 32}]
 
     self.logger.debug("Testing whichXYTheta with sol: " + pp.pformat(sol))
 
@@ -857,18 +893,18 @@ class TestWhichXYTheta(unittest.TestCase):
     """Test helper function that finds if movement is to be in the XY plane or the theta dimension. This test checks steps with
     previous move in XY plane and difference in x value."""
 
-    sol = [{'cont_theta': '0.000',
-    'cont_x': '3.350',
-    'cont_y': '3.250',
+    sol = [{'cont_theta': 0.000,
+    'cont_x': 3.350,
+    'cont_y': 3.250,
     'theta': None,
-    'x': '33',
-    'y': '32'},
-    {'cont_theta': '0.000',
-    'cont_x': '3.250',
-    'cont_y': '3.250',
-    'theta': '0',
-    'x': '32',
-    'y': '32'}]
+    'x': 33,
+    'y': 32},
+    {'cont_theta': 0.000,
+    'cont_x': 3.250,
+    'cont_y': 3.250,
+    'theta': 0,
+    'x': 32,
+    'y': 32}]
 
     self.logger.debug("Testing whichXYTheta with sol: " + pp.pformat(sol))
 
@@ -882,18 +918,18 @@ class TestWhichXYTheta(unittest.TestCase):
     """Test helper function that finds if movement is to be in the XY plane or the theta dimension. This test checks steps with
     previous move in XY plane and difference in x value."""
 
-    sol = [{'cont_theta': '0.000',
-    'cont_x': '3.250',
-    'cont_y': '3.350',
+    sol = [{'cont_theta': 0.000,
+    'cont_x': 3.250,
+    'cont_y': 3.350,
     'theta': None,
-    'x': '32',
-    'y': '33'},
-    {'cont_theta': '0.000',
-    'cont_x': '3.250',
-    'cont_y': '3.250',
-    'theta': '0',
-    'x': '32',
-    'y': '32'}]
+    'x': 32,
+    'y': 33},
+    {'cont_theta': 0.000,
+    'cont_x': 3.250,
+    'cont_y': 3.250,
+    'theta': 0,
+    'x': 32,
+    'y': 32}]
 
     self.logger.debug("Testing whichXYTheta with sol: " + pp.pformat(sol))
 
@@ -907,18 +943,18 @@ class TestWhichXYTheta(unittest.TestCase):
     """Test helper function that finds if movement is to be in the XY plane or the theta dimension. This test checks steps with
     previous move in XY plane and difference in x value."""
 
-    sol = [{'cont_theta': '0.000',
-    'cont_x': '3.250',
-    'cont_y': '3.250',
+    sol = [{'cont_theta': 0.000,
+    'cont_x': 3.250,
+    'cont_y': 3.250,
     'theta': None,
-    'x': '32',
-    'y': '32'},
-    {'cont_theta': '0.100',
-    'cont_x': '3.250',
-    'cont_y': '3.250',
-    'theta': '2',
-    'x': '32',
-    'y': '32'}]
+    'x': 32,
+    'y': 32},
+    {'cont_theta': 0.100,
+    'cont_x': 3.250,
+    'cont_y': 3.250,
+    'theta': 2,
+    'x': 32,
+    'y': 32}]
 
     self.logger.debug("Testing whichXYTheta with sol: " + pp.pformat(sol))
 
@@ -932,18 +968,18 @@ class TestWhichXYTheta(unittest.TestCase):
     """Test helper function that checks if the previous and current steps changed in the XY plane or the theta dimension, but not
     both. This test checks steps with no change in any attribute"""
 
-    sol = [{'cont_theta': '0.000',
-    'cont_x': '3.350',
-    'cont_y': '3.250',
-    'theta': '0',
+    sol = [{'cont_theta': 0.000,
+    'cont_x': 3.350,
+    'cont_y': 3.250,
+    'theta': 0,
     'x': None,
     'y': None},
-    {'cont_theta': '0.000',
-    'cont_x': '3.350',
-    'cont_y': '3.250',
-    'theta': '0',
-    'x': '33',
-    'y': '32'}]
+    {'cont_theta': 0.000,
+    'cont_x': 3.350,
+    'cont_y': 3.250,
+    'theta': 0,
+    'x': 33,
+    'y': 32}]
 
     self.logger.debug("Testing whichXYTheta with sol: " + pp.pformat(sol))
 
@@ -958,18 +994,18 @@ class TestWhichXYTheta(unittest.TestCase):
     """Test helper function that checks if the previous and current steps changed in the XY plane or the theta dimension, but not
     both. This test checks steps with no change in any attribute"""
 
-    sol = [{'cont_theta': '0.000',
-    'cont_x': '3.350',
-    'cont_y': '3.250',
+    sol = [{'cont_theta': 0.000,
+    'cont_x': 3.350,
+    'cont_y': 3.250,
     'theta': None,
-    'x': '33',
-    'y': '32'},
-    {'cont_theta': '0.000',
-    'cont_x': '3.350',
-    'cont_y': '3.250',
-    'theta': '0',
-    'x': '33',
-    'y': '32'}]
+    'x': 33,
+    'y': 32},
+    {'cont_theta': 0.000,
+    'cont_x': 3.350,
+    'cont_y': 3.250,
+    'theta': 0,
+    'x': 33,
+    'y': 32}]
 
     self.logger.debug("Testing whichXYTheta with sol: " + pp.pformat(sol))
 

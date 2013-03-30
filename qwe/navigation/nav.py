@@ -12,23 +12,27 @@ import logging.config
 from collections import namedtuple
 from subprocess import call
 import os
+from sys import exit
 from math import sqrt, sin, cos, pi
 from datetime import datetime
 import pprint as pp
 
 # Movement objects for issuing macro or micro movement commands to nav. Populate and pass to qMove_nav queue.
 macro_move = namedtuple("macro_move", ["x", "y", "theta", "timestamp"])
-micro_move = namedtuple("micro_move", ["speed", "direction", "timestamp"])
+micro_move_XY = namedtuple("micro_move_XY", ["distance", "speed", "timestamp"])
+micro_move_theta = namedtuple("micro_move_theta", ["angle", "timestamp"])
 
 # Dict of error codes and their human-readable names
 errors = { 100 : "ERROR_BAD_CWD",  101 : "ERROR_SBPL_BUILD", 102 : "ERROR_SBPL_RUN", 103 : "ERROR_BUILD_ENV", 
   104 : "ERROR_BAD_RESOLUTION", 105 : "ERROR_SHORT_SOL", 106 : "ERROR_ARCS_DISALLOWED", 107 : "ERROR_DYNAMIC_DEM_UNKN", 108 :
-  "ERROR_NO_CHANGE" }
+  "ERROR_NO_CHANGE", 109 : "ERROR_FAILED_MOVE"}
 errors.update(dict((v,k) for k,v in errors.iteritems())) # Converts errors to a two-way dict
 
 # TODO These need to be calibrated
 env_config = { "obsthresh" : "1", "cost_ins" : "1", "cost_cir" : "0", "cellsize" : "0.00635", "nominalvel" : "1.0", 
   "timetoturn45" : "2.0" }
+
+config = { "steps_between_locs" : 5}
 
 class Nav:
 
@@ -120,13 +124,18 @@ class Nav:
 
     self.logger.debug("Generating plan")
 
+    # Translate bot_loc into internal units
+    curX = self.XYFrombot_locUC(self.bot_loc["x"])
+    curY = self.XYFrombot_locUC(self.bot_loc["y"])
+    curTheta = self.thetaFrombot_locUC(self.bot_loc["theta"])
+
     # Build environment file for input into SBPL
     # TODO Upgrade this to call SBPL directly, as described above
     # "Usage: ./build_env_file.sh <obsthresh> <cost_inscribed_thresh> <cost_possibly_circumscribed_thresh> <cellsize> <nominalvel>
     # <timetoturn45degsinplace> <start_x> <start_y> <start_theta> <end_x> <end_y> <end_theta> [<env_file> <map_file>]"
     self.logger.debug("env_config: " + "{obsthresh} {cost_ins} {cost_cir} {cellsize} {nominalvel} {timetoturn45}".format(**env_config))
-    self.logger.debug("Current pose: " + str(self.bot_loc["x"]) + str(self.bot_loc["y"]) + str(self.bot_loc["theta"]))
-    self.logger.debug("Goal pose: " + str(goal_x) + str(goal_y) + str(goal_theta))
+    self.logger.debug("Current pose: {} {} {}".format(curX, curY, curTheta))
+    self.logger.debug("Goal pose: {} {} {}".format(goal_x, goal_y, goal_theta))
     self.logger.debug("Map file: " + str(self.map_file))
     self.logger.debug("Environment file to write: " + str(self.env_file))
 
@@ -136,9 +145,9 @@ class Nav:
                                                 env_config["cellsize"],
                                                 env_config["nominalvel"],
                                                 env_config["timetoturn45"],
-                                                str(self.bot_loc["x"]),
-                                                str(self.bot_loc["y"]),
-                                                str(self.bot_loc["theta"]),
+                                                str(curX),
+                                                str(curY),
+                                                str(curTheta),
                                                 str(goal_x),
                                                 str(goal_y),
                                                 str(goal_theta),
@@ -178,6 +187,11 @@ class Nav:
       sol.append(dict(zip(sol_lables, line.split())))
     self.logger.debug("Built sol list of dicts: " + pp.pformat(sol))
 
+    # Convert all values to floats
+    for step in sol:
+      for key in step:
+        step[key] = float(step[key])
+
     return sol
       
   def loop(self):
@@ -186,7 +200,7 @@ class Nav:
     self.logger.debug("Entering inf motion command handling loop")
     while True:
       # Signal that we nav is no longer running and is waiting for a goal pose
-      # self.bot_loc["naving"] = False
+      self.bot_state["naving"] = False
 
       self.logger.info("Blocking while waiting for command from queue with ID: " + pp.pformat(self.qMove_nav))
       move_cmd = self.qMove_nav.get()
@@ -194,10 +208,17 @@ class Nav:
 
       if type(move_cmd) == macro_move:
         self.logger.info("Move command is if type macro")
-        self.macroMove(x=move_cmd.x, y=move_cmd.y, theta=move_cmd.theta)
-      elif type(move_cmd) == micro_move:
-        self.logger.info("Move command is if type micro")
-        self.microMove(speed=move_cmd.speed, direction=move_cmd.direction)
+        self.macroMove(x=self.XYFromMoveQUC(move_cmd.x), y=self.XYFromMoveQUC(move_cmd.y), \
+          theta=self.thetaFromMoveQUC(move_cmd.theta))
+      elif type(move_cmd) == micro_move_XY:
+        self.logger.info("Move command is if type micro_move_XY")
+        self.microMoveXY(distance=self.XYFromMoveQUC(move_cmd.distance), speed=self.speedFromMoveQUC(move_cmd.speed))
+      elif type(move_cmd) == micro_move_theta:
+        self.logger.info("Move command is if type micro_move_theta")
+        self.microMoveTheta(angle=self.thetaFromMoveQUC(move_cmd.angle))
+      elif type(move_cmd) == str and move_cmd == "die":
+        self.logger.warning("Recieved die command, nav is exiting.")
+        exit(0)
       else:
         self.logger.warn("Move command is of unknown type")
 
@@ -214,15 +235,29 @@ class Nav:
       # Check if 'bot is at or close to the goal pose
       if self.atGoal(x, y, theta):
         self.logger.info("Macro move succeeded")
-        return True #TODO Return difference between current pose and goal pose?
+        return True
+
+      # Translate bot_loc data into internal units
+      curX = self.XYFrombot_locUC(self.bot_loc["x"])
+      curY = self.XYFrombot_locUC(self.bot_loc["y"])
+      curTheta = self.thetaFrombot_locUC(self.bot_loc["theta"])
 
       # Generate solution
-      self.logger.debug("macroMove requesting sol from ({}, {}, {}) to ({}, {}, {})".format(x, y, theta, self.bot_loc["x"], 
-        self.bot_loc["y"], self.bot_loc["theta"]))
+      self.logger.debug("macroMove requesting sol from ({}, {}, {}) to ({}, {}, {})".format(curX, curY, curTheta, x, y, theta))
       sol = self.genSol(x, y, theta)
 
       # Handle value returned by genSol
-      if type(sol) is not list:
+      if type(sol) is list:
+        self.logger.info("macroMove received a solution list from genSol")
+        comm_sol_result = self.communicateSol(sol)
+
+        if comm_sol_result is errors["ERROR_FAILED_MOVE"]:
+          self.logger.warning("Attempted move wasn't within error margins, re-computing solution and trying again")
+          continue
+        elif comm_sol_result in errors:
+          self.logger.error("Error while communicating sol to low-level code: " + errors[comm_sol_result])
+          return comm_sol_result
+      else:
         self.logger.info("macroMove did not receive a valid solution from genSol")
 
         # If no solution could be found
@@ -236,16 +271,6 @@ class Nav:
         else:
           self.logger.error("Non-list, unknown-error returned to macroMove by genSol: " + str(sol))
           return sol
-      else:
-        self.logger.info("macroMove received a solution list from genSol")
-        comm_sol_result = self.communicateSol(sol)
-
-        if comm_sol_result is errors["ERROR_FAILED_MOVE"]:
-          self.logger.warning("Attempted move wasn't within error margins, re-computing solution and trying again")
-          continue
-        elif comm_sol_result in errors:
-          self.logger.error("Error while communicating sol to low-level code: " + errors[comm_sol_result])
-          return comm_sol_result
 
   def communicateSol(self, sol):
     """Accept a solution list to pass to low-level code. Will pass commands to comm, wait for a response, and check if the
@@ -260,126 +285,167 @@ class Nav:
       self.logger.warning("Don't know how to handle a solution with only " + str(len(sol)) + " steps.")
       return errors["ERROR_SHORT_SOL"]
 
-    for i in range(1, len(sol)):
+    # Iterate over solution. Outer loop controls how many blind moves we do between localization runs.
+    for i in range(1, len(sol), config["steps_between_locs"]):
 
-      # Only XY values or theta values should change, not both. This is because our mprim file disallows arcs. 
-      XYxorT = self.XYxorTheta(sol[i-1], sol[i])
-      if XYxorT is False:
-        self.logger.error("XY values and theta values changed between steps, which can't happen without arcs.")
-        return errors["ERROR_ARCS_DISALLOWED"]
-      elif XYxorT in errors:
-        self.logger.error("XYxorTheta failed with " + errors[XYxorT])
-        return XYxorT
+      for j in range(i, min(i + config["steps_between_locs"], len(sol))):
 
-      dyn_dem = self.whichXYTheta(sol[i-1], sol[i])
+        # Only XY values or theta values should change, not both. This is because our mprim file disallows arcs. 
+        XYxorT = self.XYxorTheta(sol[j-1], sol[j])
+        self.logger.debug("XYxorTheta returned {} with inputs {} and {}".format(XYxorT, sol[j-1], sol[j]))
+        if XYxorT is False:
+          self.logger.error("XY values and theta values changed between steps, which can't happen without arcs.")
+          return errors["ERROR_ARCS_DISALLOWED"]
+        elif XYxorT in errors:
+          self.logger.error("XYxorTheta failed with " + errors[XYxorT])
+          return XYxorT
 
-      if dyn_dem in errors:
-        self.logger.error("whichXYTheta failed with " + errors[dyn_dem])
-        return dyn_dem
+        dyn_dem = self.whichXYTheta(sol[j-1], sol[j])
 
-      if dyn_dem == "xy":
-        self.logger.info("Movement will be in XY plane")
+        if dyn_dem in errors:
+          self.logger.error("whichXYTheta failed with " + errors[dyn_dem])
+          return dyn_dem
 
-        # Calculate goal distance change in XY plane TODO May need to update once syntax GitHub issue is answered
-        distance_m = sqrt((sol[i]["cont_x"] - sol[i-1]["cont_x"])**2 + (sol[i]["cont_y"] - sol[i-1]["cont_y"])**2)
+        if dyn_dem == "xy":
+          self.logger.info("Movement will be in XY plane")
 
-        # Pass distance to comm and block for response
-        commResult = self.scNav.botMove(distance_m) # TODO Confirm units
+          # Calculate goal distance change in XY plane TODO May need to update once syntax GitHub issue is answered
+          distance_m = sqrt((sol[j]["cont_x"] - sol[j-1]["cont_x"])**2 + (sol[j]["cont_y"] - sol[j-1]["cont_y"])**2)
+          self.logger.info("Next step of solution is to move {} meters in the XY plane".fomrat(distance_m))
 
-        # Report move result to localizer ASAP
-        self.feedLocalizer(commResult)
+          # Pass distance to comm and block for response
+          commResult_m = self.distFromCommUC(self.scNav.botMove(self.distToCommUC(distance_m)))
+          self.logger.info("Comm returned XY movement feedback of {}".format(commResult_m))
 
-        # Convert commResult to meters
-        commResult_m = self.commResultToMeters(commResult)
+          # Report move result to localizer ASAP
+          self.feedLocalizerXY(commResult_m)
 
-        # Find difference between attempted move and reported result
-        diffXY = self.diffMoveXY(commResult_m, distance_m)
+        elif dyn_dem == "theta":
+          self.logger.info("Movement will be in theta dimension")
 
-        if diffXY <= errorMarginXY: # TODO Define errorMarginXY
-          self.logger.info("Move was within error margin for moves in the XY plane")
+          # Calculate goal change in theta TODO May need to update once syntax GitHub issue is answered
+          angle_rads = sol[j]["cont_theta"] - sol[j-1]["cont_theta"]
+          self.logger.info("Next step of solution is to rotate {} radians in the theta dimension".format(angle_rads))
 
-          sol[i]["x"] = None
-          sol[i]["y"] = None
-          sol[i]["cont_x"] = (sin(self.radToDeg(sol[i]["cont_theta"])) * commResult_m) + sol[i]["cont_x"]
-          sol[i]["cont_y"] = (cos(self.radToDeg(sol[i]["cont_theta"])) * commResult_m) + sol[i]["cont_y"]
+          # Pass distance to comm and block for response
+          commResult_rads = self.angleFromCommUC(self.scNav.botTurnRel(self.angleToCommUC(angle_rads)))
+          self.logger.info("Comm returned theta movement feedback of {}".format(commResult_rads))
+
+          # Report move result to localizer ASAP
+          self.feedLocalizerTheta(commResult_rads)
+
         else:
-          self.logger.warn("Move was greater than the error margin for moves in the XY plane")
-          return errors["ERROR_FAILED_MOVE"]
+          self.logger.error("Unknown whichXYTheta result: " + str(dyn_dem))
+          return errors["ERROR_DYNAMIC_DEM_UNKN"]
 
-      elif dyn_dem == "theta":
-        self.logger.info("Movement will be in theta dimension")
+      # Localize TODO How?
 
-        # Calculate goal change in theta TODO May need to update once syntax GitHub issue is answered
-        angle_rads = sol[i]["cont_theta"] - sol[i-1]["cont_theta"]
+      # Translate bot_loc into internal units
+      curX = self.XYFrombot_locUC(self.bot_loc["x"])
+      curY = self.XYFrombot_locUC(self.bot_loc["y"])
+      curTheta = self.thetaFrombot_locUC(self.bot_loc["theta"])
 
-        # Pass distance to comm and block for response
-        commResult = self.scNav.botTurnRel(radians_to_degrees(angle_rads))
-
-        # Report move result to localizer ASAP
-        self.feedLocalizer(commResult)
-
-        # Convert commResult to radians
-        commResult_rads = self.commResultToRads(commResult)
-
-        # Find difference between attempted move and reported result
-        diffTheta = self.diffMoveTheta(commResult_rads, angle_rads)
-
-        if diffTheta <= errorMarginTheta: # TODO Define errorMarginTheta
-          self.logger.info("Move was within error margin for moves in the theta dimension")
-          # TODO When off slightly, should I:
-            # Assume that reported result is correct and base next move on that data (I guess so)
-            # Base next move on ideal move, even those reported move was non-ideal (very-likely-no)
-            # Report to localizer, wait for an updated position, then base next move on that (likely-no)
-
-          # Update solution with actual move data so that future steps will base move on location reported by comm
-          sol[i]["theta"] = None
-          sol[i]["cont_theta"] = self.respThetaToCont(commResult_rads)
-        else:
-          self.logger.warn("Move was greater than the error margin for moves in the theta dimension")
-          return errors["ERROR_FAILED_MOVE"]
-
+      # Check if bot_loc is within some error of sol[i] and return errors["ERROR_FAILED_MOVE"] if it isn't TODO Units
+      if self.nearly_equal(sol[i]["cont_x"], curX) and self.nearly_equal(sol[i]["cont_y"], curY) \
+                                                   and self.nearly_equal(sol[i]["cont_theta"], curTheta):
+        self.logger.info("Location is nearly what the solution dictates")
+        continue
       else:
-        self.logger.error("Unknown whichXYTheta result: " + str(dyn_dem))
-        return errors["ERROR_DYNAMIC_DEM_UNKN"]
+        self.logger.warn("Location is off from what solution dictates, need new solution")
+        return errors["ERROR_FAILED_MOVE"]
 
-  def commResultToMeters(self, commResult):
-    """Converts the result returned by a call to comm.botMove to meters
+  def distToCommUC(self, dist):
+    """Convert from internal distance units (meters) to units used by comm for distances
 
-    :param commResult: Raw result returned by comm.botMove"""
-    # TODO Need to know the units of commResult
+    :param dist: Distance to convert from meters to comm distance units"""
+    # TODO Stub
+    return dist
 
+  def angleToCommUC(self, angle):
+    """Convert from internal angle units (radians) to units used by comm for angles (tenths of degrees)
+
+    :param angle: Angle to convert from radians to comm angle units"""
+    # TODO Stub
+    return angle
+
+  def distFromCommUC(self, commResult):
+    """Convert result returned by comm for distance moves to internal units (meters)
+
+    :param commResult: Distance result returned by comm to convert to meters"""
+    # TODO Stub
     return commResult
 
-  def commResultToRads(self, commResult):
-    """Converts the result returned by a call to comm.botTurn* to radians.
+  def angleFromCommUC(self, commResult):
+    """Convert result returned by comm for angle moves to internal units (radians)
 
-    :param commResult: Raw result returned by comm.botTurnRel or comm.botTurnAbs"""
-    # TODO Need to know the format of commResult
+    :param commResult: Angle result returned by comm to convert to radians"""
+    # TODO Stub
+    return commResult
 
-    return commResult * pi / 180
+  def distToLocUC(self, dist):
+    """Convert from internal distance units (meters) to units used by localizer for distances
 
-  def diffMoveTheta(self, commResult_rads, goal_angle_rads):
-    """Find the difference between the desired rotation in radians and the actual rotation in radians as reported by comm.
-    This is a distinct function because it may become more complex in the future.
+    :param dist: Distance to convert from meters to localizer distance units"""
+    # TODO Stub
+    return dist
 
-    :param commResult_rads: Angle rotated in radians as reported by comm.botTurnRel
-    :param goal_angle_rads: Ideal angle to rotate by in radians, as passed to comm.botTurnRel"""
+  def angleToLocUC(self, dist):
+    """Convert from internal angle units (radians) to units used by localizer for angles
 
-    return commResult_rads - goal_angle_rads
+    :param dist: Angle to convert from radians to localizer angle units"""
+    # TODO Stub
+    return dist
 
-  def diffMoveXY(self, commResult_m, goal_dist_m):
-    """Find the difference between the desired move distance in meters and the actual move distance in meters as reported by comm.
-    This is a distinct function because it may become more complex in the future.
+  def XYFromMoveQUC(self, XY):
+    """Convert XY value given by planner via qMove_nav to internal units (meters)
 
-    :param commResult_m: Distance moved in meters as reported by comm.botMove
-    :param goal_dist_m: Ideal distance to move in meters, as passed to comm.botMove"""
+    :param XY: X or Y value given by planner via qMove_nav to convert to meters"""
+    # TODO Stub
+    return XY
 
-    return commResult_m - goal_dist_m
+  def thetaFromMoveQUC(self, theta):
+    """Convert theta value given by planner via qMove_nav to internal units (radians)
 
-  def feedLocalizer(self, commResult):
+    :param XY: theta value given by planner via qMove_nav to convert to radians"""
+    # TODO Stub
+    return theta
+
+  def speedFromMoveQUC(self, speed):
+    """Convert speed value given by planner via qMove_nav to internal units
+
+    :param speed: speed value given by planner via qMove_nav to convert to internal units"""
+    # TODO Stub
+    return theta
+
+  def XYFrombot_locUC(self, XY):
+    """Convert XY value in bot_loc shared data to internal units (meters)
+
+    :param XY: X or Y value used by bot_loc to convert to internal units (meters)"""
+    # TODO Stub
+    return XY
+
+  def thetaFrombot_locUC(self, theta):
+    """Convert theta value in bot_loc shared data to internal units (radians)
+
+    :param theta: theta value used by bot_loc to convert to internal units (radians)"""
+    # TODO Stub
+    return theta
+  
+  def feedLocalizerXY(self, commResult_m):
+    """Give localizer information about XP plane move results. Also, package up sensor information and a timestamp.
+
+    :param commResult_m: Move result reported by comm in meters"""
 
     sensor_data = self.scNav.getAllSensorData()
-    self.qNav_loc.put({"commResult" : commResult, "sensorData" : sensor_data, "timestamp" : datetime.now()}) # TODO Handle errors
+    self.qNav_loc.put({"commResult" : self.distToLoc(commResult_m), "sensorData" : sensor_data, "timestamp" : datetime.now()})
+
+  def feedLocalizerTheta(self, commResult_rads):
+    """Give localizer information about theta dimension rotate results. Also, package up sensor information and a timestamp.
+
+    :param commResult_rads: Turn result reported by comm in radians"""
+
+    sensor_data = self.scNav.getAllSensorData()
+    self.qNav_loc.put({"commResult" : self.angleToLoc(commResult_m), "sensorData" : sensor_data, "timestamp" : datetime.now()})
 
   def XYxorTheta(self, step_prev, step_cur):
     """Check if the previous and current steps changed in the XY plane or the theta dimension, but not both.
@@ -389,19 +455,24 @@ class Nav:
 
     self.logger.debug("XYxorTheta step_prev is {} and step_cur is {}".format(pp.pformat(step_prev), pp.pformat(step_cur)))
 
-    if step_prev["cont_x"] is not step_cur["cont_x"] or step_prev["cont_y"] is not step_cur["cont_y"]:
-      if step_prev["cont_theta"] is not step_cur["cont_theta"]:
-        self.logger.debug("Invalid: (X or Y) and theta changed")
+    self.logger.debug("Type of step_prev[\"cont_x\"] is {}, step_cur[\"cont_x\"] is {}".format(type(step_prev["cont_x"]), \
+                                                                                              type(step_cur["cont_x"])))
+
+    if step_prev["cont_x"] != step_cur["cont_x"] or step_prev["cont_y"] != step_cur["cont_y"]:
+      self.logger.debug("{} is not {} or {} is not {}".format(step_prev["cont_x"], step_cur["cont_x"], step_prev["cont_y"], \
+        step_cur["cont_y"]))
+      if step_prev["cont_theta"] != step_cur["cont_theta"]:
+        self.logger.debug("Invalid: (X or Y) and theta changed (case 1)")
         return False
       else:
-        self.logger.debug("Valid: (X or Y) but not theta changed")
+        self.logger.debug("Valid: (X or Y) but not theta changed (case 2)")
         return True
-    elif step_prev["cont_theta"] is not step_cur["cont_theta"]:
-      if step_prev["cont_x"] is not step_cur["cont_x"] or step_prev["cont_y"] is not step_cur["cont_y"]:
-        self.logger.debug("Invalid: (X or Y) and theta changed")
+    elif step_prev["cont_theta"] != step_cur["cont_theta"]:
+      if step_prev["cont_x"] != step_cur["cont_x"] or step_prev["cont_y"] != step_cur["cont_y"]:
+        self.logger.debug("Invalid: (X or Y) and theta changed (case 3)")
         return False
       else:
-        self.logger.debug("Valid: theta but not (X or Y) changed")
+        self.logger.debug("Valid: theta but not (X or Y) changed (case 4)")
         return True
     else:
       self.logger.error("The previous and current steps have the same continuous values")
@@ -456,14 +527,17 @@ class Nav:
 
     self.logger.debug("Checking if goal pose reached")
 
+    curX = self.XYFrombot_locUC(self.bot_loc["x"])
+    curY = self.XYFrombot_locUC(self.bot_loc["y"])
+    curTheta = self.thetaFrombot_locUC(self.bot_loc["theta"])
     # Accept goal poses that are exacly correct
-    if x == self.bot_loc["x"] and y == self.bot_loc["y"] and theta == self.bot_loc["theta"]:
+    if x == curX and y == curY and theta == curTheta:
       self.logger.info("Reached goal pose exactly")
       return True
 
     # Accept goal poses that are nearly correct
-    if self.nearly_equal(x, self.bot_loc["x"], sig_figs) and self.nearly_equal(y, self.bot_loc["y"], sig_figs) \
-                                               and self.nearly_equal(theta, self.bot_loc["theta"], sig_figs):
+    if self.nearly_equal(x, curX, sig_figs) and self.nearly_equal(y, curY, sig_figs) \
+                                               and self.nearly_equal(theta, curTheta, sig_figs):
       self.logger.info("Reach goal pose to {} significant figures".format(sig_figs))
       return True
 
@@ -485,15 +559,34 @@ class Nav:
              int(a*10**(sig_fig-1)) == int(b*10**(sig_fig-1))
            )
 
-  def microMove(self, speed, direction):
+  def microMoveXY(self, distance, speed):
     """Handle simple movements on a small scale. Used for small adjustments by vision or planner when very close to objects.
 
-    :param speed: Speed of bot during movement
-    :param direction: Direction of bot travel during movement"""
+    :param distance: Distance to move in XY plane
+    :param speed: Speed to execute move"""
 
-    self.logger.debug("Handling micro move")
-    # TODO This needs more logic
+    self.logger.debug("Handling micro move XY with distance {} and speed {}".format(distance, speed))
 
+    # Pass distance to comm and block for response
+    commResult_m = self.distFromCommUC(self.scNav.botMove(self.distToCommUC(distance, speed)))
+    self.logger.info("Comm returned XY movement feedback of {}".format(commResult_m))
+
+    # Report move result to localizer ASAP
+    self.feedLocalizerXY(commResult_m)
+
+  def microMoveTheta(self, angle):
+    """Handle simple movements on a small scale. Used for small adjustments by vision or planner when very close to objects.
+
+    :param angle: Theta change desired by micro move"""
+
+    self.logger.debug("Handling micro move theta with angle {}".format(angle))
+
+    # Pass distance to comm and block for response
+    commResult_rads = self.angleFromCommUC(self.scNav.botMove(self.angleToCommUC(angle)))
+    self.logger.info("Comm returned theta movement feedback of {}".format(commResult_rads))
+
+    # Report move result to localizer ASAP
+    self.feedLocalizerTheta(commResult_rads)
 
 def run(bot_loc, course_map, waypoints, qNav_loc, scNav, bot_state, qMove_nav, logger=None):
   """Function that accepts initial data from controller and kicks off nav. Will eventually involve instantiating a class.
