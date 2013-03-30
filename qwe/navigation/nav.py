@@ -292,7 +292,7 @@ class Nav:
 
         # Only XY values or theta values should change, not both. This is because our mprim file disallows arcs. 
         XYxorT = self.XYxorTheta(sol[j-1], sol[j])
-        self.logger.debug("XYxorTheta returned {} with inputs {} and {}".format(XYxorT, sol[j-1], sol[j]))
+        self.logger.debug("XYxorTheta returned {} with inputs {} and {}".format(XYxorT, pp.pformat(sol[j-1]), pp.pforma(sol[j])))
         if XYxorT is False:
           self.logger.error("XY values and theta values changed between steps, which can't happen without arcs.")
           return errors["ERROR_ARCS_DISALLOWED"]
@@ -311,7 +311,7 @@ class Nav:
 
           # Calculate goal distance change in XY plane TODO May need to update once syntax GitHub issue is answered
           distance_m = sqrt((sol[j]["cont_x"] - sol[j-1]["cont_x"])**2 + (sol[j]["cont_y"] - sol[j-1]["cont_y"])**2)
-          self.logger.info("Next step of solution is to move {} meters in the XY plane".fomrat(distance_m))
+          self.logger.info("Next step of solution is to move {} meters in the XY plane".format(distance_m))
 
           # Pass distance to comm and block for response
           commResult_m = self.distFromCommUC(self.scNav.botMove(self.distToCommUC(distance_m)))
@@ -441,7 +441,7 @@ class Nav:
     :param commResult_m: Move result reported by comm in meters"""
 
     sensor_data = self.scNav.getAllSensorData()
-    self.qNav_loc.put({"commResult" : self.distToLoc(commResult_m), "sensorData" : sensor_data, "timestamp" : datetime.now()})
+    self.qNav_loc.put({"commResult" : self.distToLocUC(commResult_m), "sensorData" : sensor_data, "timestamp" : datetime.now()})
 
   def feedLocalizerTheta(self, commResult_rads):
     """Give localizer information about theta dimension rotate results. Also, package up sensor information and a timestamp.
@@ -449,7 +449,7 @@ class Nav:
     :param commResult_rads: Turn result reported by comm in radians"""
 
     sensor_data = self.scNav.getAllSensorData()
-    self.qNav_loc.put({"commResult" : self.angleToLoc(commResult_m), "sensorData" : sensor_data, "timestamp" : datetime.now()})
+    self.qNav_loc.put({"commResult" : self.angleToLocUC(commResult_rads), "sensorData" : sensor_data, "timestamp" : datetime.now()})
 
   def XYxorTheta(self, step_prev, step_cur):
     """Check if the previous and current steps changed in the XY plane or the theta dimension, but not both.
@@ -458,9 +458,6 @@ class Nav:
     :param step_cur: Current solution step being executed"""
 
     self.logger.debug("XYxorTheta step_prev is {} and step_cur is {}".format(pp.pformat(step_prev), pp.pformat(step_cur)))
-
-    self.logger.debug("Type of step_prev[\"cont_x\"] is {}, step_cur[\"cont_x\"] is {}".format(type(step_prev["cont_x"]), \
-                                                                                              type(step_cur["cont_x"])))
 
     if step_prev["cont_x"] != step_cur["cont_x"] or step_prev["cont_y"] != step_cur["cont_y"]:
       self.logger.debug("{} is not {} or {} is not {}".format(step_prev["cont_x"], step_cur["cont_x"], step_prev["cont_y"], \
@@ -488,39 +485,15 @@ class Nav:
     :param step_prev: The older of the two steps. This was the move executed during the last cycle (or the start position)
     :param step_cur: Current solution step being executed"""
 
-    if step_prev["x"] is None or step_prev["y"] is None:
-      self.logger.debug("The previous move was in the XY plane")
-      if step_prev["cont_theta"] is not step_cur["cont_theta"]:
-        self.logger.debug("The previous step and current step involve a change in theta")
-        return "theta"
-      elif step_prev["cont_x"] is not step_cur["cont_x"] or step_prev["cont_y"] is not step_cur["cont_y"]:
-        self.logger.debug("The previous step and the current step involve a change in XY")
-        return "xy"
-      else:
-        self.logger.error("The previous and current steps have the same continuous values")
-        return errors["ERROR_NO_CHANGE"]
-    elif step_prev["theta"] is None:
-      self.logger.debug("The previous move was in the theta dimension")
-      if step_prev["cont_x"] is not step_cur["cont_x"] or step_prev["cont_y"] is not step_cur["cont_y"]:
-        self.logger.debug("The previous step and the current step involve a change in XY")
-        return "xy"
-      elif step_prev["cont_theta"] is not step_cur["cont_theta"]:
-        self.logger.debug("The previous step and current step involve a change in theta")
-        return "theta"
-      else:
-        self.logger.error("The previous and current steps have the same continuous values")
-        return errors["ERROR_NO_CHANGE"]
+    if step_prev["cont_theta"] != step_cur["cont_theta"]:
+      self.logger.debug("The previous step and current step involve a change in theta")
+      return "theta"
+    elif step_prev["x"] != step_cur["x"] or step_prev["y"] != step_cur["y"]:
+      self.logger.debug("The previous step and the current step involve a change in XY")
+      return "xy"
     else:
-      self.logger.info("This should be the first move of this sol")
-      if step_prev["cont_theta"] is not step_cur["cont_theta"]:
-        self.logger.debug("The previous step and current step involve a change in theta")
-        return "theta"
-      elif step_prev["x"] is not step_cur["x"] or step_prev["y"] is not step_cur["y"]:
-        self.logger.debug("The previous step and the current step involve a change in XY")
-        return "xy"
-      else:
-        self.logger.error("The previous and current steps have the same continuous values")
-        return errors["ERROR_NO_CHANGE"]
+      self.logger.error("The previous and current steps have the same continuous values")
+      return errors["ERROR_NO_CHANGE"]
 
   def atGoal(self, x, y, theta, sig_figs=3):
     """Contains logic for checking if the current pose is the same as or within some acceptable tolerance of the goal pose
