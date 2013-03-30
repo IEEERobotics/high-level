@@ -24,7 +24,7 @@ micro_move_theta = namedtuple("micro_move_theta", ["angle", "timestamp"])
 
 # Dict of error codes and their human-readable names
 errors = { 100 : "ERROR_BAD_CWD",  101 : "ERROR_SBPL_BUILD", 102 : "ERROR_SBPL_RUN", 103 : "ERROR_BUILD_ENV", 
-  104 : "ERROR_BAD_RESOLUTION", 105 : "ERROR_SHORT_SOL", 106 : "ERROR_ARCS_DISALLOWED", 107 : "ERROR_DYNAMIC_DEM_UNKN", 108 :
+  104 : "ERROR_BAD_RESOLUTION", 105 : "WARNING_SHORT_SOL", 106 : "ERROR_ARCS_DISALLOWED", 107 : "ERROR_DYNAMIC_DEM_UNKN", 108 :
   "ERROR_NO_CHANGE", 109 : "ERROR_FAILED_MOVE", 110 : "NO_SOL" }
 errors.update(dict((v,k) for k,v in errors.iteritems())) # Converts errors to a two-way dict
 
@@ -233,7 +233,7 @@ class Nav:
     while True:
 
       # Check if 'bot is at or close to the goal pose
-      if self.atGoal(x, y, theta):
+      if self.atGoal(x, y, theta, acceptOffBy=.01):
         self.logger.info("Macro move succeeded")
         return True
 
@@ -254,6 +254,9 @@ class Nav:
         if comm_sol_result is errors["ERROR_FAILED_MOVE"]:
           self.logger.warning("Attempted move wasn't within error margins, re-computing solution and trying again")
           continue
+        elif comm_sol_result is errors["WARNING_SHORT_SOL"]:
+          self.logger.warn("Short solutions typically mean that we are very close to goal: " + errors[comm_sol_result])
+          return comm_sol_result
         elif comm_sol_result in errors:
           self.logger.error("Error while communicating sol to low-level code: " + errors[comm_sol_result])
           return comm_sol_result
@@ -282,17 +285,23 @@ class Nav:
     self.logger.debug("Communicating a solution to comm")
 
     if len(sol) <= 1:
-      self.logger.warning("Don't know how to handle a solution with only " + str(len(sol)) + " steps.")
-      return errors["ERROR_SHORT_SOL"]
+      self.logger.warning("Solution only has " + str(len(sol)) + " step(s) - likely within tolerance, not running again.")
+      return errors["WARNING_SHORT_SOL"]
+
+    cur_step = 0
 
     # Iterate over solution. Outer loop controls how many blind moves we do between localization runs.
     for i in range(1, len(sol), config["steps_between_locs"]):
 
       for j in range(i, min(i + config["steps_between_locs"], len(sol))):
 
+        cur_step = cur_step + 1
+
+        self.logger.info("Handling solution step {} of {}".format(cur_step, len(sol)))
+
         # Only XY values or theta values should change, not both. This is because our mprim file disallows arcs. 
         XYxorT = self.XYxorTheta(sol[j-1], sol[j])
-        self.logger.debug("XYxorTheta returned {} with inputs {} and {}".format(XYxorT, pp.pformat(sol[j-1]), pp.pforma(sol[j])))
+        self.logger.debug("XYxorTheta returned {} with inputs {} and {}".format(XYxorT, pp.pformat(sol[j-1]), pp.pformat(sol[j])))
         if XYxorT is False:
           self.logger.error("XY values and theta values changed between steps, which can't happen without arcs.")
           return errors["ERROR_ARCS_DISALLOWED"]
@@ -339,9 +348,9 @@ class Nav:
           return errors["ERROR_DYNAMIC_DEM_UNKN"]
 
       # Localize TODO How? Assume move was perfect for now
-      self.bot_loc["x"] = self.XYTobot_locUC(sol[i]["cont_x"])
-      self.bot_loc["y"] = self.XYTobot_locUC(sol[i]["cont_y"])
-      self.bot_loc["theta"] = self.thetaTobot_locUC(sol[i]["cont_theta"])
+      self.bot_loc["x"] = self.XYTobot_locUC(sol[cur_step]["cont_x"])
+      self.bot_loc["y"] = self.XYTobot_locUC(sol[cur_step]["cont_y"])
+      self.bot_loc["theta"] = self.thetaTobot_locUC(sol[cur_step]["cont_theta"])
 
       # Translate bot_loc into internal units
       curX = self.XYFrombot_locUC(self.bot_loc["x"])
@@ -349,8 +358,8 @@ class Nav:
       curTheta = self.thetaFrombot_locUC(self.bot_loc["theta"])
 
       # Check if bot_loc is within some error of sol[i] and return errors["ERROR_FAILED_MOVE"] if it isn't TODO Units
-      if self.nearly_equal(sol[i]["cont_x"], curX) and self.nearly_equal(sol[i]["cont_y"], curY) \
-                                                   and self.nearly_equal(sol[i]["cont_theta"], curTheta):
+      if self.nearly_equal(sol[cur_step]["cont_x"], curX) and self.nearly_equal(sol[cur_step]["cont_y"], curY) \
+                                                   and self.nearly_equal(sol[cur_step]["cont_theta"], curTheta):
         self.logger.info("Location is nearly what the solution dictates")
         continue
       else:
@@ -495,7 +504,7 @@ class Nav:
       self.logger.error("The previous and current steps have the same continuous values")
       return errors["ERROR_NO_CHANGE"]
 
-  def atGoal(self, x, y, theta, sig_figs=3):
+  def atGoal(self, x, y, theta, sig_figs=3, acceptOffBy=.002):
     """Contains logic for checking if the current pose is the same as or within some acceptable tolerance of the goal pose
 
     :param x: X coordinate of goal pose
@@ -517,8 +526,8 @@ class Nav:
       return True
 
     # Accept goal poses that are nearly correct
-    if self.nearly_equal(x, curX, sig_figs) and self.nearly_equal(y, curY, sig_figs) \
-                                               and self.nearly_equal(theta, curTheta, sig_figs):
+    if self.nearly_equal(x, curX, sig_figs, acceptOffBy) and self.nearly_equal(y, curY, sig_figs, acceptOffBy) \
+                                               and self.nearly_equal(theta, curTheta, sig_figs, acceptOffBy):
       self.logger.info("Reach goal pose to {} significant figures".format(sig_figs))
       return True
 
@@ -526,7 +535,7 @@ class Nav:
     self.logger.info("Have not reached goal pose")
     return False
 
-  def nearly_equal(self, a, b, sig_fig=3):
+  def nearly_equal(self, a, b, sig_fig=3, acceptOffBy=env_config["cellsize"]):
     """Check if two numbers are equal to 5 sig figs
     Cite: http://goo.gl/iNDIS
 
@@ -536,9 +545,19 @@ class Nav:
 
     self.logger.debug("nealy_equal input is {} {} {}".format(a, b, sig_fig))
 
-    return ( a==b or 
-             int(a*10**(sig_fig-1)) == int(b*10**(sig_fig-1))
-           )
+    if a == b:
+      self.logger.debug("nearly_equal is true by exact comparison")
+      return True
+
+    if int(a*10**(sig_fig-1)) == int(b*10**(sig_fig-1)):
+      self.logger.debug("nearly_equal is true by sig figs ({})".format(sig_fig))
+      return True
+
+    if (a - acceptOffBy) <= b and (a + acceptOffBy) >= b:
+      self.logger.debug("nearly_equal is true by acceptOffBy ({})".format(acceptOffBy))
+      return True
+
+    return False
 
   def microMoveXY(self, distance, speed):
     """Handle simple movements on a small scale. Used for small adjustments by vision or planner when very close to objects.

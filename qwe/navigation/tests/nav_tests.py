@@ -229,7 +229,7 @@ class TestFullInteraction(unittest.TestCase):
     self.qMove_nav.put("die")
 
   def test_start_nearly_at_goal(self):
-    """Pass in a goal pose that's the same as the start pose"""
+    """Pass in a goal pose that's nearly the same as the start pose"""
     # Build goal pose that's the same as the start pose
     goal_pose = nav.macro_move(self.start_x + .05, self.start_y + .05, self.start_theta, datetime.now())
     self.logger.debug("Created goal pose {}".format(pp.pformat(goal_pose)))
@@ -243,9 +243,8 @@ class TestFullInteraction(unittest.TestCase):
     self.logger.info("Telling nav to die")
     self.qMove_nav.put("die")
 
-  #@unittest.skip("Runs forever")
   def test_simple_XY_move(self):
-    """Pass in a goal pose that's the same as the start pose"""
+    """Pass in a goal pose that only differes on the XY plane from the start pose"""
     # Build goal pose that's the same as the start pose
     goal_pose = nav.macro_move(self.start_x + 5, self.start_y + 5, self.start_theta, datetime.now())
     self.logger.debug("Created goal pose {}".format(pp.pformat(goal_pose)))
@@ -259,11 +258,34 @@ class TestFullInteraction(unittest.TestCase):
     self.logger.info("Telling nav to die")
     self.qMove_nav.put("die")
 
-  @unittest.skip("Not ready")
+  #@unittest.skip("Not ready")
   def test_simple_theta_move(self):
     """Pass in a goal pose that's the same as the start pose"""
     # Build goal pose that's the same as the start pose
-    goal_pose = nav.macro_move(self.start_x + .05, self.start_y + .05, self.start_theta, datetime.now())
+    goal_pose = nav.macro_move(self.start_x, self.start_y, self.start_theta + 2, datetime.now())
+    self.logger.debug("Created goal pose {}".format(pp.pformat(goal_pose)))
+
+    # Send goal pose via queue
+    self.logger.debug("About to send goal pose to queue with ID {}".format(str(self.qMove_nav)))
+    self.qMove_nav.put(goal_pose)
+    self.logger.debug("Put goal pose into queue")
+
+    # Pass a die command to nav
+    self.logger.info("Telling nav to die")
+    self.qMove_nav.put("die")
+
+  def test_two_moves(self):
+    """Pass in a goal pose that's the same as the start pose"""
+    # Build goal pose that's the same as the start pose
+    goal_pose = nav.macro_move(self.start_x + 5, self.start_y + 5, self.start_theta + 2, datetime.now())
+    self.logger.debug("Created goal pose {}".format(pp.pformat(goal_pose)))
+
+    # Send goal pose via queue
+    self.logger.debug("About to send goal pose to queue with ID {}".format(str(self.qMove_nav)))
+    self.qMove_nav.put(goal_pose)
+    self.logger.debug("Put goal pose into queue")
+
+    goal_pose = nav.macro_move(self.start_x + 6, self.start_y + 2, self.start_theta, datetime.now())
     self.logger.debug("Created goal pose {}".format(pp.pformat(goal_pose)))
 
     # Send goal pose via queue
