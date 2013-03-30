@@ -1,4 +1,5 @@
 import numpy as np
+import map_vars as mvars
  
 
 class MapClass:
@@ -13,7 +14,15 @@ class MapClass:
 	def xdim(self):		#return the x dimension of grid (number of columns)
 		return(len(self.grid[0]))	
 	def fillCoords(self, p1, p2, prop):	#fill an area defined by p1 and p2 with value prop['key'] in layer key of MyMap.grid
+		xd = self.xdim()			#calc number of rows
+		yd = self.ydim()			#calc number of columns
 		x1,y1,x2,y2 = p1[0],p1[1],p2[0],p2[1]
+		if (x1<0) or (x2<0) or (y1<0) or (y2<0): 
+			print("Mapping Dimension Error 1")
+			return()
+		if (x1>=xd) or (x2>=xd) or (y1>=yd) or (y2>=yd): 
+			print("Mapping Dimension Error 2")
+			return()
 		#calc range of y to fill over
 		if y1 <= y2:	y_range = (y1, y2+1)	
 		else: y_range = (y2, y1+1)
@@ -25,26 +34,33 @@ class MapClass:
 			for x in xrange(x_range[0],x_range[1]):
 				for key in prop:
 					self.grid[y][x][key] = prop[key]
-	def fillLoc(self, locCenter, prop):
-		midpt = (locCenter[0][0], locCenter[0][1])	#get center point to fill around
-		xd = self.xdim()					#calc number of rows
-		yd = self.ydim()					#calc number of columns
-		#calc points that inscribe area to fill
-		x1 = midpt[0] - int(2.5 / 2 * res)
-		y1 = midpt[1] - int(2.5 / 2 * res)
-		x2 = midpt[0] + int(2.5 / 2 * res)
-		y2 = midpt[1] + int(2.5 / 2 * res)
-		if x1 < 0: x1 = 0 	#check if p1 is out of bounds
-		elif x1 >= xd: x1 = xd-1
-		if y1 < 0: y1 = 0
-		elif y1 >= yd: y1 = yd-1
-		if x2 < 0: x2 = 0 	#check if p2 is out of bounds
-		elif x2 >= xd: x2 = xd-1
-		if y2 < 0: y2 = 0
-		elif y2 >= yd: y2 = yd-1
+	def fillLoc(self, key, prop):	#fill a location in a layer with a value (both given by prop dict).  The location to be filled is identified by key (key comes from waypoints['key'], i.e. key could be "L01")
+		x = waypoints[key][0][0]	# get x and y coords of location
+		y = waypoints[key][0][1]
+		if key[0] is "L": 			#key is a land location
+			
+			x1 = int(x + 1.5/2*res)		#blocks are 1.5 in wide
+			y1 = int(y - mvars.map_grid_vars['offset'] - mvars.map_grid_vars['whiteLine'])
+			x2 = int(x - 1.5/2*res)
+			y2 = int(y1 - 4*res +1)		#land blocks are 4 in long
+		elif key[0] is "A":			#Air
+			x1 = int(x - mvars.map_grid_vars['offset']- mvars.map_grid_vars['whiteLine'])
+			y1 = int(y + 1.5/2*res) 	#blocks are 1.5 in wide
+			x2 = int(x1 - 2*res +1)	#air blocks are 2 in long
+			y2 = int(y - 1.5/2*res)
+		elif key[1] is "e":			#Sea
+			x1 = int(x - mvars.map_grid_vars['offset']- mvars.map_grid_vars['whiteLine'])
+			y1 = int(y + 1.5/2*res) 	#blocks are 1.5 in wide
+			x2 = int(x1 - 3*res +1)	#sea blocks are 3 in long
+			y2 = int(y - 1.5/2*res)
+		else:					#storage
+			x1 = int(x + 1.5/2*res)		#blocks are 1.5 in wide
+			y1 = int(y + mvars.map_grid_vars['offset'] + mvars.map_grid_vars['whiteLine'])
+			x2 = int(x - 1.5/2*res)
+			y2 = int(y1 + 4*res - 1)		#use all land blocks to fill storage
+		#prepare points to send to fillCoords
 		p1 = (x1, y1)
 		p2 = (x2, y2)
-		# call fill coords to fill area inscribed by p1 and p2		
 		self.fillCoords(p1, p2, prop)
 		 
 		
