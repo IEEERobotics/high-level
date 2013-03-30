@@ -27,7 +27,7 @@ errors = { 100 : "ERROR_BAD_CWD",  101 : "ERROR_SBPL_BUILD", 102 : "ERROR_SBPL_R
 errors.update(dict((v,k) for k,v in errors.iteritems())) # Converts errors to a two-way dict
 
 # TODO These need to be calibrated
-env_config = { "obsthresh" : "1", "cost_ins" : "1", "cost_cir" : "0", "cellsize" : "0.0015875", "nominalvel" : "1.0", 
+env_config = { "obsthresh" : "1", "cost_ins" : "1", "cost_cir" : "0", "cellsize" : "0.00635", "nominalvel" : "1.0", 
   "timetoturn45" : "2.0" }
 
 class Nav:
@@ -84,7 +84,7 @@ class Nav:
     self.build_sbpl_script = path_to_qwe + "navigation/build_sbpl.sh"
     self.sbpl_executable = path_to_qwe + "navigation/sbpl/cmake_build/bin/test_sbpl"
     self.env_file = path_to_qwe + "navigation/envs/env.cfg"
-    self.mprim_file = path_to_qwe + "navigation/mprim/prim_tip_priority_6.299213e+002inch_step5" # FIXME Actually 0.0015875 res 
+    self.mprim_file = path_to_qwe + "navigation/mprim/prim_tip_priority_4inch_step3"
     self.map_file = path_to_qwe + "navigation/maps/binary_map.txt"
     self.sol_file = path_to_qwe + "navigation/sols/sol.txt"
     self.sol_dir = path_to_qwe + "navigation/sols"
@@ -185,7 +185,9 @@ class Nav:
 
     self.logger.debug("Entering inf motion command handling loop")
     while True:
-      # TODO Expand movement logic here
+      # Signal that we nav is no longer running and is waiting for a goal pose
+      # self.bot_loc["naving"] = False
+
       self.logger.info("Blocking while waiting for command from queue with ID: " + pp.pformat(self.qMove_nav))
       move_cmd = self.qMove_nav.get()
       self.logger.info("Received move command: " + pp.pformat(move_cmd))
@@ -205,13 +207,12 @@ class Nav:
     :param x: X coordinate of goal pose
     :param y: Y coordinate of goal pose
     :param theta: Angle of goal pose"""
-    # TODO This needs more logic
-    self.logger.info("Handling macro move")
+    self.logger.info("Handling macro move to {} {} {}".format(x, y, theta))
 
     while True:
 
       # Check if 'bot is at or close to the goal pose
-      if atGoal(x, y, theta):
+      if self.atGoal(x, y, theta):
         self.logger.info("Macro move succeeded")
         return True #TODO Return difference between current pose and goal pose?
 
@@ -477,6 +478,9 @@ class Nav:
     :param a: First number to compare
     :param b: Second number to compare
     :param sig_fig: Number of significant figures to compare them with"""
+
+    self.logger.debug("nealy_equal input is {} {} {}".format(a, b, sig_fig))
+
     return ( a==b or 
              int(a*10**(sig_fig-1)) == int(b*10**(sig_fig-1))
            )

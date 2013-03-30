@@ -13,8 +13,15 @@ then
   fi
 fi
 
+if [ $# -ne 2 ]
+then
+  cells_per_inch=4
+else
+  cells_per_inch=$2
+fi
+
 # Unpickle map and generate map_desc.txt (map in text file)
-(cd $MAP_DIR && python map_script.py)
+(cd $MAP_DIR && python map_script.py -r $cells_per_inch)
 
 # Confirm that map text file was created
 if [ ! -f $MAP_DIR/map_desc.txt ]
