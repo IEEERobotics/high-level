@@ -25,7 +25,7 @@ command_eol = "\r\n"
 is_sequential = True  # force sequential execution of commands
 prefix_id = False  # send id pre-pended with commands?
 servo_delay = 1.0  # secs.; duration to sleep after sending a servo command to let it finish (motor-controller returns immediately)
-fake_delay = 0.25  # secs.; duration to sleep for when faking serial comm.
+fake_delay = 0.001  # secs.; duration to sleep for when faking serial comm.
 
 # TODO move arm info out into action, creating an Arm class to encapsulate?
 left_arm = 0
