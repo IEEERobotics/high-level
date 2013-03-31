@@ -35,12 +35,14 @@ def run( bot_loc, blocks, map_properties, course_map, ipc_channel, bot_state ):
 
   while True:
     msg = ipc_channel.get()
-    turn, move = msg['turn'], msg['move']
+    turn, move = msg['dTheta'], msg['dXY']
+    sensors = msg['sensorData']
     print "Message: Turn: %+0.2f, Move: %0.2f" % (turn, move)
+    print "Sensors: ", sensors
     ideal.move(turn, move)
     localizer.move(turn, move)
     print "Ideal: ", ideal.pose
-    localizer.update(msg['sensors'])
+    localizer.update(sensors)
     guess = localizer.guess()
     print "Guess: ", guess
     print
@@ -57,13 +59,13 @@ class Fake_IPC(object):
                             noise_params = std_noise.noise_params)
 
   def get(self):
-    print "Robot: ", self.simbot.pose
+    print "SimBot: ", self.simbot.pose
     turn = random.random() * pi - pi/2
-    move = random.random() 
+    move = random.random() * 2
     self.simbot.move(turn,move)
     measured = self.simbot.sense(self.map)
     # %todo: x, y, theta -> dx, dy, dtheta
-    msg = {'turn': turn, 'move': move, 'sensors': measured}
+    msg = {'dTheta': turn, 'dXY': move, 'sensorData': measured, 'timestamp': None}
     time.sleep(self.delay)
     return msg
 
