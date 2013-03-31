@@ -298,7 +298,7 @@ class TestFullInteraction(unittest.TestCase):
     self.qMove_nav.put("die")
 
 
-class TestSimpleHelpers(unittest.TestCase):
+class TestlocsEqual(unittest.TestCase):
 
   def setUp(self):
     """Create nav object and feed it appropriate data"""
@@ -364,57 +364,173 @@ class TestSimpleHelpers(unittest.TestCase):
     # Create formatter and add to handlers
     formatter = logging.Formatter('%(asctime)s | %(levelname)s | %(filename)s | %(funcName)s | %(lineno)d | %(message)s')
 
-  def test_atGoal_exact(self):
-    """Test function that checks if a goal pose is the same as the bot's current location. Use goal pose that's exactly the bot's
-    current location"""
+  def test_locsEqual_default_config_mixed_sign_twice_error(self):
+    """Test function that's to check if two poses are equal to within some error. This test uses twice the acceptable error and
+    mixed negitive and positve values"""
 
-    # Need to convert to meters here, because we're bypassing where nav does that normally
-    goal_x = self.start_x * 0.0254
-    goal_y = self.start_y * 0.0254
-    goal_theta = self.start_theta
+    # Translate bot_loc data into internal units
+    x0 = nav.config["XYErr"]
+    y0 = nav.config["XYErr"]
+    theta0 = nav.config["thetaErr"]
 
-    self.logger.info("Testing atGoal with goal {} {} {} and position {} {} {}".format(goal_x, goal_y, goal_theta, self.start_x, \
-      self.start_y, self.start_theta))
+    # Create a second pose that's off by twice of the acceptable error
+    x1 = nav.config["XYErr"] * -1
+    y1 = nav.config["XYErr"] * -1
+    theta1 = nav.config["thetaErr"] * -1
 
-    result = self.Nav.atGoal(goal_x, goal_y, goal_theta)
+    self.logger.info("Testing locsEqual with {} {} {} and {} {} {}".format(x0, y0, theta0, x1, y1, theta1))
 
-    self.logger.debug("atGoal returned {}".format(str(result)))
+    result = self.Nav.locsEqual(x0, y0, theta0, x1, y1, theta1)
 
-    self.assertTrue(result, "atGoal returned False when exactly at goal")
+    self.logger.debug("locsEqual returned {}".format(result))
 
-  def test_atGoal_3_sig_figs_off_3(self):
-    """Test function that checks if a goal pose is the same as the bot's current location. Use goal pose that's off by 3 sig figs
-    and accept a tolerance of 3 sig figs."""
+    self.assertFalse(result, "locsEqual returned True with mixed sign values and diff of twice the acceptable error")
 
-    goal_x = (self.start_x + .001) * 0.0254
-    goal_y = (self.start_y + .001) * 0.0254
-    goal_theta = self.start_theta + .001
+  def test_locsEqual_default_config_mixed_sign_half_error(self):
+    """Test function that's to check if two poses are equal to within some error. This test uses half the acceptable error and
+    mixed negitive and positve values"""
 
-    self.logger.info("Testing atGoal with goal {} {} {} and position {} {} {}".format(goal_x, goal_y, goal_theta, self.start_x, \
-      self.start_y, self.start_theta))
+    # Translate bot_loc data into internal units
+    x0 = nav.config["XYErr"] / 4
+    y0 = nav.config["XYErr"] / 4
+    theta0 = nav.config["thetaErr"] / 4
 
-    result = self.Nav.atGoal(goal_x, goal_y, goal_theta, sig_figs=3)
+    # Create a second pose that's off by half of the acceptable error
+    x1 = nav.config["XYErr"] / -4
+    y1 = nav.config["XYErr"] / -4
+    theta1 = nav.config["thetaErr"] / -4
 
-    self.logger.debug("atGoal returned {}".format(str(result)))
+    self.logger.info("Testing locsEqual with {} {} {} and {} {} {}".format(x0, y0, theta0, x1, y1, theta1))
 
-    self.assertTrue(result, "atGoal returned False when 3 sig figs from goal and sig_figs=3")
+    result = self.Nav.locsEqual(x0, y0, theta0, x1, y1, theta1)
 
-  def test_atGoal_4_sig_figs_off_3(self):
-    """Test function that checks if a goal pose is the same as the bot's current location. Use goal pose that's off by 3 sig figs
-    and accept a tolerance of 4 sig figs."""
+    self.logger.debug("locsEqual returned {}".format(result))
 
-    goal_x = (self.start_x + .001) * 0.0254
-    goal_y = (self.start_y + .001) * 0.0254
-    goal_theta = self.start_theta + .001
+    self.assertTrue(result, "locsEqual returned False with mixed sign values and diff of half the acceptable error")
 
-    self.logger.info("Testing atGoal with goal {} {} {} and position {} {} {}".format(goal_x, goal_y, goal_theta, self.start_x, \
-      self.start_y, self.start_theta))
+  def test_locsEqual_default_config_neg_vals_half_error(self):
+    """Test function that's to check if two poses are equal to within some error. This test uses half the acceptable error and
+    negitve values"""
 
-    result = self.Nav.atGoal(goal_x, goal_y, goal_theta, sig_figs=4, acceptOffBy=0)
+    # Translate bot_loc data into internal units
+    x0 = self.Nav.XYFrombot_locUC(self.bot_loc["x"]) * -1
+    y0 = self.Nav.XYFrombot_locUC(self.bot_loc["y"]) * -1
+    theta0 = self.Nav.thetaFrombot_locUC(self.bot_loc["theta"]) * -1
 
-    self.logger.debug("atGoal returned {}".format(str(result)))
+    # Create a second pose that's off by half of the acceptable error
+    x1 = x0 + nav.config["XYErr"] / -2
+    y1 = y0 + nav.config["XYErr"] / -2
+    theta1 = theta0 + nav.config["thetaErr"] / -2
 
-    self.assertFalse(result, "atGoal returned True when 3 sig figs from goal and sig_figs=4")
+    self.logger.info("Testing locsEqual with {} {} {} and {} {} {}".format(x0, y0, theta0, x1, y1, theta1))
+
+    result = self.Nav.locsEqual(x0, y0, theta0, x1, y1, theta1)
+
+    self.logger.debug("locsEqual returned {}".format(result))
+
+    self.assertTrue(result, "locsEqual returned False with negitive values and diff of half the acceptable error")
+
+  def test_locsEqual_default_config_neg_vals_twice_error(self):
+    """Test function that's to check if two poses are equal to within some error. This test uses twice the acceptable error and
+    negitve values"""
+
+    # Translate bot_loc data into internal units
+    x0 = self.Nav.XYFrombot_locUC(self.bot_loc["x"]) * -1
+    y0 = self.Nav.XYFrombot_locUC(self.bot_loc["y"]) * -1
+    theta0 = self.Nav.thetaFrombot_locUC(self.bot_loc["theta"]) * -1
+
+    # Create a second pose that's off by twice the acceptable error
+    x1 = x0 + nav.config["XYErr"] * -2
+    y1 = y0 + nav.config["XYErr"] * -2
+    theta1 = theta0 + nav.config["thetaErr"] * -2
+
+    self.logger.info("Testing locsEqual with {} {} {} and {} {} {}".format(x0, y0, theta0, x1, y1, theta1))
+
+    result = self.Nav.locsEqual(x0, y0, theta0, x1, y1, theta1)
+
+    self.logger.debug("locsEqual returned {}".format(result))
+
+    self.assertFalse(result, "locsEqual returned True with negitive values and with diff twice of acceptable error")
+
+  def test_locsEqual_default_config_neg_vals_0_error(self):
+    """Test function that's to check if two poses are equal to within some error. This test uses zero error and negitive values."""
+
+    self.logger.info("Testing locsEqual with {} {} {} and {} {} {}".format(-1, -.5, -.25, -1, -.5, -.25))
+
+    result = self.Nav.locsEqual(-1, -.5, -.25, -1, -.5, -.25)
+
+    self.logger.debug("locsEqual returned {}".format(result))
+
+    self.assertTrue(result, "locsEqual returned False with negitve values and zero error")
+
+  def test_locsEqual_default_config_0_vals(self):
+    """Test function that's to check if two poses are equal to within some error. This test uses zero for all values."""
+
+    self.logger.info("Testing locsEqual with {} {} {} and {} {} {}".format(0, 0, 0, 0, 0, 0))
+
+    result = self.Nav.locsEqual(0, 0, 0, 0, 0, 0)
+
+    self.logger.debug("locsEqual returned {}".format(result))
+
+    self.assertTrue(result, "locsEqual returned False with all-zero inputs")
+
+  def test_locsEqual_default_config_0_error(self):
+    """Test function that's to check if two poses are equal to within some error. This test uses zero error."""
+
+    # Translate bot_loc data into internal units
+    x0 = self.Nav.XYFrombot_locUC(self.bot_loc["x"])
+    y0 = self.Nav.XYFrombot_locUC(self.bot_loc["y"])
+    theta0 = self.Nav.thetaFrombot_locUC(self.bot_loc["theta"])
+
+    self.logger.info("Testing locsEqual with {} {} {} and {} {} {}".format(x0, y0, theta0, x0, y0, theta0))
+
+    result = self.Nav.locsEqual(x0, y0, theta0, x0, y0, theta0)
+
+    self.logger.debug("locsEqual returned {}".format(result))
+
+    self.assertTrue(result, "locsEqual returned False when diff 0")
+
+  def test_locsEqual_default_config_twice_error(self):
+    """Test function that's to check if two poses are equal to within some error. This test uses twice the acceptable error."""
+
+    # Translate bot_loc data into internal units
+    x0 = self.Nav.XYFrombot_locUC(self.bot_loc["x"])
+    y0 = self.Nav.XYFrombot_locUC(self.bot_loc["y"])
+    theta0 = self.Nav.thetaFrombot_locUC(self.bot_loc["theta"])
+
+    # Create a second pose that's off by half of the acceptable error
+    x1 = x0 + nav.config["XYErr"] * 2
+    y1 = y0 + nav.config["XYErr"] * 2
+    theta1 = theta0 + nav.config["thetaErr"] * 2
+
+    self.logger.info("Testing locsEqual with {} {} {} and {} {} {}".format(x0, y0, theta0, x1, y1, theta1))
+
+    result = self.Nav.locsEqual(x0, y0, theta0, x1, y1, theta1)
+
+    self.logger.debug("locsEqual returned {}".format(result))
+
+    self.assertFalse(result, "locsEqual returned True when diff was twice of acceptable error")
+
+  def test_locsEqual_default_config_half_error(self):
+    """Test function that's to check if two poses are equal to within some error. This test uses half the acceptable error."""
+
+    # Translate bot_loc data into internal units
+    x0 = self.Nav.XYFrombot_locUC(self.bot_loc["x"])
+    y0 = self.Nav.XYFrombot_locUC(self.bot_loc["y"])
+    theta0 = self.Nav.thetaFrombot_locUC(self.bot_loc["theta"])
+
+    # Create a second pose that's off by half of the acceptable error
+    x1 = x0 + nav.config["XYErr"]/2
+    y1 = y0 + nav.config["XYErr"]/2
+    theta1 = theta0 + nav.config["thetaErr"]/2
+
+    self.logger.info("Testing locsEqual with {} {} {} and {} {} {}".format(x0, y0, theta0, x1, y1, theta1))
+
+    result = self.Nav.locsEqual(x0, y0, theta0, x1, y1, theta1)
+
+    self.logger.debug("locsEqual returned {}".format(result))
+
+    self.assertTrue(result, "locsEqual returned False when diff was half of acceptable error")
 
 class TestwhichXYTheta(unittest.TestCase):
 

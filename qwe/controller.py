@@ -37,18 +37,20 @@ if __name__ == "__main__":
   # TODO Create shared structures commands and responses here and pass on to si? Currently it creates them internally.
   si = comm.SerialInterface()  
   si.start() # Displays an error if port not found (not running on Pandaboard)
-  logger.info("Serial interface set up")
+  logger.debug("Serial interface set up")
 
   # Find start location
-  start_x = waypoints["start"][0][0] * float(nav.env_config["cellsize"])
-  start_y = waypoints["start"][0][1] * float(nav.env_config["cellsize"])
-  start_theta = 0
+  start_x = waypoints["start"][0][0] * float(nav.env_config["cellsize"]) * 39.3701 # Convert to inches
+  start_y = waypoints["start"][0][1] * float(nav.env_config["cellsize"]) * 39.3701 # Convert to inches
+  start_theta = 0 # In radians
+
+  self.logger.info("Start location is {} {} {}".format(start_x, start_y, start_theta))
 
   # Build shared data structures
   # Not wrapping them in a mutable container, as it's more complex for other devs
   # See the following for details: http://goo.gl/SNNAs
   manager = Manager()
-  bot_loc = manager.dict(x=start_x, y=start_y, theta=start_theta)
+  bot_loc = manager.dict(x=start_x, y=start_y, theta=start_theta, dirty=False)
   blobs = manager.list()  # for communication between vision and planner
   blocks = manager.list()
   zones = manager.list()
@@ -58,11 +60,11 @@ if __name__ == "__main__":
 
   # Get map, waypoints and map properties
   course_map = mapper.unpickle_map("./mapping/map.pkl")
-  logger.info("Map unpickled")
+  logger.debug("Map unpickled")
   waypoints = mapper.unpickle_waypoints("./mapping/waypoints.pkl")
-  logger.info("Waypoints unpickled")
+  logger.debug("Waypoints unpickled")
   map_properties = mapper.unpickle_map_prop_vars("./mapping/map_prop_vars.pkl")
-  logger.info("Map properties unpickled")
+  logger.debug("Map properties unpickled")
 
   # Build Queue objects for IPC. Name shows producer_consumer.
   qNav_loc = Queue()
