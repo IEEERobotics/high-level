@@ -54,11 +54,11 @@ class Planner:
     self.armID[0] = comm.right_arm 
     self.armID[1] = comm.left_arm
   
-    nextSeaLandBlock = ["St01","St02","St03","St04","St05","St06","St07","St08","St09","St10","St11","St12","St13","St14"]
-    nextAirBlock = []
-    nextSeaBlockLoc = ["Se01","Se02","Se03","Se04","Se05","Se06"]
-    nextLandBlockLoc = ["L01","L02","L03","L04","L05","L06"]
-    colors = ["red", "blue", "green", "orange", "brown", "yellow"]
+    self.nextSeaLandBlock = ["St01","St02","St03","St04","St05","St06","St07","St08","St09","St10","St11","St12","St13","St14"]
+    self.nextAirBlock = []
+    self.nextSeaBlockLoc = ["Se01","Se02","Se03","Se04","Se05","Se06"]
+    self.nextLandBlockLoc = ["L01","L02","L03","L04","L05","L06"]
+    self.colors = ["red", "blue", "green", "orange", "brown", "yellow"]
     
     for i in range(len(nextSeaLandBlock)):
       self.blocks[i] = 1
@@ -316,47 +316,45 @@ class Planner:
       
   # Scan the given location for the first time
   # use this if scanning first then dropping blocks
-  def scanFirstTime(self, loc):
-    print "Scanning Storage"    
-    print "Initiating Storage Scan"
-    print "updating list of sea, land and air blocks"
-      
-    count = 0
-    if loc == "storage":
-      count = 14
-    else:
-      count = 6
-
-    #Scan all blocks in area
-    for i in range(count):
-      #replace blocksim with block detector code
-      bs = BlockDet.BlockSim()
-      block = bs.process(loc,i)
-      ## possibly update block location here
-      ## block.setLocation(self.getCurrentLocation());
-      print "scanning block", i+1, ":", block.getColor(), block.getSize(), block.getLocation()
-      
-      if loc == "storage":
-        if block.getSize() == "small":
-          self.nextAirBlock.append(block)
-        else:
-          self.nextSeaLandBlock.append(block)
-      elif loc == "land":
-        self.nextLandBlockLoc.append(block)
-      elif loc == "sea":
-        self.nextSeaBlockLoc.append(block)
-      # Update target location for next block
-
-      nextLoc = block.getLocation();
-      bLoc = [int(nextLoc[0]), int(nextLoc[1])]
-      bLoc[1] = bLoc[1] + 2; # change 2 to appropriate value
-        
-      self.moveTo(self.getCurrentLocation(), bLoc)
+  # def scanFirstTime(self, loc):
+#     print "Scanning Storage"    
+#     print "Initiating Storage Scan"
+#     print "updating list of sea, land and air blocks"
+#       
+#     count = 0
+#     if loc == "storage":
+#       count = 14
+#     else:
+#       count = 6
+# 
+#     #Scan all blocks in area
+#     for i in range(count):
+#       #replace blocksim with block detector code
+#       bs = BlockDet.BlockSim()
+#       block = bs.process(loc,i)
+#       ## possibly update block location here
+#       ## block.setLocation(self.getCurrentLocation());
+#       print "scanning block", i+1, ":", block.getColor(), block.getSize(), block.getLocation()
+#       
+#       if loc == "storage":
+#         if block.getSize() == "small":
+#           self.nextAirBlock.append(block)
+#         else:
+#           self.nextSeaLandBlock.append(block)
+#       elif loc == "land":
+#         self.nextLandBlockLoc.append(block)
+#       elif loc == "sea":
+#         self.nextSeaBlockLoc.append(block)
+#       # Update target location for next block
+# 
+#       nextLoc = block.getLocation();
+#       bLoc = [int(nextLoc[0]), int(nextLoc[1])]
+#       bLoc[1] = bLoc[1] + 2; # change 2 to appropriate value
+#         
+#       self.moveTo(self.getCurrentLocation(), bLoc)
     #end for
-
     #print self.nextAirBlock
     #print self.nextSeaLandBlock
-
   #end scanFirstTime
 
   # use this if dropping off blocks during scan
@@ -366,7 +364,6 @@ class Planner:
     for i in range(14):
       bs = BlockDet.BlockSim()
       block = bs.process(loc,i)
-
       self.storageSim.append(block)
     #end for
   #end scanStorageFirstTime
@@ -374,8 +371,7 @@ class Planner:
   # use this if dropping off blocks during scan
   def dropOffSimulator(self, loc):
     print "-- Using Zone Dection Simulator"
-    print "Initiating", loc, "scan"
-      
+    print "Initiating", loc, "scan"      
     for i in range(6):
       print "scanning", loc, "block location", i+1
 
