@@ -39,25 +39,6 @@ if __name__ == "__main__":
   si.start() # Displays an error if port not found (not running on Pandaboard)
   logger.debug("Serial interface set up")
 
-  # Find start location
-  start_x = waypoints["start"][0][0] * float(nav.env_config["cellsize"]) * 39.3701 # Convert to inches
-  start_y = waypoints["start"][0][1] * float(nav.env_config["cellsize"]) * 39.3701 # Convert to inches
-  start_theta = 0 # In radians
-
-  self.logger.info("Start location is {} {} {}".format(start_x, start_y, start_theta))
-
-  # Build shared data structures
-  # Not wrapping them in a mutable container, as it's more complex for other devs
-  # See the following for details: http://goo.gl/SNNAs
-  manager = Manager()
-  bot_loc = manager.dict(x=start_x, y=start_y, theta=start_theta, dirty=False)
-  blobs = manager.list()  # for communication between vision and planner
-  blocks = manager.list()
-  zones = manager.list()
-  corners = manager.list()
-  bot_state = manager.dict(nav_type=None, action_type=None, naving=False)
-  logger.debug("Shared data structures created")
-
   # Get map, waypoints and map properties
   course_map = mapper.unpickle_map("./mapping/map.pkl")
   logger.debug("Map unpickled")
@@ -65,6 +46,23 @@ if __name__ == "__main__":
   logger.debug("Waypoints unpickled")
   map_properties = mapper.unpickle_map_prop_vars("./mapping/map_prop_vars.pkl")
   logger.debug("Map properties unpickled")
+
+  # Find start location
+  start_x = waypoints["start"][0][0] * float(nav.env_config["cellsize"]) * 39.3701 # Convert to inches
+  start_y = waypoints["start"][0][1] * float(nav.env_config["cellsize"]) * 39.3701 # Convert to inches
+  start_theta = 0 # In radians
+
+  # Build shared data structures
+  # Not wrapping them in a mutable container, as it's more complex for other devs
+  # See the following for details: http://goo.gl/SNNAs
+  manager = Manager()
+  bot_loc = manager.dict(x=start_x, y=start_y, theta=start_theta, dirty=False)
+  blobs = manager.list()  # for communication between vision and planner
+  blocks = manager.dict()
+  zones = manager.dict()
+  corners = manager.list()
+  bot_state = manager.dict(nav_type=None, action_type=None, naving=False) #nav_type is "micro" or "macro"
+  logger.debug("Shared data structures created")
 
   # Build Queue objects for IPC. Name shows producer_consumer.
   qNav_loc = Queue()
@@ -81,7 +79,7 @@ if __name__ == "__main__":
   # Start vision process, pass it shared data
   scVision = comm.SerialCommand(si.commands, si.responses)
   pVision = Process(target=vision.run, args=(bot_loc, blobs, blocks, zones, corners, waypoints, scVision, bot_state))
-  pVision.start()
+  #pVision.start()
   logger.info("Vision process started")
 
   # Start navigator process, pass it shared data
@@ -91,18 +89,17 @@ if __name__ == "__main__":
   logger.info("Navigator process started")
 
   # Start localizer process, pass it shared data, waypoints, map_properties course_map and queue for talking to nav
-  scLocalizer = comm.SerialCommand(si.commands, si.responses)
-  pLocalizer = Process(target=localizer.run, args=(bot_loc, blocks, corners, map_properties, course_map, qNav_loc, scLocalizer, bot_state))
+  pLocalizer = Process(target=localizer.run, args=(bot_loc, blocks, map_properties, course_map, qNav_loc, bot_state))
   pLocalizer.start()
   logger.info("Localizer process started")
 
   pNav.join()
   logger.info("Joined navigation process")
-  pVision.join()
+  #pVision.join()
   logger.info("Joined vision process")
   pLocalizer.join()
   logger.info("Joined localizer process")
-  pPlanner.join()
+  #pPlanner.join()
   logger.info("Joined planner process")
   
   scPlanner.quit()

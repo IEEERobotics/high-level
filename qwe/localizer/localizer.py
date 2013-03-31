@@ -14,9 +14,11 @@ sys.modules['map_class'] = mapping.map_class  # deal with the fact we pickled a 
 import mapping.pickler
 
 # blocks status + map = walls 
-def run( start_x, start_y, start_theta, ipc_channel = None, shared_data = {}, map_data = None ):
-
-  start_pose = pose.Pose(start_x,start_y,start_theta)
+#def run( start_x, start_y, start_theta, ipc_channel = None, shared_data = {}, map_data = None ):
+def run( bot_loc, blocks, map_properties, course_map, ipc_channel, bot_state ):
+  
+  start_pose = pose.Pose(bot_loc["x"],bot_loc["y"],bot_loc["theta"])
+  #start_pose = pose.Pose(start_x,start_y,start_theta)
   ideal = robot.SimRobot(start_pose, std_sensors.default)
 
   if not ipc_channel:
@@ -30,7 +32,7 @@ def run( start_x, start_y, start_theta, ipc_channel = None, shared_data = {}, ma
   #localizer = particles.ParticleLocalizer(std_sensors.default, std_noise.noise_params, map_data, pcount=1000)
 
   while True:
-    msg = ipc_channel.read()
+    msg = ipc_channel.get()
     turn, move = msg['turn'], msg['move']
     print "Message: Turn: %+0.2f, Move: %0.2f" % (turn, move)
     ideal.move(turn, move)

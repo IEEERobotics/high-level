@@ -378,6 +378,29 @@ class TestFullInteraction(unittest.TestCase):
     self.logger.info("Telling nav to die")
     self.qMove_nav.put("die")
 
+  def test_move_to_loading(self):
+    """Pass in a goal pose that differes in X, Y and theta from the start pose"""
+    self.logger.debug("Building goal pose")
+
+    # Build goal pose
+    goal_x = self.waypoints["St01"][1][0]
+    goal_y = self.waypoints["St01"][1][1]
+    #goal_x = self.waypoints["St01"][0][0] * float(nav.env_config["cellsize"]) * 39.3701
+    #goal_y = self.waypoints["St01"][0][1] * float(nav.env_config["cellsize"]) * 39.3701
+    goal_theta = self.waypoints["St01"][2]
+
+    goal_pose = nav.macro_move(goal_x, goal_y, goal_theta, datetime.now())
+    self.logger.debug("Created goal pose {}".format(pp.pformat(goal_pose)))
+
+    # Send goal pose via queue
+    self.logger.debug("About to send goal pose to queue with ID {}".format(str(self.qMove_nav)))
+    self.qMove_nav.put(goal_pose)
+    self.logger.debug("Put goal pose into queue")
+
+    # Pass a die command to nav
+    self.logger.info("Telling nav to die")
+    self.qMove_nav.put("die")
+
 class TestUC(unittest.TestCase):
 
   def setUp(self):

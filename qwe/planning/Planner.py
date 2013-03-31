@@ -54,18 +54,18 @@ class Planner:
     self.armID[0] = comm.right_arm 
     self.armID[1] = comm.left_arm
   
-  	nextSeaLandBlock = ["St01","St02","St03","St04","St05","St06","St07","St08","St09","St10","St11","St12","St13","St14"]
-  	nextAirBlock = []
-  	nextSeaBlockLoc = ["Se01","Se02","Se03","Se04","Se05","Se06"]
-  	nextLandBlockLoc = ["L01","L02","L03","L04","L05","L06"]
-  	colors = ["red", "blue", "green", "orange", "brown", "yellow"]
-  	
-  	for i in range(len(nextSeaLandBlock)):
-  	  blocks[nextSeaLandBlock] = 1
-  	for i in range(len(nextSeaBlockLoc)):
-  	  zones[nextSeaBlockLoc] = 0
-  	for i in range(len(nextLandBlockLoc)):
-  	  zones[nextLandBlockLoc] = 0
+    nextSeaLandBlock = ["St01","St02","St03","St04","St05","St06","St07","St08","St09","St10","St11","St12","St13","St14"]
+    nextAirBlock = []
+    nextSeaBlockLoc = ["Se01","Se02","Se03","Se04","Se05","Se06"]
+    nextLandBlockLoc = ["L01","L02","L03","L04","L05","L06"]
+    colors = ["red", "blue", "green", "orange", "brown", "yellow"]
+    
+    for i in range(len(nextSeaLandBlock)):
+      blocks[nextSeaLandBlock] = 1
+    for i in range(len(nextSeaBlockLoc)):
+      zones[nextSeaBlockLoc] = 0
+    for i in range(len(nextLandBlockLoc)):
+      zones[nextLandBlockLoc] = 0
     for i in range(len(colors)):
       scannedSeaLocs[colors[i]] = "empty"
       scannedLandLocs[colors[i]] = "empty"
@@ -227,7 +227,7 @@ class Planner:
     availList = getAvailableSeaDropOffs()
     blockColor = block.getColor()
     
-    if scannedSeaLocs[blockColor] = "empty": 
+    if scannedSeaLocs[blockColor] == "empty": 
       #block location unknown
       for i in range(len(availList)):
         self.moveToWayPoint(self.getCurrentLocation(), availList[i])
@@ -248,7 +248,7 @@ class Planner:
     availList = getAvailableLandDropOffs()
     blockColor = block.getColor()
     
-    if scannedLandLocs[blockColor] = "empty": 
+    if scannedLandLocs[blockColor] == "empty": 
       #block location unknown
       for i in range(len(availList)):
         self.moveToWayPoint(self.getCurrentLocation(), availList[i])
@@ -308,9 +308,9 @@ class Planner:
     self.processAir()
     
   def test(self):
-  	print self.waypoints
-  	print len(self.waypoints)
-  	print self.waypoints["storage"]
+    print self.waypoints
+    print len(self.waypoints)
+    print self.waypoints["storage"]
       
   # Scan the given location for the first time
   # use this if scanning first then dropping blocks

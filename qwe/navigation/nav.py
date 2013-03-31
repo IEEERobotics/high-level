@@ -395,6 +395,8 @@ class Nav:
 
     :param angle: Angle to convert from radians to comm angle units"""
 
+    # Should feed 1/10 degrees with sign
+
     # Mark location as dirty, since I'm about to issue a move command
     self.bot_loc["dirty"] = True
     self.logger.info("Bot loc is now marked as dirty")
@@ -485,7 +487,7 @@ class Nav:
     :param commResult_rads: Turn result reported by comm in radians"""
 
     sensor_data = self.scNav.getAllSensorData()
-    self.qNav_loc.put({"commResult" : self.angleToLocUC(commResult_rads), "sensorData" : sensor_data, "timestamp" : datetime.now()})
+    self.qNav_loc.put({"dTheta" : self.angleToLocUC(commResult_rads), "sensorData" : sensor_data, "timestamp" : datetime.now()})
 
   def whichXYTheta(self, step_prev, step_cur):
     """Find if movement is to be in the XY plane or the theta dimension.
