@@ -21,9 +21,11 @@ def run( bot_loc, blocks, map_properties, course_map, ipc_channel, bot_state ):
   #start_pose = pose.Pose(start_x,start_y,start_theta)
   ideal = robot.SimRobot(start_pose, std_sensors.default)
 
+  themap = map.Map.from_map_class(course_map)
+
   if not ipc_channel:
     print "Using stub IPC"
-    ipc_channel = Fake_IPC(start_pose, map_data, delay = 1.0)
+    ipc_channel = Fake_IPC(start_pose, themap, delay = 1.0)
 
   print "Start: ", start_pose
   print
@@ -42,9 +44,9 @@ def run( bot_loc, blocks, map_properties, course_map, ipc_channel, bot_state ):
     guess = localizer.guess()
     print "Guess: ", guess
     print
-    shared_data['x'] = guess.x
-    shared_data['y'] = guess.y
-    shared_data['theta'] = guess.theta
+    bot_loc['x'] = guess.x
+    bot_loc['y'] = guess.y
+    bot_loc['theta'] = guess.theta
 
 #################################
 class Fake_IPC(object):
@@ -54,7 +56,7 @@ class Fake_IPC(object):
     self.simbot = robot.SimRobot(pose = start_pose, sensors = std_sensors.default, 
                             noise_params = std_noise.noise_params)
 
-  def read(self):
+  def get(self):
     print "Robot: ", self.simbot.pose
     turn = random.random() * pi - pi/2
     move = random.random() 
@@ -83,11 +85,12 @@ if __name__ == '__main__':
 
   #m = map.Map('maps/test3.map')
   map_obj = mapping.pickler.unpickle_map('../mapping/map.pkl')
-  m = map.Map.from_map_class(map_obj)
 
-  start_x = m.xdim / 2
-  start_y = m.ydim / 2
-  start_theta = 0
+  bot_loc = {'x': 6.0, 'y': 2.6, 'theta':pi/2}
+  blocks = {}
+  map_props = {}
+  bot_state = {}
 
-  run(start_x, start_y, start_theta, map_data = m)
+  run(bot_loc, blocks, map_props, map_obj, None, bot_state)
+  #def run( bot_loc, blocks, map_properties, course_map, ipc_channel, bot_state ):
 
