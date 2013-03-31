@@ -49,6 +49,7 @@ def run( bot_loc, blocks, map_properties, course_map, ipc_channel, bot_state ):
     bot_loc['x'] = guess.x
     bot_loc['y'] = guess.y
     bot_loc['theta'] = guess.theta
+    bot_loc['dirty'] = False
 
 #################################
 class Fake_IPC(object):
