@@ -299,16 +299,7 @@ class Nav:
 
         self.logger.info("Handling solution step {} of {}".format(cur_step, len(sol)))
 
-        # Only XY values or theta values should change, not both. This is because our mprim file disallows arcs. 
-        XYxorT = self.XYxorTheta(sol[j-1], sol[j])
-        self.logger.debug("XYxorTheta returned {} with inputs {} and {}".format(XYxorT, pp.pformat(sol[j-1]), pp.pformat(sol[j])))
-        if XYxorT is False:
-          self.logger.error("XY values and theta values changed between steps, which can't happen without arcs.")
-          return errors["ERROR_ARCS_DISALLOWED"]
-        elif XYxorT in errors:
-          self.logger.error("XYxorTheta failed with " + errors[XYxorT])
-          return XYxorT
-
+        # Find the dynamic dimension between the current step and the previous step
         dyn_dem = self.whichXYTheta(sol[j-1], sol[j])
 
         if dyn_dem in errors:
@@ -460,41 +451,19 @@ class Nav:
     sensor_data = self.scNav.getAllSensorData()
     self.qNav_loc.put({"commResult" : self.angleToLocUC(commResult_rads), "sensorData" : sensor_data, "timestamp" : datetime.now()})
 
-  def XYxorTheta(self, step_prev, step_cur):
-    """Check if the previous and current steps changed in the XY plane or the theta dimension, but not both.
-
-    :param step_prev: The older of the two steps. This was the move executed during the last cycle (or the start position)
-    :param step_cur: Current solution step being executed"""
-
-    self.logger.debug("XYxorTheta step_prev is {} and step_cur is {}".format(pp.pformat(step_prev), pp.pformat(step_cur)))
-
-    if step_prev["cont_x"] != step_cur["cont_x"] or step_prev["cont_y"] != step_cur["cont_y"]:
-      self.logger.debug("{} is not {} or {} is not {}".format(step_prev["cont_x"], step_cur["cont_x"], step_prev["cont_y"], \
-        step_cur["cont_y"]))
-      if step_prev["cont_theta"] != step_cur["cont_theta"]:
-        self.logger.debug("Invalid: (X or Y) and theta changed (case 1)")
-        return False
-      else:
-        self.logger.debug("Valid: (X or Y) but not theta changed (case 2)")
-        return True
-    elif step_prev["cont_theta"] != step_cur["cont_theta"]:
-      if step_prev["cont_x"] != step_cur["cont_x"] or step_prev["cont_y"] != step_cur["cont_y"]:
-        self.logger.debug("Invalid: (X or Y) and theta changed (case 3)")
-        return False
-      else:
-        self.logger.debug("Valid: theta but not (X or Y) changed (case 4)")
-        return True
-    else:
-      self.logger.error("The previous and current steps have the same continuous values")
-      return errors["ERROR_NO_CHANGE"]
-
   def whichXYTheta(self, step_prev, step_cur):
-    """Find if movement is to be in the XY plane or the theta dimension. Assumes that XYxorTheta returns true on these params.
+    """Find if movement is to be in the XY plane or the theta dimension.
 
     :param step_prev: The older of the two steps. This was the move executed during the last cycle (or the start position)
     :param step_cur: Current solution step being executed"""
 
-    if step_prev["cont_theta"] != step_cur["cont_theta"]:
+    if (step_prev["cont_theta"] != step_cur["cont_theta"] and step_prev["x"] != step_cur["x"] \
+                                                          and step_prev["y"] != step_cur["y"]) \
+                       or (step_prev["cont_theta"] != step_cur["cont_theta"] and step_prev["x"] != step_cur["x"]) \
+                       or (step_prev["cont_theta"] != step_cur["cont_theta"] and step_prev["y"] != step_cur["y"]):
+      self.logger.error("The previous and current steps involve a change in X, Y and theta - which is disallowed")
+      return errors["ERROR_ARCS_DISALLOWED"]
+    elif step_prev["cont_theta"] != step_cur["cont_theta"]:
       self.logger.debug("The previous step and current step involve a change in theta")
       return "theta"
     elif step_prev["x"] != step_cur["x"] or step_prev["y"] != step_cur["y"]:
@@ -504,7 +473,7 @@ class Nav:
       self.logger.error("The previous and current steps have the same continuous values")
       return errors["ERROR_NO_CHANGE"]
 
-  def atGoal(self, x, y, theta, sig_figs=3, acceptOffBy=.002):
+  def atGoal(self, x, y, theta, sig_figs=3, acceptOffBy=env_config["cellsize"]):
     """Contains logic for checking if the current pose is the same as or within some acceptable tolerance of the goal pose
 
     :param x: X coordinate of goal pose

@@ -410,13 +410,13 @@ class TestSimpleHelpers(unittest.TestCase):
     self.logger.info("Testing atGoal with goal {} {} {} and position {} {} {}".format(goal_x, goal_y, goal_theta, self.start_x, \
       self.start_y, self.start_theta))
 
-    result = self.Nav.atGoal(goal_x, goal_y, goal_theta, sig_figs=4)
+    result = self.Nav.atGoal(goal_x, goal_y, goal_theta, sig_figs=4, acceptOffBy=0)
 
     self.logger.debug("atGoal returned {}".format(str(result)))
 
     self.assertFalse(result, "atGoal returned True when 3 sig figs from goal and sig_figs=4")
 
-class TestXYxorTheta(unittest.TestCase):
+class TestwhichXYTheta(unittest.TestCase):
 
   def setUp(self):
     """Create nav object and feed it appropriate data"""
@@ -476,300 +476,9 @@ class TestXYxorTheta(unittest.TestCase):
     self.scNav.quit()
     self.si.join()
 
-  def test_bugcheck0(self):
-
-    sol =  [{'cont_theta': 0.0000000,
-    'cont_x': 0.1746250,
-    'cont_y': 0.1746250,
-    'theta': 0,
-    'x': 27,
-    'y': 27}, {'cont_theta': 0.3926991,
-    'cont_x': 0.1746250,
-    'cont_y': 0.1746250,
-    'theta': 1,
-    'x': 27,
-    'y': 27}]
- 
-    self.logger.debug("Testing XYxorTheta with sol: " + pp.pformat(sol))
-
-    result = self.Nav.XYxorTheta(sol[0], sol[1])
-
-    self.logger.info("XYxorTheta returned: {}".format(result))
-
-    self.assertTrue(result, "Expected True but received {}".format(result))
-
-  def test_XYxorTheta_x_change(self):
-    """Test helper function that checks if the previous and current steps changed in the XY plane or the theta dimension, but not
-    both. This test checks steps with changes in x only."""
-
-
-    sol = [{'cont_theta': 0.000,
-    'cont_x': 3.350,
-    'cont_y': 3.250,
-    'theta': 0,
-    'x': 33,
-    'y': 32},
-    {'cont_theta': 0.000,
-    'cont_x': 3.250,
-    'cont_y': 3.250,
-    'theta': 0,
-    'x': 32,
-    'y': 32}]
-
-    self.logger.debug("Testing XYxorTheta with sol: " + pp.pformat(sol))
-
-    result = self.Nav.XYxorTheta(sol[0], sol[1])
-
-    self.logger.info("XYxorTheta returned: {}".format(result))
-
-    self.assertTrue(result, "Expected True but received {}".format(result))
-
-  def test_XYxorTheta_y_change(self):
-    """Test helper function that checks if the previous and current steps changed in the XY plane or the theta dimension, but not
-    both. This test checks steps with changes in y only."""
-
-
-    sol = [{'cont_theta': 0.000,
-    'cont_x': 3.250,
-    'cont_y': 3.250,
-    'theta': 0,
-    'x': 32,
-    'y': 32},
-    {'cont_theta': 0.000,
-    'cont_x': 3.250,
-    'cont_y': 4.250,
-    'theta': 0,
-    'x': 32,
-    'y': 40}]
-
-    self.logger.debug("Testing XYxorTheta with sol: " + pp.pformat(sol))
-
-    result = self.Nav.XYxorTheta(sol[0], sol[1])
-
-    self.logger.info("XYxorTheta returned: {}".format(result))
-
-    self.assertTrue(result, "Expected True but received {}".format(result))
-
-  def test_XYxorTheta_theta_change(self):
-    """Test helper function that checks if the previous and current steps changed in the XY plane or the theta dimension, but not
-    both. This test checks steps with changes in theta only."""
-
-
-    sol = [{'cont_theta': 0.393,
-    'cont_x': 2.450,
-    'cont_y': 1.750,
-    'theta': 1,
-    'x': 24,
-    'y': 17},
-    {'cont_theta': 0.785,
-    'cont_x': 2.450,
-    'cont_y': 1.750,
-    'theta': 2,
-    'x': 24,
-    'y': 17}]
-
-    self.logger.debug("Testing XYxorTheta with sol: " + pp.pformat(sol))
-
-    result = self.Nav.XYxorTheta(sol[0], sol[1])
-
-    self.logger.info("XYxorTheta returned: {}".format(result))
-
-    self.assertTrue(result, "Expected True but received {}".format(result))
-
-  def test_XYxorTheta_x_and_theta_change(self):
-    """Test helper function that checks if the previous and current steps changed in the XY plane or the theta dimension, but not
-    both. This test checks steps with changes in x and theta."""
-
-
-    sol = [{'cont_theta': 0.393,
-    'cont_x': 3.250,
-    'cont_y': 1.750,
-    'theta': 1,
-    'x': 32,
-    'y': 17},
-    {'cont_theta': 0.785,
-    'cont_x': 2.450,
-    'cont_y': 1.750,
-    'theta': 2,
-    'x': 24,
-    'y': 17}]
-
-    self.logger.debug("Testing XYxorTheta with sol: " + pp.pformat(sol))
-
-    result = self.Nav.XYxorTheta(sol[0], sol[1])
-
-    self.logger.info("XYxorTheta returned: {}".format(result))
-
-    self.assertFalse(result, "Expected False but received {}".format(result))
-
-  def test_XYxorTheta_y_and_theta_change(self):
-    """Test helper function that checks if the previous and current steps changed in the XY plane or the theta dimension, but not
-    both. This test checks steps with changes in y and theta."""
-
-
-    sol = [{'cont_theta': 0.393,
-    'cont_x': 3.250,
-    'cont_y': 1.750,
-    'theta': 1,
-    'x': 32,
-    'y': 17},
-    {'cont_theta': 0.785,
-    'cont_x': 3.250,
-    'cont_y': 4.250,
-    'theta': 2,
-    'x': 32,
-    'y': 40}]
-
-    self.logger.debug("Testing XYxorTheta with sol: " + pp.pformat(sol))
-
-    result = self.Nav.XYxorTheta(sol[0], sol[1])
-
-    self.logger.info("XYxorTheta returned: {}".format(result))
-
-    self.assertFalse(result, "Expected False but received {}".format(result))
-
-  def test_XYxorTheta_x_and_y_change(self):
-    """Test helper function that checks if the previous and current steps changed in the XY plane or the theta dimension, but not
-    both. This test checks steps with changes in x and y."""
-
-
-    sol = [{'cont_theta': 0.393,
-    'cont_x': 3.250,
-    'cont_y': 1.750,
-    'theta': 1,
-    'x': 32,
-    'y': 17},
-    {'cont_theta': 0.393,
-    'cont_x': 2.450,
-    'cont_y': 4.250,
-    'theta': 1,
-    'x': 24,
-    'y': 40}]
-
-    self.logger.debug("Testing XYxorTheta with sol: " + pp.pformat(sol))
-
-    result = self.Nav.XYxorTheta(sol[0], sol[1])
-
-    self.logger.info("XYxorTheta returned: {}".format(result))
-
-    self.assertTrue(result, "Expected False but received {}".format(result))
-
-  def test_XYxorTheta_x_and_y_and_theta_change(self):
-    """Test helper function that checks if the previous and current steps changed in the XY plane or the theta dimension, but not
-    both. This test checks steps with changes in x, y and theta."""
-
-
-    sol = [{'cont_theta': 0.392,
-    'cont_x': 3.250,
-    'cont_y': 1.750,
-    'theta': 1,
-    'x': 32,
-    'y': 17},
-    {'cont_theta': 0.393,
-    'cont_x': 2.450,
-    'cont_y': 4.250,
-    'theta': 2,
-    'x': 24,
-    'y': 40}]
-
-    self.logger.debug("Testing XYxorTheta with sol: " + pp.pformat(sol))
-
-    result = self.Nav.XYxorTheta(sol[0], sol[1])
-
-    self.logger.info("XYxorTheta returned: {}".format(result))
-
-    self.assertFalse(result, "Expected False but received {}".format(result))
-
-  def test_XYxorTheta_no_change(self):
-    """Test helper function that checks if the previous and current steps changed in the XY plane or the theta dimension, but not
-    both. This test checks steps with no change in any attribute"""
-
-    sol = [{'cont_theta': 0.000,
-    'cont_x': 3.350,
-    'cont_y': 3.250,
-    'theta': 0,
-    'x': 33,
-    'y': 32},
-    {'cont_theta': 0.000,
-    'cont_x': 3.350,
-    'cont_y': 3.250,
-    'theta': 0,
-    'x': 33,
-    'y': 32}]
-
-    self.logger.debug("Testing XYxorTheta with sol: " + pp.pformat(sol))
-
-    result = self.Nav.XYxorTheta(sol[0], sol[1])
-
-    self.logger.info("XYxorTheta returned: {}".format(result))
-
-    self.assertEqual(result, nav.errors["ERROR_NO_CHANGE"], "Expected {} but received \
-      {}".format(nav.errors["ERROR_NO_CHANGE"], result))
-
-class TestWhichXYTheta(unittest.TestCase):
-
-  def setUp(self):
-    """Create nav object and feed it appropriate data"""
-    
-    # Create file and stream handlers
-    self.file_handler = logging.handlers.RotatingFileHandler(path_to_qwe + "logs/unittests.log", maxBytes=512000, backupCount=50)
-    self.file_handler.setLevel(logging.DEBUG)
-    self.stream_handler = logging.StreamHandler()
-    self.stream_handler.setLevel(logging.WARN)
-
-    # Create formatter and add to handlers
-    formatter = logging.Formatter('%(asctime)s | %(levelname)s | %(filename)s | %(funcName)s | %(lineno)d | %(message)s')
-    self.file_handler.setFormatter(formatter)
-    self.stream_handler.setFormatter(formatter)
-
-    # Create logger and add handlers
-    self.logger = logging.getLogger("unittest")
-    self.logger.setLevel(logging.DEBUG)
-    self.logger.addHandler(self.file_handler)
-    self.logger.addHandler(self.stream_handler)
-    self.logger.debug("Logger is set up")
-     
-    # Start serial communication to low-level board
-    self.si = comm.SerialInterface()
-    self.si.start() # Displays an error if port not found (not running on Pandaboard)
-    self.logger.info("Serial interface set up")
-
-    # Build shared data structures
-    self.manager = Manager()
-    self.bot_loc = self.manager.dict(x=1, y=1, theta=0) # Same params used in the env1.txt example file
-    self.bot_state = self.manager.dict(nav_type=None, action_type=None)
-    self.logger.debug("Shared data structures created")
-
-    # Build Queue objects for IPC. Name shows producer_consumer.
-    self.qNav_loc = Queue()
-    self.qMove_nav = Queue()
-    self.logger.debug("Queue objects created")
-
-    # Get map, waypoints and map properties
-    self.course_map = mapper.unpickle_map(path_to_qwe + "mapping/map.pkl")
-    self.logger.info("Map unpickled")
-    self.waypoints = mapper.unpickle_waypoints(path_to_qwe + "mapping/waypoints.pkl")
-    self.logger.info("Waypoints unpickled")
-
-    # Build nav object
-    self.scNav = comm.SerialCommand(self.si.commands, self.si.responses)
-    self.Nav = nav.Nav(self.bot_loc, self.course_map, self.waypoints, self.qNav_loc, self.scNav, self.bot_state, self.qMove_nav, \
-      self.logger)
-    self.logger.info("Nav object instantiated")
-
-  def tearDown(self):
-    """Close serial interface threads"""
-
-    self.logger.removeHandler(self.file_handler)
-    self.logger.removeHandler(self.stream_handler)
-
-    self.scNav.quit()
-    self.si.join()
-
-
-  def test_whichXYTheta_x_change_first_move(self):
+  def test_whichXYTheta_x_change(self):
     """Test helper function that finds if movement is to be in the XY plane or the theta dimension. This test checks steps with
-    no previous move a difference in x value."""
+    a difference in x value."""
 
     sol = [{'cont_theta': 0.000,
     'cont_x': 3.350,
@@ -790,11 +499,11 @@ class TestWhichXYTheta(unittest.TestCase):
 
     self.logger.info("whichXYTheta returned: {}".format(result))
 
-    self.assertEqual(result, "xy", "Expected \"x\" but received {}".format(result))
+    self.assertEqual(result, "xy", "Expected \"xy\" but received {}".format(result))
 
-  def test_whichXYTheta_y_change_first_move(self):
-    """Test helper function that finds if movement is to be in the XY plane or the theta dimension. This test checks steps with
-    no previous move a difference in y value."""
+  def test_whichXYTheta_y_change(self):
+    """Test helper function that finds if movement is to be in the XY plane or the theta dimension. This test checks steps a 
+    difference in y value."""
 
     sol = [{'cont_theta': 0.000,
     'cont_x': 3.250,
@@ -815,11 +524,11 @@ class TestWhichXYTheta(unittest.TestCase):
 
     self.logger.info("whichXYTheta returned: {}".format(result))
 
-    self.assertEqual(result, "xy", "Expected \"y\" but received {}".format(result))
+    self.assertEqual(result, "xy", "Expected \"xy\" but received {}".format(result))
 
-  def test_whichXYTheta_theta_change_first_move(self):
-    """Test helper function that finds if movement is to be in the XY plane or the theta dimension. This test checks steps with
-    no previous move a difference in theta value."""
+  def test_whichXYTheta_theta_change(self):
+    """Test helper function that finds if movement is to be in the XY plane or the theta dimension. This test checks steps with a
+    change in the theta value."""
 
     sol = [{'cont_theta': 0.393,
     'cont_x': 2.450,
@@ -842,7 +551,110 @@ class TestWhichXYTheta(unittest.TestCase):
 
     self.assertEqual(result, "theta", "Expected \"theta\" but received {}".format(result))
 
-  def test_whichXYTheta_no_change_first_move(self):
+  def test_whichXYTheta_x_y_change(self):
+    """Test helper function that finds if movement is to be in the XY plane or the theta dimension. This test checks changes in
+    x, y and theta."""
+
+    sol = [{'cont_theta': '0.3926991',
+    'cont_x': '0.2762250',
+    'cont_y': '0.2254250',
+    'theta': '1',
+    'x': '43',
+    'y': '35'},
+    {'cont_theta': '0.3926991',
+    'cont_x': '0.3143250',
+    'cont_y': '0.2444750',
+    'theta': '1',
+    'x': '49',
+    'y': '38'}]
+
+    self.logger.debug("Testing whichXYTheta with sol: " + pp.pformat(sol))
+
+    result = self.Nav.whichXYTheta(sol[0], sol[1])
+
+    self.logger.info("whichXYTheta returned: {}".format(result))
+
+    self.assertEqual(result, "xy", "Expected \"xy\" but received {}".format(result))
+
+  def test_whichXYTheta_x_theta_change(self):
+    """Test helper function that finds if movement is to be in the XY plane or the theta dimension. This test checks changes in x
+    and theta."""
+
+    sol = [{'cont_theta': '0.0000000',
+    'cont_x': '0.2762250',
+    'cont_y': '0.2762250',
+    'theta': '0',
+    'x': '43',
+    'y': '43'},
+    {'cont_theta': '0.3926991',
+    'cont_x': '0.3143250',
+    'cont_y': '0.2762250',
+    'theta': '1',
+    'x': '49',
+    'y': '43'}]
+
+    self.logger.debug("Testing whichXYTheta with sol: " + pp.pformat(sol))
+
+    result = self.Nav.whichXYTheta(sol[0], sol[1])
+
+    self.logger.info("whichXYTheta returned: {}".format(result))
+
+    self.assertEqual(result, nav.errors["ERROR_ARCS_DISALLOWED"], 
+      "Expected {} but received {}".format(nav.errors["ERROR_ARCS_DISALLOWED"], result))
+
+  def test_whichXYTheta_y_theta_change(self):
+    """Test helper function that finds if movement is to be in the XY plane or the theta dimension. This test checks changes in y
+    and theta."""
+
+    sol = [{'cont_theta': '0.0000000',
+    'cont_x': '0.2762250',
+    'cont_y': '0.2762250',
+    'theta': '0',
+    'x': '43',
+    'y': '43'},
+    {'cont_theta': '0.3926991',
+    'cont_x': '0.2762250',
+    'cont_y': '0.2063750',
+    'theta': '1',
+    'x': '43',
+    'y': '32'}]
+
+    self.logger.debug("Testing whichXYTheta with sol: " + pp.pformat(sol))
+
+    result = self.Nav.whichXYTheta(sol[0], sol[1])
+
+    self.logger.info("whichXYTheta returned: {}".format(result))
+
+    self.assertEqual(result, nav.errors["ERROR_ARCS_DISALLOWED"], 
+      "Expected {} but received {}".format(nav.errors["ERROR_ARCS_DISALLOWED"], result))
+
+  def test_whichXYTheta_x_y_theta_change(self):
+    """Test helper function that finds if movement is to be in the XY plane or the theta dimension. This test checks changes in
+    x, y and theta."""
+
+    sol = [{'cont_theta': '0.0000000',
+    'cont_x': '0.2762250',
+    'cont_y': '0.2762250',
+    'theta': '0',
+    'x': '43',
+    'y': '43'},
+    {'cont_theta': '0.3926991',
+    'cont_x': '0.3143250',
+    'cont_y': '0.2063750',
+    'theta': '1',
+    'x': '49',
+    'y': '32'}]
+
+    self.logger.debug("Testing whichXYTheta with sol: " + pp.pformat(sol))
+
+    result = self.Nav.whichXYTheta(sol[0], sol[1])
+
+    self.logger.info("whichXYTheta returned: {}".format(result))
+
+    self.assertEqual(result, nav.errors["ERROR_ARCS_DISALLOWED"], 
+      "Expected {} but received {}".format(nav.errors["ERROR_ARCS_DISALLOWED"], result))
+
+  def test_whichXYTheta_no_change(self):
     """Test helper function that finds if movement is to be in the XY plane or the theta dimension. This test checks steps with
     no previous move and no difference in any attribute."""
 
@@ -867,209 +679,6 @@ class TestWhichXYTheta(unittest.TestCase):
 
     self.assertEqual(result, nav.errors["ERROR_NO_CHANGE"], "Expected {} but received \
       {}".format(nav.errors["ERROR_NO_CHANGE"], result))
-
-  def test_whichXYTheta_x_change_xy_move(self):
-    """Test helper function that finds if movement is to be in the XY plane or the theta dimension. This test checks steps with
-    previous move in XY plane and difference in x value."""
-
-    sol = [{'cont_theta': 0.000,
-    'cont_x': 3.350,
-    'cont_y': 3.250,
-    'theta': 0,
-    'x': None,
-    'y': None},
-    {'cont_theta': 0.000,
-    'cont_x': 3.250,
-    'cont_y': 3.250,
-    'theta': 0,
-    'x': 32,
-    'y': 32}]
-
-    self.logger.debug("Testing whichXYTheta with sol: " + pp.pformat(sol))
-
-    result = self.Nav.whichXYTheta(sol[0], sol[1])
-
-    self.logger.info("whichXYTheta returned: {}".format(result))
-
-    self.assertEqual(result, "xy", "Expected \"x\" but received {}".format(result))
-
-  def test_whichXYTheta_y_change_xy_move(self):
-    """Test helper function that finds if movement is to be in the XY plane or the theta dimension. This test checks steps with
-    previous move in XY plane and difference in y value."""
-
-    sol = [{'cont_theta': 0.000,
-    'cont_x': 3.350,
-    'cont_y': 3.250,
-    'theta': 0,
-    'x': None,
-    'y': None},
-    {'cont_theta': 0.000,
-    'cont_x': 3.250,
-    'cont_y': 3.250,
-    'theta': 0,
-    'x': 32,
-    'y': 32}]
-
-    self.logger.debug("Testing whichXYTheta with sol: " + pp.pformat(sol))
-
-    result = self.Nav.whichXYTheta(sol[0], sol[1])
-
-    self.logger.info("whichXYTheta returned: {}".format(result))
-
-    self.assertEqual(result, "xy", "Expected \"x\" but received {}".format(result))
-
-  def test_whichXYTheta_theta_change_xy_move(self):
-    """Test helper function that finds if movement is to be in the XY plane or the theta dimension. This test checks steps with
-    previous move in XY plane and difference in y value."""
-
-    sol = [{'cont_theta': 0.000,
-    'cont_x': 3.350,
-    'cont_y': 3.250,
-    'theta': 1,
-    'x': None,
-    'y': None},
-    {'cont_theta': 0.0625,
-    'cont_x': 3.350,
-    'cont_y': 3.250,
-    'theta': 0,
-    'x': 32,
-    'y': 32}]
-
-    self.logger.debug("Testing whichXYTheta with sol: " + pp.pformat(sol))
-
-    result = self.Nav.whichXYTheta(sol[0], sol[1])
-
-    self.logger.info("whichXYTheta returned: {}".format(result))
-
-    self.assertEqual(result, "theta", "Expected \"x\" but received {}".format(result))
-
-  def test_whichXYTheta_x_change_theta_move(self):
-    """Test helper function that finds if movement is to be in the XY plane or the theta dimension. This test checks steps with
-    previous move in XY plane and difference in x value."""
-
-    sol = [{'cont_theta': 0.000,
-    'cont_x': 3.350,
-    'cont_y': 3.250,
-    'theta': None,
-    'x': 33,
-    'y': 32},
-    {'cont_theta': 0.000,
-    'cont_x': 3.250,
-    'cont_y': 3.250,
-    'theta': 0,
-    'x': 32,
-    'y': 32}]
-
-    self.logger.debug("Testing whichXYTheta with sol: " + pp.pformat(sol))
-
-    result = self.Nav.whichXYTheta(sol[0], sol[1])
-
-    self.logger.info("whichXYTheta returned: {}".format(result))
-
-    self.assertEqual(result, "xy", "Expected \"x\" but received {}".format(result))
-
-  def test_whichXYTheta_y_change_theta_move(self):
-    """Test helper function that finds if movement is to be in the XY plane or the theta dimension. This test checks steps with
-    previous move in XY plane and difference in x value."""
-
-    sol = [{'cont_theta': 0.000,
-    'cont_x': 3.250,
-    'cont_y': 3.350,
-    'theta': None,
-    'x': 32,
-    'y': 33},
-    {'cont_theta': 0.000,
-    'cont_x': 3.250,
-    'cont_y': 3.250,
-    'theta': 0,
-    'x': 32,
-    'y': 32}]
-
-    self.logger.debug("Testing whichXYTheta with sol: " + pp.pformat(sol))
-
-    result = self.Nav.whichXYTheta(sol[0], sol[1])
-
-    self.logger.info("whichXYTheta returned: {}".format(result))
-
-    self.assertEqual(result, "xy", "Expected \"x\" but received {}".format(result))
-
-  def test_whichXYTheta_theta_change_theta_move(self):
-    """Test helper function that finds if movement is to be in the XY plane or the theta dimension. This test checks steps with
-    previous move in XY plane and difference in x value."""
-
-    sol = [{'cont_theta': 0.000,
-    'cont_x': 3.250,
-    'cont_y': 3.250,
-    'theta': None,
-    'x': 32,
-    'y': 32},
-    {'cont_theta': 0.100,
-    'cont_x': 3.250,
-    'cont_y': 3.250,
-    'theta': 2,
-    'x': 32,
-    'y': 32}]
-
-    self.logger.debug("Testing whichXYTheta with sol: " + pp.pformat(sol))
-
-    result = self.Nav.whichXYTheta(sol[0], sol[1])
-
-    self.logger.info("whichXYTheta returned: {}".format(result))
-
-    self.assertEqual(result, "theta", "Expected \"x\" but received {}".format(result))
-
-  def test_whichXYTheta_no_change_xy_move(self):
-    """Test helper function that checks if the previous and current steps changed in the XY plane or the theta dimension, but not
-    both. This test checks steps with no change in any attribute"""
-
-    sol = [{'cont_theta': 0.000,
-    'cont_x': 3.350,
-    'cont_y': 3.250,
-    'theta': 0,
-    'x': None,
-    'y': None},
-    {'cont_theta': 0.000,
-    'cont_x': 3.350,
-    'cont_y': 3.250,
-    'theta': 0,
-    'x': 33,
-    'y': 32}]
-
-    self.logger.debug("Testing whichXYTheta with sol: " + pp.pformat(sol))
-
-    result = self.Nav.whichXYTheta(sol[0], sol[1])
-
-    self.logger.info("whichXYTheta returned: {}".format(result))
-
-    self.assertEqual(result, nav.errors["ERROR_NO_CHANGE"], "Expected {} but received \
-      {}".format(nav.errors["ERROR_NO_CHANGE"], result))
-
-  def test_whichXYTheta_no_change_theta_move(self):
-    """Test helper function that checks if the previous and current steps changed in the XY plane or the theta dimension, but not
-    both. This test checks steps with no change in any attribute"""
-
-    sol = [{'cont_theta': 0.000,
-    'cont_x': 3.350,
-    'cont_y': 3.250,
-    'theta': None,
-    'x': 33,
-    'y': 32},
-    {'cont_theta': 0.000,
-    'cont_x': 3.350,
-    'cont_y': 3.250,
-    'theta': 0,
-    'x': 33,
-    'y': 32}]
-
-    self.logger.debug("Testing whichXYTheta with sol: " + pp.pformat(sol))
-
-    result = self.Nav.whichXYTheta(sol[0], sol[1])
-
-    self.logger.info("whichXYTheta returned: {}".format(result))
-
-    self.assertEqual(result, nav.errors["ERROR_NO_CHANGE"], "Expected {} but received \
-      {}".format(nav.errors["ERROR_NO_CHANGE"], result))
-
 
 if __name__ == "__main__":
   unittest.main() # Execute all tests
