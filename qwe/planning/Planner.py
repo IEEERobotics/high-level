@@ -4,19 +4,30 @@ Code for python planner
 
 import blockSim as BlockDet
 import twoWayDict as twd
+import navigation.nav as nav
+from datetime import datetime
+import comm.serial_interface as comm
 
 class Planner:
   nextSeaLandBlock = [] #list of the next available sea or land block to pick up
   nextAirBlock = [] #list of the 2 air blocks in storage
   armList = [] #list of which arm contains what
-  armID = [2,0]	# armID[0] = right arm, armID[1] = left arm
-    
+  armID = []  # armID[0] = right arm, armID[1] = left arm
+
+  storageSim = []
+  seaBlockSim = {}
+  landBlockSim = {}
+  airBlockSim = []
+	
   nextSeaBlockLoc = []
   nextLandBlockLoc = []
   nextAirBlockLoc = []
   
-  nsbl = twd.TwoWayDict()
-  nlbl = twd.TwoWayDict()
+  scannedSeaLocs = {}
+  scannedLandLocs = {}
+  colors = []
+  #nsbl = twd.TwoWayDict()
+  #nlbl = twd.TwoWayDict()
   
   
   def __init__(self, bot_loc, blobs, blocks, zones, waypoints, scPlanner, bot_state, qMove_nav):
@@ -40,12 +51,27 @@ class Planner:
     self.bot_state = bot_state
     self.qMove_nav = qMove_nav
     
-    self.armID[0] = self.scPlanner.right_arm 
-    self.armID[0] = self.scPlanner.left_arm
+    self.armID[0] = comm.right_arm 
+    self.armID[1] = comm.left_arm
   
+  	nextSeaLandBlock = ["St01","St02","St03","St04","St05","St06","St07","St08","St09","St10","St11","St12","St13","St14"]
+  	nextAirBlock = []
+  	nextSeaBlockLoc = ["Se01","Se02","Se03","Se04","Se05","Se06"]
+  	nextLandBlockLoc = ["L01","L02","L03","L04","L05","L06"]
+  	colors = ["red", "blue", "green", "orange", "brown", "yellow"]
+  	
+  	for i in range(len(nextSeaLandBlock)):
+  	  blocks[nextSeaLandBlock] = 1
+  	for i in range(len(nextSeaBlockLoc)):
+  	  zones[nextSeaBlockLoc] = 0
+  	for i in range(len(nextLandBlockLoc)):
+  	  zones[nextLandBlockLoc] = 0
+    for i in range(len(colors)):
+      scannedSeaLocs[colors[i]] = "empty"
+      scannedLandLocs[colors[i]] = "empty"
+    
   #get current location
   def getCurrentLocation(self):
-    #print self.bot_loc
     return self.bot_loc
 
   #more to the next block - use this if next block location is
@@ -53,14 +79,239 @@ class Planner:
   def moveToNextBlock(self):
     print "Moving to Next Block"
     self.moveTo(self.getCurrentLocation(), "nextblock loc")
+    #micro or macro???
   
   #move from start to end
   def moveToWayPoint(self, startLoc, endLoc):
     print "Moving from ", startLoc, " to ", endLoc, "--", self.waypoints[endLoc]
+    x, y, theta = self.waypoints[endLoc]
+    macro_m = nav.macro_move(x, y, theta, datetime.now())
+    self.qMove_nav.put(macro_m)
 
   def moveTo(Self, startLoc, endLoc):
     print "Moving from ", startLoc, " to ", endLoc
+    micro_m = nav.micro_move(x, y, theta, datetime.now())
+    self.qMove_nav.put(micro_m)
+    
+  def processSeaLand(self):
+    armCount = 0
+    armList = []
+    print "+++++ +++++ +++++ +++++ +++++ +++++"
+    for i in range(len(self.nextSeaLandBlock)):
+      stID = self.nextSeaLandBlock[i];
+      print "Processing: [", stID, self.waypoints[stID], "]"
+      self.moveToWayPoint(self.getCurrentLocation(), stID)
+      
+      #get block from vision
+      block = storageSim[i]
+      print "Processing: [", block.getColor(), block.getSize(), block.getLocation(), "]"
+           
+      #if the block is small, assign that to list of air blocks
+      #continue / move to next block
+      if block.getSize() == "small":
+        self.nextAirBlock.append(block)
+        continue
+      
+      #in order to pick up a block, we must first check if we are centered...
+      #that code can exist in pickUpBlock().
+      self.goToBlock(block.getLocation())             
+      self.pickUpBlock(armCount) #arm 0 or 1.
+      armList.append(block)
+      armCount = armCount + 1;
+
+      if armCount == 2:
+        print "picked up 2 blocks"
+        
+        #Both arms contain sea blocks
+        if armList[0].getSize() == "medium" and armList[1].getSize() == "medium":
+          self.moveToWayPoint(self.getCurrentLocation(), "sea")
+          
+          goToNextDropOff(armList[0], "sea")
+          self.placeBlock(0)
+          
+          goToNextDropOff(armList[1], "sea")
+          self.placeBlock(1)
+          #if not self.nextSeaBlockLoc:
+          #  self.scanLandorSeaFirstTime("sea")
+          
+          #print "Arm 0 - [", armList[0].getColor(), armList[0].getLocation(), "] -- Location: ", self.nsbl[armList[0].getColor()]
+          #print "Arm 1 - [", armList[1].getColor(), armList[1].getLocation(), "] -- Location: ", self.nsbl[armList[1].getColor()]
+          
+          #get location color, and centering information from vision
+          #if the color matches one of the blocks in hand, put the block down,
+          #else store the color to nextblockloc...
+                    
+#          if self.nsbl[armList[0].getColor()] > self.nsbl[armList[1].getColor()]:
+#            self.placeBlock(armList[1], self.nsbl[armList[1].getColor()], 1)
+#            self.placeBlock(armList[0], self.nsbl[armList[0].getColor()], 0)
+#          else:
+#            print "arm 0 first"
+#            self.placeBlock(armList[0], self.nsbl[armList[0].getColor()], 0)
+#            self.placeBlock(armList[1], self.nsbl[armList[1].getColor()], 1)
+          #place A and B in the closeness order (sea.ColorLoc)
+
+        #Both arms contain land blocks
+        elif armList[0].getSize() == "large" and armList[1].getSize() == "large":
+          self.moveToWayPoint(self.getCurrentLocation(), "land")
+          
+          goToNextDropOff(armList[0], "land")
+          self.placeBlock(0)
+          
+          armId = goToNextDropOff(armList[1], "land")
+          self.placeBlock(1)
+              
+        #One arm contains sea block and other contains land block
+        elif armList[0].getSize() == "medium" and armList[1].getSize() == "large":
+          self.moveToWayPoint(self.getCurrentLocation(), "sea")
+          goToNextDropOff(armList, "sea")
+          self.placeBlock(0)
+        
+          self.moveToWayPoint(self.getCurrentLocation(), "land")
+          goToNextDropOff(armList, "land")
+          self.placeBlock(1)
+            
+        #One arm contains land block and other contains sea block
+        elif armList[0].getSize() == "large" and armList[1].getSize() == "medium":
+          # even if the orders are different, first go to sea then land
+          self.moveToWayPoint(self.getCurrentLocation(), "sea")
+          goToNextDropOff(armList[1], "sea")
+          self.placeBlock(1)
+        
+          self.moveToWayPoint(self.getCurrentLocation(), "land")
+          goToNextDropOff(armList[0], "land")
+          self.placeBlock(0)
+                
+        armCount = 0
+        armList = []
+        print "===== ===== ===== ===== ===== ===== ===== ===== ===== ====="
+        self.moveToWayPoint(self.getCurrentLocation(), "storage")
+      #end if
+    #end for
+  #end processSeaLand
+        
+  def processAir(self):
+    for i in range(len(self.nextAirBlock)):
+      block = self.nextAirBlock[i];
+      print "Processing: [", block.getColor(), block.getSize(), block.getLocation(), "]"
+      self.pickUpBlock(block.getLocation(), i);
+    #end for
+    
+    print "Move to Ramp, up the ramp, to the drop-off"
+    self.moveToWayPoint(self.getCurrentLocation(), "grnd2ramp") #normal speed
+    self.moveToWayPoint(self.getCurrentLocation(), "lwrPlt") #ramp speed
+    #self.moveToWayPint(self.getCurrentLocation(), "uprRamp") #normal speed
+    self.moveToWayPoint(self.getCurrentLocation(), "air") #ramp speed
+
+    print "Scan air drop-off"
+    print "Drop Air Blocks"
+
+  def getAvailableSeaDropOffs():
+    availList = []
+    for i in range(len(nextSeaBlockLoc)):
+      if zones[nextSeaBlockLoc[i]] == 0:
+        availList.append(nextSeaBlockLoc[i])
+    return availList
+
+  def getAvailableLandDropOffs():
+    availList = []
+    for i in range(len(nextLandBlockLoc)):
+      if zones[nextLandBlockLoc[i]] == 0:
+        availList.append(nextLandBlockLoc[i])
+    return availList
   
+  #go to the next sea dropoff zone
+  #separate function to handle sea specific movements
+  def goToNextSeaDropOff(self, block):
+    # if seaDropLocList is empty, go to Se01
+    # else, check if color of either block matches
+    availList = getAvailableSeaDropOffs()
+    blockColor = block.getColor()
+    
+    if scannedSeaLocs[blockColor] = "empty": 
+      #block location unknown
+      for i in range(len(availList)):
+        self.moveToWayPoint(self.getCurrentLocation(), availList[i])
+        #get the color at waypoint
+        color = seaBlockSim[availList[i]]
+        if color == blockColor:
+          #found color
+          break
+        else:
+          scannedSeaLocs[color] = availList[i]
+          
+    else:
+      self.moveToWayPoint(self.getCurrentLocation(), scannedSeaLocs[blockColor])
+
+  #go to the next land dropoff zone
+  #separate function to handle land specific movements
+  def goToNextLandDropOff(self, block):
+    availList = getAvailableLandDropOffs()
+    blockColor = block.getColor()
+    
+    if scannedLandLocs[blockColor] = "empty": 
+      #block location unknown
+      for i in range(len(availList)):
+        self.moveToWayPoint(self.getCurrentLocation(), availList[i])
+        #get the color at waypoint
+        color = LandBlockSim[availList[i]]
+        if color == blockColor:
+          #found color
+          break
+        else:
+          scannedLandLocs[color] = availList[i]
+          
+    else:
+      self.moveToWayPoint(self.getCurrentLocation(), scannedLandLocs[blockColor])
+
+  # pick up a block given armID
+  def pickUpBlock(self, arm):
+    armId = self.armID[arm]    
+    #self.moveTo(self.getCurrentLocation(), blockLoc)
+    print "Picking Up Block at ", blockLoc, "with Arm", armId
+    #call vision to make sure we are centered on the block
+    #if we are not centered, micromove
+    self.scPlanner.gripperOpen(armId)
+    self.scPlanner.armDown(armId)
+    self.scPlanner.gripperClose(armId)
+    self.scPlanner.armUp(armId)
+
+  # place a block given armID    
+  def placeBlock(self, arm):
+    armId = self.armID[arm]
+    #self.moveTo(self.getCurrentLocation(), blockLoc)
+    print "Placing block from ", self.armID[arm], "at", blockLoc
+    #call vision to make sure we are centered on the block
+    #if we are not centered, micromove
+    self.scPlanner.armDown(armId)
+    self.scPlanner.gripperOpen(armId)
+    self.scPlanner.armUp(armId)
+    self.scPlanner.gripperClose(armId)
+
+  #main
+  def start(self):
+    self.storageSimulator() ##use when vision is not available
+    self.dropOffSimulator() ##use when vision is not available
+    
+    print "Move to Storage Start"
+    self.moveToWayPoint(self.getCurrentLocation(), "storage")
+    #print "Scan Storage"
+    #self.scanStorageFirstTime("storage") # BUG: This should not be hardcoded. Currently fails.
+    #print "Move to Storage Start"
+    #self.moveToWayPoint(self.getCurrentLocation(), "storage")
+    print "***********************************************"
+    print "********** Processing - Sea and Land **********"
+    print "***********************************************"
+    self.processSeaLand()
+    print "**************************************"
+    print "********** Processing - Air **********"
+    print "**************************************"
+    self.processAir()
+    
+  def test(self):
+  	print self.waypoints
+  	print len(self.waypoints)
+  	print self.waypoints["storage"]
+      
   # Scan the given location for the first time
   # use this if scanning first then dropping blocks
   def scanFirstTime(self, loc):
@@ -107,221 +358,37 @@ class Planner:
   #end scanFirstTime
 
   # use this if dropping off blocks during scan
-  def scanStorageFirstTime(self, loc):
-    print "--Scanning Storage"
-    print "--Initiating Storage Scan"
-    print "--updating list of sea, land and air blocks"
-        
+  def storageSimulator(self, loc):
+    print "-- Using Block Detection Simulator"
     #Scan all 14 blocks in storage area
     for i in range(14):
-      #replace blocksim with block detector code
       bs = BlockDet.BlockSim()
       block = bs.process(loc,i)
-      ## possibly update block location here
-      ## block.setLocation(self.getCurrentLocation());
-      print "---scanning block", i+1, ":", block.getColor(), block.getSize(), block.getLocation()
-      
-      if block.getSize() == "small":
-        self.nextAirBlock.append(block)
-      else:
-        self.nextSeaLandBlock.append(block)
-      
-      # Update target location for next block
-      
-      nextLoc = block.getLocation();
-      bLoc = [int(nextLoc[0]), int(nextLoc[1])]
-      bLoc[1] = bLoc[1] + 2; # change 2 to appropriate value
-      
-      self.moveTo(self.getCurrentLocation(), bLoc)
-  #end for
-  
-  #print self.nextAirBlock
-  #print self.nextSeaLandBlock
-  
+
+      self.storageSim.append(block)
+    #end for
   #end scanStorageFirstTime
 
   # use this if dropping off blocks during scan
-  def scanLandorSeaFirstTime(self, loc):
+  def dropOffSimulator(self, loc):
+    print "-- Using Zone Dection Simulator"
     print "Initiating", loc, "scan"
-    print "updating", loc, "block locations"
       
     for i in range(6):
       print "scanning", loc, "block location", i+1
 
       bs = BlockDet.BlockSim()
       blockLoc = bs.process(loc,i)
-      print "scanning block Location", i+1, ":", blockLoc.getColor(), blockLoc.getSize(), blockLoc.getLocation()
       
       if loc == "land":
-        self.nextLandBlockLoc.append(blockLoc)
-        self.nlbl[blockLoc.getColor()] = blockLoc.getLocation()
+        self.landBlockSim[blockLoc.getLocation()] = blockLoc.getColor()
+        #self.nlbl[blockLoc.getColor()] = blockLoc.getLocation()
       elif loc == "sea":
-        self.nextSeaBlockLoc.append(blockLoc)
-        self.nsbl[blockLoc.getColor()] = blockLoc.getLocation()
-      
-      nextLoc = blockLoc.getLocation();
-      bLoc = [int(nextLoc[0]), int(nextLoc[1])]
-      bLoc[1] = bLoc[1] + 2; # change 2 to appropriate value
-    
-      self.moveTo(self.getCurrentLocation(), bLoc)
+        self.seaBlockSim[blockLoc.getLocation()] = blockLoc.getColor()
+        #self.nsbl[blockLoc.getColor()] = blockLoc.getLocation()
     #end if
   #end scanLandorSeaFirstTime
-
-
-  def processSeaLand(self):
-    if (not self.nextAirBlock and not self.nextSeaLandBlock):
-      self.scanStorageFirstTime("storage")
-      self.moveToWayPoint(self.getCurrentLocation(), "storage")
-
-    armCount = 0
-    armList = []
-    print "+++++ +++++ +++++ +++++ +++++ +++++"
-    for i in range(len(self.nextSeaLandBlock)):
-      block = self.nextSeaLandBlock[i];
-      print "Processing: [", block.getColor(), block.getSize(), block.getLocation(), "]"
-      self.pickUpBlock(block.getLocation(), armCount) #arm 0 or 1.
-      armList.append(block)
-      armCount = armCount + 1;
-
-      if armCount == 2:
-        print "picked up 2 blocks"
-        
-        #Both arms contain sea blocks
-        if armList[0].getSize() == "medium" and armList[1].getSize() == "medium":
-          self.moveToWayPoint(self.getCurrentLocation(), "sea")
-          if not self.nextSeaBlockLoc:
-            self.scanLandorSeaFirstTime("sea")
-          
-          print "Arm 0 - [", armList[0].getColor(), armList[0].getLocation(), "] -- Location: ", self.nsbl[armList[0].getColor()]
-          print "Arm 1 - [", armList[1].getColor(), armList[1].getLocation(), "] -- Location: ", self.nsbl[armList[1].getColor()]
-          
-          if self.nsbl[armList[0].getColor()] > self.nsbl[armList[1].getColor()]:
-            self.placeBlock(armList[1], self.nsbl[armList[1].getColor()], 1)
-            self.placeBlock(armList[0], self.nsbl[armList[0].getColor()], 0)
-          else:
-            print "arm 0 first"
-            self.placeBlock(armList[0], self.nsbl[armList[0].getColor()], 0)
-            self.placeBlock(armList[1], self.nsbl[armList[1].getColor()], 1)
-          #place A and B in the closeness order (sea.ColorLoc)
-
-        #Both arms contain land blocks
-        elif armList[0].getSize() == "large" and armList[1].getSize() == "large":
-          self.moveToWayPoint(self.getCurrentLocation(), "land")
-          if not self.nextLandBlockLoc:
-            self.scanLandorSeaFirstTime("land")
       
-          print "Arm 0 - [", armList[0].getColor(), armList[0].getLocation(), "] -- Location: ", self.nlbl[armList[0].getColor()]
-          print "Arm 1 - [", armList[1].getColor(), armList[1].getLocation(), "] -- Location: ", self.nlbl[armList[1].getColor()]
-    
-          #MIGHT HAVE TO REVERSE For Land or for both Storage and Sea
-          #- depends on how the map represents 0,0 and how distances increase
-          if self.nlbl[armList[0].getColor()] > self.nlbl[armList[1].getColor()]:
-            self.placeBlock(armList[1], self.nlbl[armList[1].getColor()], 1)
-            self.placeBlock(armList[0], self.nlbl[armList[0].getColor()], 0)
-          else:
-            print "arm 0 first"
-            self.placeBlock(armList[0], self.nlbl[armList[0].getColor()], 0)
-            self.placeBlock(armList[1], self.nlbl[armList[1].getColor()], 1)
-        
-        #place A and B in the closeness order (land.ColorLoc)
-
-        #One arm contains sea block and other contains land block
-        elif armList[0].getSize() == "medium" and armList[1].getSize() == "large":
-          self.moveToWayPoint(self.getCurrentLocation(), "sea")
-          if not self.nextSeaBlockLoc:
-            self.scanLandorSeaFirstTime("sea")
-          print "Arm 0 - [", armList[0].getColor(), armList[0].getLocation(), "] -- Location: ", self.nsbl[armList[0].getColor()]
-          self.placeBlock(armList[0], self.nsbl[armList[0].getColor()], 0)
-
-          self.moveToWayPoint(self.getCurrentLocation(), "land")
-          if not self.nextLandBlockLoc:
-            self.scanLandorSeaFirstTime("land")
-          print "Arm 1 - [", armList[1].getColor(), armList[1].getLocation(), "] -- Location: ", self.nlbl[armList[1].getColor()]
-          self.placeBlock(armList[1], self.nlbl[armList[1].getColor()], 1)
-            
-        #One arm contains land block and other contains sea block
-        elif armList[0].getSize() == "large" and armList[1].getSize() == "medium":
-          # even if the orders are different, first go to sea then land
-          self.moveToWayPoint(self.getCurrentLocation(), "sea")
-          if not self.nextSeaBlockLoc:
-            self.scanLandorSeaFirstTime("sea")
-          print "Arm 1 - [", armList[1].getColor(), armList[1].getLocation(), "] -- Location: ", self.nsbl[armList[1].getColor()]
-          self.placeBlock(armList[1], self.nsbl[armList[1].getColor()], 1)
-
-          self.moveToWayPoint(self.getCurrentLocation(), "land")
-          if not self.nextLandBlockLoc:
-            self.scanLandorSeaFirstTime("land")
-          print "Arm 0 - [", armList[0].getColor(), armList[0].getLocation(), "] -- Location: ", self.nlbl[armList[0].getColor()]
-          self.placeBlock(armList[0], self.nlbl[armList[0].getColor()], 0)
-                
-        armCount = 0
-        armList = []
-        print "===== ===== ===== ===== ===== ===== ===== ===== ===== ====="
-        self.moveToWayPoint(self.getCurrentLocation(), "storage")
-      #end if
-    #end for
-  #end processSeaLand
-        
-  def processAir(self):
-    for i in range(len(self.nextAirBlock)):
-      block = self.nextAirBlock[i];
-      print "Processing: [", block.getColor(), block.getSize(), block.getLocation(), "]"
-      self.pickUpBlock(block.getLocation(), i);
-    #end for
-    
-    print "Move to Ramp, up the ramp, to the drop-off"
-    self.moveToWayPoint(self.getCurrentLocation(), "grnd2ramp") #normal speed
-    self.moveToWayPoint(self.getCurrentLocation(), "lwrPlt") #ramp speed
-    #self.moveToWayPint(self.getCurrentLocation(), "uprRamp") #normal speed
-    self.moveToWayPoint(self.getCurrentLocation(), "air") #ramp speed
-          
-    print "Scan air drop-off"
-    print "Drop Air Blocks"
-
-
-  def pickUpBlock(self, blockLoc, arm):
-    armId = self.armID[arm]
-    
-    self.moveTo(self.getCurrentLocation(), blockLoc)
-    print "Picking Up Block at ", blockLoc, "with Arm", armId
-    
-    self.scPlanner.gripperOpen(armId)
-    self.scPlanner.armDown(armId)
-    self.scPlanner.gripperClose(armId)
-    self.scPlanner.armUp(armId)
-    
-  def placeBlock(self, block, blockLoc, arm):
-    armId = self.armID[arm]
-          
-    self.moveTo(self.getCurrentLocation(), blockLoc)
-    print "Placing block from ", self.armID[arm], "at", blockLoc
-    
-    self.scPlanner.armDown(armId)
-    self.scPlanner.gripperOpen(armId)
-    self.scPlanner.armUp(armId)
-    self.scPlanner.gripperClose(armId)
-
-    
-  def test(self):
-  	print self.waypoints
-  	print len(self.waypoints)
-  	print self.waypoints["storage"]
-  
-  def start(self):
-    print "Move to Storage Start"
-    self.moveToWayPoint(self.getCurrentLocation(), "storage")
-    print "Scan Storage"
-    self.scanStorageFirstTime("storage") # BUG: This should not be hardcoded. Currently fails.
-    print "Move to Storage Start"
-    self.moveToWayPoint(self.getCurrentLocation(), "storage")
-    print "***********************************************"
-    print "********** Processing - Sea and Land **********"
-    print "***********************************************"
-    self.processSeaLand()
-    print "**************************************"
-    print "********** Processing - Air **********"
-    print "**************************************"
-    self.processAir()
 
 def run(bot_loc, blobs, blocks, zones, waypoints, scPlanner, bot_state, qMove_nav):
   # TODO Handle shared data, start your process from here
