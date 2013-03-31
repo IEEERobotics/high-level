@@ -164,9 +164,14 @@ class Nav:
 
     # Run SBPL
     origCWD = getcwd()
-    chdir(self.sol_dir)
+    self.logger.debug("Changing dir from {}".format(origCWD))
+    #chdir(self.sol_dir)
+    self.logger.debug("Running SBPL CWD {}".format(getcwd()))
+    self.logger.debug("Running SBPL with executable {}".format(self.sbpl_executable))
+    self.logger.debug("Running SBPL with env_file {}".format(self.env_file))
+    self.logger.debug("Running SBPL with mprim_file {}".format(self.mprim_file))
     sbpl_rv = call([self.sbpl_executable, self.env_file, self.mprim_file])
-    chdir(origCWD)
+    #chdir(origCWD)
 
     # Check results of SBPL run
     if sbpl_rv == -6:
@@ -479,7 +484,7 @@ class Nav:
     :param commResult_m: Move result reported by comm in meters"""
 
     sensor_data = self.scNav.getAllSensorData()
-    self.qNav_loc.put({"commResult" : self.distToLocUC(commResult_m), "sensorData" : sensor_data, "timestamp" : datetime.now()})
+    self.qNav_loc.put({"dXY" : self.distToLocUC(commResult_m), "dTheta" : None, "sensorData" : sensor_data, "timestamp" : datetime.now()})
 
   def feedLocalizerTheta(self, commResult_rads):
     """Give localizer information about theta dimension rotate results. Also, package up sensor information and a timestamp.
@@ -487,7 +492,7 @@ class Nav:
     :param commResult_rads: Turn result reported by comm in radians"""
 
     sensor_data = self.scNav.getAllSensorData()
-    self.qNav_loc.put({"dTheta" : self.angleToLocUC(commResult_rads), "sensorData" : sensor_data, "timestamp" : datetime.now()})
+    self.qNav_loc.put({"dTheta" : self.angleToLocUC(commResult_rads), "dXY" : None, "sensorData" : sensor_data, "timestamp" : datetime.now()})
 
   def whichXYTheta(self, step_prev, step_cur):
     """Find if movement is to be in the XY plane or the theta dimension.

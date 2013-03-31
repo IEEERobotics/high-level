@@ -84,14 +84,16 @@ class Planner:
   #move from start to end
   def moveToWayPoint(self, startLoc, endLoc):
     print "Moving from ", startLoc, " to ", endLoc, "--", self.waypoints[endLoc]
-    x, y, theta = self.waypoints[endLoc]
+    x, y = self.waypoints[endLoc][1]
+    theta = self.waypoints[endLoc][2]
+    speed = self.waypoints[endLoc][3]
     macro_m = nav.macro_move(x, y, theta, datetime.now())
     self.qMove_nav.put(macro_m)
 
   def moveTo(Self, startLoc, endLoc):
     print "Moving from ", startLoc, " to ", endLoc
-    micro_m = nav.micro_move(x, y, theta, datetime.now())
-    self.qMove_nav.put(micro_m)
+    #micro_m = nav.micro_move(x, y, theta, datetime.now())
+    #self.qMove_nav.put(micro_m)
     
   def processSeaLand(self):
     armCount = 0
