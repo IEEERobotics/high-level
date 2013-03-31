@@ -12,7 +12,7 @@ class Planner:
   nextSeaLandBlock = [] #list of the next available sea or land block to pick up
   nextAirBlock = [] #list of the 2 air blocks in storage
   armList = [] #list of which arm contains what
-  armID = []  # armID[0] = right arm, armID[1] = left arm
+  armID = [2, 0]  # armID[0] = right arm, armID[1] = left arm
 
   storageSim = []
   seaBlockSim = {}
@@ -61,14 +61,14 @@ class Planner:
     colors = ["red", "blue", "green", "orange", "brown", "yellow"]
     
     for i in range(len(nextSeaLandBlock)):
-      blocks[nextSeaLandBlock] = 1
+      self.blocks[i] = 1
     for i in range(len(nextSeaBlockLoc)):
-      zones[nextSeaBlockLoc] = 0
+      self.zones[i] = 0
     for i in range(len(nextLandBlockLoc)):
-      zones[nextLandBlockLoc] = 0
+      self.zones[i] = 0
     for i in range(len(colors)):
-      scannedSeaLocs[colors[i]] = "empty"
-      scannedLandLocs[colors[i]] = "empty"
+      self.scannedSeaLocs[colors[i]] = "empty"
+      self.scannedLandLocs[colors[i]] = "empty"
     
   #get current location
   def getCurrentLocation(self):
@@ -289,9 +289,9 @@ class Planner:
 
   #main
   def start(self):
-    self.storageSimulator() ##use when vision is not available
-    self.dropOffSimulator() ##use when vision is not available
-    
+    self.storageSimulator("storage") ##use when vision is not available
+    self.dropOffSimulator("sea") ##use when vision is not available
+    self.dropOffSimulator("land")
     print "Move to Storage Start"
     self.moveToWayPoint(self.getCurrentLocation(), "storage")
     #print "Scan Storage"
@@ -393,8 +393,8 @@ class Planner:
 def run(bot_loc, blobs, blocks, zones, waypoints, scPlanner, bot_state, qMove_nav):
   # TODO Handle shared data, start your process from here
   plan = Planner(bot_loc, blobs, blocks, zones, waypoints, scPlanner, bot_state, qMove_nav)
-  plan.test()
-  #plan.start()
+  #plan.test()
+  plan.start()
   
   
 if __name__ == "__main__":

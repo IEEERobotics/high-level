@@ -99,7 +99,7 @@ if __name__ == "__main__":
   logger.info("Joined vision process")
   pLocalizer.join()
   logger.info("Joined localizer process")
-  #pPlanner.join()
+  pPlanner.join()
   logger.info("Joined planner process")
   
   scPlanner.quit()

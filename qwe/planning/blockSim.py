@@ -5,7 +5,7 @@ class BlockSim:
 	def process(self, loc, count):
 		listofBlocks = []
 		
-		filename = str(loc) + ".txt"
+		filename = "./planning/" + str(loc) + ".txt"
 		f = open(filename, 'r')
 		data = f.read()
 		#print line
