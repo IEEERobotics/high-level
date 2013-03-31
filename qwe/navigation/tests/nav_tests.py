@@ -39,6 +39,25 @@ path_to_env = path_to_qwe + "navigation/envs/env.cfg"
 path_to_sbpl = path_to_qwe + "navigation/sbpl/cmake_build/bin/test_sbpl"
 path_to_sol = path_to_qwe + "navigation/sols/sol.txt"
 
+def fakeLoc(testQueue, bot_loc, logger):
+  while True:
+    logger.info("testQueue is waiting on data")
+    ideal_loc = testQueue.get()
+    logger.info("testQueue recieved {}".format(pp.pformat(ideal_loc)))
+
+    if type(ideal_loc) == str and ideal_loc == "die":
+      logger.info("fakeLoc is exiting")
+      sys.exit(0)
+
+    bot_loc["x"] = ideal_loc["x"]
+    bot_loc["y"] = ideal_loc["y"]
+    bot_loc["theta"] = ideal_loc["theta"]
+
+    logger.debug("fakeLoc set bot_loc to {} {} {}".format(bot_loc["x"], bot_loc["y"], bot_loc["theta"]))
+
+    bot_loc["dirty"] = False
+    logger.info("fakeLoc set bot_loc to clean")
+
 class TestFileGeneration(unittest.TestCase):
 
   def setUp(self):
@@ -82,7 +101,7 @@ class TestFileGeneration(unittest.TestCase):
     self.manager = Manager()
     start_x = self.waypoints["start"][0][0] * float(nav.env_config["cellsize"]) * 39.3701
     start_y = self.waypoints["start"][0][1] * float(nav.env_config["cellsize"]) * 39.3701
-    self.bot_loc = self.manager.dict(x=start_x, y=start_y, theta=0)
+    self.bot_loc = self.manager.dict(x=start_x, y=start_y, theta=0, dirty=False)
     self.bot_state = self.manager.dict(nav_type=None, action_type=None)
     self.logger.debug("Shared data structures created")
 
@@ -171,6 +190,7 @@ class TestFullInteraction(unittest.TestCase):
     # Build Queue objects for IPC. Name shows producer_consumer.
     self.qNav_loc = Queue()
     self.qMove_nav = Queue()
+    self.testQueue = Queue()
     self.logger.debug("Queue objects created")
 
     # Get map, waypoints and map properties
@@ -186,14 +206,19 @@ class TestFullInteraction(unittest.TestCase):
 
     # Build shared data structures
     self.manager = Manager()
-    self.bot_loc = self.manager.dict(x=self.start_x, y=self.start_y, theta=self.start_theta)
+    self.bot_loc = self.manager.dict(x=self.start_x, y=self.start_y, theta=self.start_theta, dirty=False)
     self.bot_state = self.manager.dict(nav_type=None, action_type=None)
     self.logger.debug("Shared data structures created")
+
+    # Start fakeLoc process
+    self.pfakeLoc = Process(target=fakeLoc, args=(self.testQueue, self.bot_loc, self.logger))
+    self.pfakeLoc.start()
+    self.logger.info("fakeLoc process started")
 
     # Start nav process
     self.scNav = comm.SerialCommand(self.si.commands, self.si.responses)
     self.pNav = Process(target=nav.run, args=(self.bot_loc, self.course_map, self.waypoints, self.qNav_loc, self.scNav, \
-      self.bot_state, self.qMove_nav, self.logger))
+      self.bot_state, self.qMove_nav, self.logger, self.testQueue))
     self.pNav.start()
     self.logger.info("Navigator process started")
 
@@ -203,6 +228,9 @@ class TestFullInteraction(unittest.TestCase):
     # Join nav process
     self.pNav.join() 
     self.logger.info("Joined navigation process")
+
+    self.pfakeLoc.join()
+    self.logger.info("Joined fakeLoc process")
 
     # Join serial interface process
     self.scNav.quit()
@@ -216,7 +244,14 @@ class TestFullInteraction(unittest.TestCase):
   def test_start_at_goal(self):
     """Pass in a goal pose that's the same as the start pose"""
     # Build goal pose that's the same as the start pose
-    goal_pose = nav.macro_move(self.start_x, self.start_y, self.start_theta, datetime.now())
+    self.logger.debug("Building goal pose")
+
+    # Build goal pose
+    goal_x = float(self.bot_loc["x"])
+    goal_y = float(self.bot_loc["y"])
+    goal_theta = float(self.bot_loc["theta"])
+
+    goal_pose = nav.macro_move(goal_x, goal_y, goal_theta, datetime.now())
     self.logger.debug("Created goal pose {}".format(pp.pformat(goal_pose)))
 
     # Send goal pose via queue
@@ -231,7 +266,14 @@ class TestFullInteraction(unittest.TestCase):
   def test_start_nearly_at_goal(self):
     """Pass in a goal pose that's nearly the same as the start pose"""
     # Build goal pose that's the same as the start pose
-    goal_pose = nav.macro_move(self.start_x + .05, self.start_y + .05, self.start_theta, datetime.now())
+    self.logger.debug("Building goal pose")
+
+    # Build goal pose
+    goal_x = float(self.bot_loc["x"]) + (nav.config["XYErr"] / 2 / 0.0254)
+    goal_y = float(self.bot_loc["y"]) + (nav.config["XYErr"] / 2 / 0.0254)
+    goal_theta = float(self.bot_loc["theta"]) + (nav.config["thetaErr"] / 2)
+
+    goal_pose = nav.macro_move(goal_x, goal_y, goal_theta, datetime.now())
     self.logger.debug("Created goal pose {}".format(pp.pformat(goal_pose)))
 
     # Send goal pose via queue
@@ -245,8 +287,14 @@ class TestFullInteraction(unittest.TestCase):
 
   def test_simple_XY_move(self):
     """Pass in a goal pose that only differes on the XY plane from the start pose"""
-    # Build goal pose that's the same as the start pose
-    goal_pose = nav.macro_move(self.start_x + 5, self.start_y + 5, self.start_theta, datetime.now())
+    self.logger.debug("Building goal pose")
+
+    # Build goal pose
+    goal_x = float(self.bot_loc["x"]) + (nav.config["XYErr"] * 20 / 0.0254)
+    goal_y = float(self.bot_loc["y"]) + (nav.config["XYErr"] * 25 / 0.0254)
+    goal_theta = float(self.bot_loc["theta"])
+
+    goal_pose = nav.macro_move(goal_x, goal_y, goal_theta, datetime.now())
     self.logger.debug("Created goal pose {}".format(pp.pformat(goal_pose)))
 
     # Send goal pose via queue
@@ -258,11 +306,16 @@ class TestFullInteraction(unittest.TestCase):
     self.logger.info("Telling nav to die")
     self.qMove_nav.put("die")
 
-  #@unittest.skip("Not ready")
   def test_simple_theta_move(self):
-    """Pass in a goal pose that's the same as the start pose"""
-    # Build goal pose that's the same as the start pose
-    goal_pose = nav.macro_move(self.start_x, self.start_y, self.start_theta + 2, datetime.now())
+    """Pass in a goal pose that's different from the goal pose in the theta dimension only"""
+    self.logger.debug("Building goal pose")
+
+    # Build goal pose
+    goal_x = float(self.bot_loc["x"])
+    goal_y = float(self.bot_loc["y"])
+    goal_theta = float(self.bot_loc["theta"]) + (nav.config["thetaErr"] * 3)
+
+    goal_pose = nav.macro_move(goal_x, goal_y, goal_theta, datetime.now())
     self.logger.debug("Created goal pose {}".format(pp.pformat(goal_pose)))
 
     # Send goal pose via queue
@@ -274,28 +327,132 @@ class TestFullInteraction(unittest.TestCase):
     self.logger.info("Telling nav to die")
     self.qMove_nav.put("die")
 
+  def test_simple_XYTheta_move(self):
+    """Pass in a goal pose that differes in X, Y and theta from the start pose"""
+    self.logger.debug("Building goal pose")
+
+    # Build goal pose
+    goal_x = float(self.bot_loc["x"]) + (nav.config["XYErr"] * 20 / 0.0254)
+    goal_y = float(self.bot_loc["y"]) + (nav.config["XYErr"] * 25 / 0.0254)
+    goal_theta = float(self.bot_loc["theta"]) + (nav.config["thetaErr"] * 3)
+
+    goal_pose = nav.macro_move(goal_x, goal_y, goal_theta, datetime.now())
+    self.logger.debug("Created goal pose {}".format(pp.pformat(goal_pose)))
+
+    # Send goal pose via queue
+    self.logger.debug("About to send goal pose to queue with ID {}".format(str(self.qMove_nav)))
+    self.qMove_nav.put(goal_pose)
+    self.logger.debug("Put goal pose into queue")
+
+    # Pass a die command to nav
+    self.logger.info("Telling nav to die")
+    self.qMove_nav.put("die")
+
+  #@unittest.skip("Not ready yet")
   def test_two_moves(self):
-    """Pass in a goal pose that's the same as the start pose"""
-    # Build goal pose that's the same as the start pose
-    goal_pose = nav.macro_move(self.start_x + 5, self.start_y + 5, self.start_theta + 2, datetime.now())
-    self.logger.debug("Created goal pose {}".format(pp.pformat(goal_pose)))
+    """Pass two moves to nav before telling it to die"""
+    self.logger.debug("Building goal pose")
+
+    # Build goal pose
+    goal_x0 = float(self.bot_loc["x"]) + (nav.config["XYErr"] * 20 / 0.0254)
+    goal_y0 = float(self.bot_loc["y"]) + (nav.config["XYErr"] * 25 / 0.0254)
+    goal_theta0 = float(self.bot_loc["theta"]) + (nav.config["thetaErr"] * 3)
+
+    goal_pose0 = nav.macro_move(goal_x0, goal_y0, goal_theta0, datetime.now())
+    self.logger.debug("Created goal pose {}".format(pp.pformat(goal_pose0)))
 
     # Send goal pose via queue
     self.logger.debug("About to send goal pose to queue with ID {}".format(str(self.qMove_nav)))
-    self.qMove_nav.put(goal_pose)
+    self.qMove_nav.put(goal_pose0)
     self.logger.debug("Put goal pose into queue")
 
-    goal_pose = nav.macro_move(self.start_x + 6, self.start_y + 2, self.start_theta, datetime.now())
-    self.logger.debug("Created goal pose {}".format(pp.pformat(goal_pose)))
+    # Build goal pose
+    goal_x1 = float(self.bot_loc["x"]) - (nav.config["XYErr"] * 10 / 0.0254)
+    goal_y1 = float(self.bot_loc["y"]) - (nav.config["XYErr"] * 10 / 0.0254)
+    goal_theta1 = float(self.bot_loc["theta"]) + (nav.config["thetaErr"] * 6)
 
-    # Send goal pose via queue
-    self.logger.debug("About to send goal pose to queue with ID {}".format(str(self.qMove_nav)))
-    self.qMove_nav.put(goal_pose)
-    self.logger.debug("Put goal pose into queue")
+    goal_pose1 = nav.macro_move(goal_x1, goal_y1, goal_theta1, datetime.now())
+    self.logger.debug("Created goal pose {}".format(pp.pformat(goal_pose1)))
 
     # Pass a die command to nav
     self.logger.info("Telling nav to die")
     self.qMove_nav.put("die")
+
+class TestUC(unittest.TestCase):
+
+  def setUp(self):
+    """Create nav object and feed it appropriate data"""
+
+    # Create file and stream handlers
+    self.file_handler = logging.handlers.RotatingFileHandler(path_to_qwe + "logs/unittests.log", maxBytes=512000, backupCount=50)
+    self.file_handler.setLevel(logging.DEBUG)
+    self.stream_handler = logging.StreamHandler()
+    self.stream_handler.setLevel(logging.WARN)
+
+    # Create formatter and add to handlers
+    formatter = logging.Formatter('%(asctime)s | %(levelname)s | %(filename)s | %(funcName)s | %(lineno)d | %(message)s')
+    self.file_handler.setFormatter(formatter)
+    self.stream_handler.setFormatter(formatter)
+
+    # Create logger and add handlers
+    self.logger = logging.getLogger("unittest")
+    self.logger.setLevel(logging.DEBUG)
+    self.logger.addHandler(self.file_handler)
+    self.logger.addHandler(self.stream_handler)
+    self.logger.debug("Logger is set up")
+     
+    # Start serial communication to low-level board
+    self.si = comm.SerialInterface()
+    self.si.start() # Displays an error if port not found (not running on Pandaboard)
+    self.logger.info("Serial interface set up")
+
+    # Build Queue objects for IPC. Name shows producer_consumer.
+    self.qNav_loc = Queue()
+    self.qMove_nav = Queue()
+    self.logger.debug("Queue objects created")
+
+    # Get map, waypoints and map properties
+    self.course_map = mapper.unpickle_map(path_to_qwe + "mapping/map.pkl")
+    self.logger.info("Map unpickled")
+    self.waypoints = mapper.unpickle_waypoints(path_to_qwe + "mapping/waypoints.pkl")
+    self.logger.info("Waypoints unpickled")
+
+    # Build shared data structures
+    self.manager = Manager()
+    self.start_x = self.waypoints["start"][0][0] * float(nav.env_config["cellsize"]) * 39.3701
+    self.start_y = self.waypoints["start"][0][1] * float(nav.env_config["cellsize"]) * 39.3701
+    self.start_theta = 0
+    self.bot_loc = self.manager.dict(x=self.start_x, y=self.start_y, theta=self.start_theta, dirty=False)
+    self.bot_state = self.manager.dict(nav_type=None, action_type=None)
+    self.logger.debug("Shared data structures created")
+
+    # Build nav object
+    self.scNav = comm.SerialCommand(self.si.commands, self.si.responses)
+    self.Nav = nav.Nav(self.bot_loc, self.course_map, self.waypoints, self.qNav_loc, self.scNav, self.bot_state, self.qMove_nav, \
+      self.logger)
+    self.logger.info("Nav object instantiated")
+
+  def tearDown(self):
+    """Close serial interface threads"""
+
+    self.logger.removeHandler(self.file_handler)
+    self.logger.removeHandler(self.stream_handler)
+
+    self.scNav.quit()
+    self.si.join()
+
+  def test_XY_bot_loc_UC(self):
+
+    testVal_in = 7.125
+    testVal_m = 0.180975
+
+    valNavUnits = self.Nav.XYFrombot_locUC(testVal_in)
+
+    self.assertEqual(valNavUnits, testVal_m)
+
+    valExUnits = self.Nav.XYTobot_locUC(valNavUnits)
+
+    self.assertEqual(valExUnits, testVal_in)
 
 
 class TestlocsEqual(unittest.TestCase):
@@ -342,7 +499,7 @@ class TestlocsEqual(unittest.TestCase):
     self.start_x = self.waypoints["start"][0][0] * float(nav.env_config["cellsize"]) * 39.3701
     self.start_y = self.waypoints["start"][0][1] * float(nav.env_config["cellsize"]) * 39.3701
     self.start_theta = 0
-    self.bot_loc = self.manager.dict(x=self.start_x, y=self.start_y, theta=self.start_theta)
+    self.bot_loc = self.manager.dict(x=self.start_x, y=self.start_y, theta=self.start_theta, dirty=False)
     self.bot_state = self.manager.dict(nav_type=None, action_type=None)
     self.logger.debug("Shared data structures created")
 
@@ -360,9 +517,6 @@ class TestlocsEqual(unittest.TestCase):
 
     self.scNav.quit()
     self.si.join()
-
-    # Create formatter and add to handlers
-    formatter = logging.Formatter('%(asctime)s | %(levelname)s | %(filename)s | %(funcName)s | %(lineno)d | %(message)s')
 
   def test_locsEqual_default_config_mixed_sign_twice_error(self):
     """Test function that's to check if two poses are equal to within some error. This test uses twice the acceptable error and
@@ -562,7 +716,7 @@ class TestwhichXYTheta(unittest.TestCase):
 
     # Build shared data structures
     self.manager = Manager()
-    self.bot_loc = self.manager.dict(x=1, y=1, theta=0) # Same params used in the env1.txt example file
+    self.bot_loc = self.manager.dict(x=1, y=1, theta=0, dirty=False) # Same params used in the env1.txt example file
     self.bot_state = self.manager.dict(nav_type=None, action_type=None)
     self.logger.debug("Shared data structures created")
 

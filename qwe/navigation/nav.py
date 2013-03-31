@@ -11,11 +11,12 @@ be added."""
 import logging.config
 from collections import namedtuple
 from subprocess import call
-import os
+from os import chdir, getcwd
 from sys import exit
 from math import sqrt, sin, cos, pi
 from datetime import datetime
 import pprint as pp
+from time import sleep
 
 # Movement objects for issuing macro or micro movement commands to nav. Populate and pass to qMove_nav queue.
 macro_move = namedtuple("macro_move", ["x", "y", "theta", "timestamp"])
@@ -29,14 +30,14 @@ errors = { 100 : "ERROR_BAD_CWD",  101 : "ERROR_SBPL_BUILD", 102 : "ERROR_SBPL_R
 errors.update(dict((v,k) for k,v in errors.iteritems())) # Converts errors to a two-way dict
 
 # TODO These need to be calibrated
-env_config = { "obsthresh" : "1", "cost_ins" : "1", "cost_cir" : "0", "cellsize" : "0.00635", "nominalvel" : "1.0", 
-  "timetoturn45" : "2.0" }
+env_config = { "obsthresh" : "1", "cost_ins" : "1", "cost_cir" : "0", "cellsize" : "0.00635", "nominalvel" : "1000.0", 
+  "timetoturn45" : "2" }
 
-config = { "steps_between_locs" : 5, "XYErr" : float(env_config["cellsize"]), "thetaErr" : .1}
+config = { "steps_between_locs" : 5, "XYErr" : (float(env_config["cellsize"]) * 1.01), "thetaErr" : (0.39269908169 * 1.5), "loc_wait" : .01}
 
 class Nav:
 
-  def __init__(self, bot_loc, course_map, waypoints, qNav_loc, scNav, bot_state, qMove_nav, logger):
+  def __init__(self, bot_loc, course_map, waypoints, qNav_loc, scNav, bot_state, qMove_nav, logger, testQueue=None):
     """Setup navigation class
 
     :param bot_loc: Shared dict updated with best-guess location of bot by localizer
@@ -60,6 +61,7 @@ class Nav:
     self.bot_state = bot_state
     self.qMove_nav = qMove_nav
     self.logger = logger
+    self.testQueue = testQueue
     self.logger.debug("Passed-in data stored to Nav object")
 
   def start(self, doLoop=True):
@@ -73,14 +75,14 @@ class Nav:
 
     # Find path to ./qwe directory. Allows for flexibility in the location nav is run from.
     # TODO Could make this arbitrary by counting the number of slashes
-    if os.getcwd().endswith("qwe"):
+    if getcwd().endswith("qwe"):
       path_to_qwe = "./"
-    elif os.getcwd().endswith("qwe/navigation"):
+    elif getcwd().endswith("qwe/navigation"):
       path_to_qwe = "../"
-    elif os.getcwd().endswith("qwe/navigation/tests"):
+    elif getcwd().endswith("qwe/navigation/tests"):
       path_to_qwe = "../../"
     else:
-      self.logger.critical("Unexpected CWD: " + str(os.getcwd()))
+      self.logger.critical("Unexpected CWD: " + str(getcwd()))
       return errors["ERROR_BAD_CWD"]
 
     # Setup paths to required files
@@ -95,8 +97,8 @@ class Nav:
     self.sbpl_build_dir = path_to_qwe + "navigation/sbpl/cmake_build"
 
     # Open /dev/null for suppressing SBPL output
-    self.devnull = open("/dev/null", "w")
-    self.logger.info("Opened file descriptor for writing to /dev/null")
+    #self.devnull = open("/dev/null", "w")
+    #self.logger.info("Opened file descriptor for writing to /dev/null")
 
     # Compile SBPL
     build_rv = call([self.build_sbpl_script, self.sbpl_build_dir])
@@ -161,10 +163,10 @@ class Nav:
     self.logger.info("Successfully built env file. Return value was: " + str(build_env_rv))
 
     # Run SBPL
-    origCWD = os.getcwd()
-    os.chdir(self.sol_dir)
+    origCWD = getcwd()
+    chdir(self.sol_dir)
     sbpl_rv = call([self.sbpl_executable, self.env_file, self.mprim_file])
-    os.chdir(origCWD)
+    chdir(origCWD)
 
     # Check results of SBPL run
     if sbpl_rv == -6:
@@ -185,7 +187,7 @@ class Nav:
     for line in open(self.sol_file, "r").readlines():
       self.logger.debug("Read sol step: " + str(line).rstrip("\n"))
       sol.append(dict(zip(sol_lables, line.split())))
-    self.logger.debug("Built sol list of dicts: " + pp.pformat(sol))
+    #self.logger.debug("Built sol list of dicts: " + pp.pformat(sol))
 
     # Convert all values to floats
     for step in sol:
@@ -220,6 +222,10 @@ class Nav:
       elif type(move_cmd) == str and move_cmd == "die":
         self.logger.warning("Recieved die command, nav is exiting.")
         self.bot_state["naving"] = False
+
+        if self.testQueue is not None:
+          self.testQueue.put("die")
+
         exit(0)
       else:
         self.logger.warn("Move command is of unknown type")
@@ -300,59 +306,64 @@ class Nav:
     cur_step = 0
 
     # Iterate over solution. Outer loop controls how many blind moves we do between localization runs.
-    for i in range(1, len(sol), config["steps_between_locs"]):
+    for i in range(1, len(sol)):
 
-      for j in range(i, min(i + config["steps_between_locs"], len(sol))):
+      cur_step = cur_step + 1
 
-        cur_step = cur_step + 1
+      self.logger.info("Handling solution step {} of {}".format(cur_step, len(sol)))
 
-        self.logger.info("Handling solution step {} of {}".format(cur_step, len(sol)))
+      # Find the dynamic dimension between the current step and the previous step
+      dyn_dem = self.whichXYTheta(sol[i-1], sol[i])
 
-        # Find the dynamic dimension between the current step and the previous step
-        dyn_dem = self.whichXYTheta(sol[j-1], sol[j])
+      if dyn_dem in errors:
+        self.logger.error("whichXYTheta failed with " + errors[dyn_dem])
+        return dyn_dem
 
-        if dyn_dem in errors:
-          self.logger.error("whichXYTheta failed with " + errors[dyn_dem])
-          return dyn_dem
+      if dyn_dem == "xy":
+        self.logger.info("Movement will be in XY plane")
 
-        if dyn_dem == "xy":
-          self.logger.info("Movement will be in XY plane")
+        # Calculate goal distance change in XY plane
+        distance_m = sqrt((sol[i]["cont_x"] - self.XYFrombot_locUC(self.bot_loc["x"]))**2 \
+                        + (sol[i]["cont_y"] - self.XYFrombot_locUC(self.bot_loc["y"]))**2)
+        self.logger.info("Next step of solution is to move {} meters in the XY plane".format(distance_m))
 
-          # Calculate goal distance change in XY plane
-          distance_m = sqrt((sol[j]["cont_x"] - sol[j-1]["cont_x"])**2 + (sol[j]["cont_y"] - sol[j-1]["cont_y"])**2)
-          self.logger.info("Next step of solution is to move {} meters in the XY plane".format(distance_m))
+        # Pass distance to comm and block for response
+        commResult_m = self.distFromCommUC(self.scNav.botMove(self.distToCommUC(distance_m)))
+        self.logger.info("Comm returned XY movement feedback of {}".format(commResult_m))
 
-          # Pass distance to comm and block for response
-          commResult_m = self.distFromCommUC(self.scNav.botMove(self.distToCommUC(distance_m)))
-          self.logger.info("Comm returned XY movement feedback of {}".format(commResult_m))
+        # Report move result to localizer ASAP
+        self.feedLocalizerXY(commResult_m)
 
-          # Report move result to localizer ASAP
-          self.feedLocalizerXY(commResult_m)
+      elif dyn_dem == "theta":
+        self.logger.info("Movement will be in theta dimension")
 
-        elif dyn_dem == "theta":
-          self.logger.info("Movement will be in theta dimension")
+        # Calculate goal change in theta TODO Use bot_loc
+        angle_rads = sol[i]["cont_theta"] - self.thetaFrombot_locUC(self.bot_loc["theta"])
+        self.logger.info("Next step of solution is to rotate {} radians in the theta dimension".format(angle_rads))
 
-          # Calculate goal change in theta
-          angle_rads = sol[j]["cont_theta"] - sol[j-1]["cont_theta"]
-          self.logger.info("Next step of solution is to rotate {} radians in the theta dimension".format(angle_rads))
+        # Pass distance to comm and block for response
+        commResult_rads = self.angleFromCommUC(self.scNav.botTurnRel(self.angleToCommUC(angle_rads)))
+        self.logger.info("Comm returned theta movement feedback of {}".format(commResult_rads))
 
-          # Pass distance to comm and block for response
-          commResult_rads = self.angleFromCommUC(self.scNav.botTurnRel(self.angleToCommUC(angle_rads)))
-          self.logger.info("Comm returned theta movement feedback of {}".format(commResult_rads))
+        # Report move result to localizer ASAP
+        self.feedLocalizerTheta(commResult_rads)
 
-          # Report move result to localizer ASAP
-          self.feedLocalizerTheta(commResult_rads)
+      else:
+        self.logger.error("Unknown whichXYTheta result: " + str(dyn_dem))
+        return errors["ERROR_DYNAMIC_DEM_UNKN"]
 
-        else:
-          self.logger.error("Unknown whichXYTheta result: " + str(dyn_dem))
-          return errors["ERROR_DYNAMIC_DEM_UNKN"]
+      # If using a fake localizer, feed it the ideal location
+      if self.testQueue is not None:
+        self.testQueue.put({ "x" : self.XYTobot_locUC(sol[cur_step]["cont_x"]), "y" : self.XYTobot_locUC(sol[cur_step]["cont_y"]), 
+                            "theta" : self.thetaTobot_locUC(sol[cur_step]["cont_theta"]) })
 
-      # Localize TODO How? Assume move was perfect for now
-      self.bot_loc["x"] = self.XYTobot_locUC(sol[cur_step]["cont_x"])
-      self.bot_loc["y"] = self.XYTobot_locUC(sol[cur_step]["cont_y"])
-      self.bot_loc["theta"] = self.thetaTobot_locUC(sol[cur_step]["cont_theta"])
+      # Wait for localizer to update bot_loc
+      if self.bot_loc["dirty"]:
+        self.logger.debug("Waiting for localizer to read commResult and set bot_loc[dirty] to False")
+        while self.bot_loc["dirty"]:
+          sleep(config["loc_wait"])
 
-      # Translate bot_loc into internal units
+      # Translate bot_loc into internal units NOTE These will block until bot_loc is clean
       curX = self.XYFrombot_locUC(self.bot_loc["x"])
       curY = self.XYFrombot_locUC(self.bot_loc["y"])
       curTheta = self.thetaFrombot_locUC(self.bot_loc["theta"])
@@ -366,15 +377,28 @@ class Nav:
         return errors["ERROR_FAILED_MOVE"]
 
   def distToCommUC(self, dist):
-    """Convert from internal distance units (meters) to units used by comm for distances
+    """Convert from internal distance units (meters) to units used by comm for distances. Also, since all move commands go through
+    this function or angleToCommUC, set bot_loc to dirty here.
 
     :param dist: Distance to convert from meters to comm distance units (mm)"""
+
+    # Mark location as dirty, since I'm about to issue a move command
+    self.bot_loc["dirty"] = True
+    self.logger.info("Bot loc is now marked as dirty")
+
     return float(dist) * 100
 
   def angleToCommUC(self, angle):
-    """Convert from internal angle units (radians) to units used by comm for angles (tenths of degrees)
+    """Convert from internal angle units (radians) to units used by comm for angles (tenths of degrees). Also, since all move 
+    commands go through this function or distToCommUC, set bot_loc to dirty here.
+
 
     :param angle: Angle to convert from radians to comm angle units"""
+
+    # Mark location as dirty, since I'm about to issue a move command
+    self.bot_loc["dirty"] = True
+    self.logger.info("Bot loc is now marked as dirty")
+
     return float(angle) * 57.2957795 * 10
 
   def distFromCommUC(self, commResult):
@@ -419,16 +443,20 @@ class Nav:
     :param speed: speed value given by planner via qMove_nav (in/sec) to convert to internal units (m/sec)"""
     return 0.0254 * float(speed)
 
-  def XYFrombot_locUC(self, XY):
+  def XYFrombot_locUC(self, XY, noBlock=False):
     """Convert XY value in bot_loc shared data to internal units (meters)
 
     :param XY: X or Y value used by bot_loc (inches) to convert to internal units (meters)"""
+
+    self.logger.debug("XYFrombot_locUC translated {} to {}".format(XY, 0.0254 * float(XY)))
+        
     return 0.0254 * float(XY)
 
-  def thetaFrombot_locUC(self, theta):
+  def thetaFrombot_locUC(self, theta, noBlock=False):
     """Convert theta value in bot_loc shared data to internal units (radians)
 
     :param theta: theta value used by bot_loc (radians) to convert to internal units (radians)"""
+
     return float(theta)
   
   def XYTobot_locUC(self, XY):
@@ -517,6 +545,10 @@ class Nav:
 
     self.logger.debug("Handling micro move XY with distance {} and speed {}".format(distance, speed))
 
+    # Mark location as dirty, since I'm about to issue a move command
+    self.bot_loc["dirty"] = True
+    self.logger.info("Bot loc is now marked as dirty")
+
     # Pass distance to comm and block for response
     commResult_m = self.distFromCommUC(self.scNav.botMove(self.distToCommUC(distance, speed)))
     self.logger.info("Comm returned XY movement feedback of {}".format(commResult_m))
@@ -533,6 +565,10 @@ class Nav:
 
     self.logger.debug("Handling micro move theta with angle {}".format(angle))
 
+    # Mark location as dirty, since I'm about to issue a move command
+    self.bot_loc["dirty"] = True
+    self.logger.info("Bot loc is now marked as dirty")
+
     # Pass distance to comm and block for response
     commResult_rads = self.angleFromCommUC(self.scNav.botMove(self.angleToCommUC(angle)))
     self.logger.info("Comm returned theta movement feedback of {}".format(commResult_rads))
@@ -542,7 +578,7 @@ class Nav:
 
     return True
 
-def run(bot_loc, course_map, waypoints, qNav_loc, scNav, bot_state, qMove_nav, logger=None):
+def run(bot_loc, course_map, waypoints, qNav_loc, scNav, bot_state, qMove_nav, logger=None, testQueue=None):
   """Function that accepts initial data from controller and kicks off nav. Will eventually involve instantiating a class.
 
   :param bot_loc: Shared dict updated with best-guess location of bot by localizer
@@ -562,6 +598,6 @@ def run(bot_loc, course_map, waypoints, qNav_loc, scNav, bot_state, qMove_nav, l
 
   # Build nav object and start it
   logger.debug("Executing run function of nav")
-  nav = Nav(bot_loc, course_map, waypoints, qNav_loc, scNav, bot_state, qMove_nav, logger)
+  nav = Nav(bot_loc, course_map, waypoints, qNav_loc, scNav, bot_state, qMove_nav, logger, testQueue)
   logger.debug("Built Nav object")
   return nav.start()
