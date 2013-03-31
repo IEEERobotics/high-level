@@ -14,34 +14,6 @@ def mk_waypoints(res, map_grid_vars):
 	# make dict for waypoints
 	waypoints = {}	#waypoints['key']=((grid_x,grid_y),(real_x,real_y), theta, speed)
 
-	#calculate x and y values for land
-	land_grid_x = int(map_grid_vars['wall']+map_grid_vars['startW']+4.5*map_grid_vars['whiteLine']+map_grid_vars['start2land']+3*map_grid_vars['zone_short'])
-	land_grid_y = map_grid_vars['wall']+map_grid_vars['land_long']+map_grid_vars['whiteLine']+map_grid_vars['offset']
-	land_grid = (land_grid_x, land_grid_y)
-	land_real = (float(land_grid_x)/res,float(land_grid_y)/res)
-	waypoints['land'] = (land_grid,land_real, 0, 'normal')	#midpoint of land locations
-
-	#calculate x and y for sea
-	sea_grid_x = map_grid_vars['wall']+map_grid_vars['sea_long']+map_grid_vars['whiteLine']+map_grid_vars['offset']
-	sea_grid_y = int(map_grid_vars['wall']+map_grid_vars['startH']+4.5*map_grid_vars['whiteLine']+map_grid_vars['Start2Sea']+3*map_grid_vars['zone_short'])
-	sea_grid = (sea_grid_x, sea_grid_y)
-	sea_real = (float(sea_grid_x)/res, float(sea_grid_y)/res)
-	waypoints['sea'] = (sea_grid,sea_real, 3*math.pi/2, 'normal')	#midpoint of sea locations
-
-	#calculate x and y values for air
-	air_grid_x = map_grid_vars['air_long']+map_grid_vars['whiteLine']+map_grid_vars['offset']
-	air_grid_y = int(map_grid_vars['height']-map_grid_vars['upPlt_2_Air']-1.5*map_grid_vars['whiteLine']-map_grid_vars['zone_short'])
-	air_grid = (air_grid_x, air_grid_y)
-	air_real = (float(air_grid_x)/res, float(air_grid_y)/res)
-	waypoints['air'] = (air_grid, air_real, 3*math.pi/2, 'ramp')	#midpoint of air locations
-
-	#calculate x and y values for storage	
-	stor_grid_x = int(map_grid_vars['wall']+map_grid_vars['edge2storage']+7.5*map_grid_vars['whiteLine']+7*map_grid_vars['zone_short'])
-	stor_grid_y = map_grid_vars['height']-map_grid_vars['upPltH']-map_grid_vars['wall']-map_grid_vars['stor_long']-map_grid_vars['whiteLine']-map_grid_vars['offset']
-	stor_grid = (stor_grid_x, stor_grid_y)
-	stor_real = (float(stor_grid_x)/res, float(stor_grid_y)/res)
-	waypoints['storage'] = (stor_grid, stor_real, math.pi, 'normal')#midpoint of storage locations
-
 	#calculate x and y values for start
 	start_grid_x =  int(map_grid_vars['wall']+map_grid_vars['startW']/2)
 	start_grid_y = int(map_grid_vars['wall']+map_grid_vars['startH']/2)	
@@ -134,6 +106,46 @@ def mk_waypoints(res, map_grid_vars):
 	waypoints['Se05'] = ((Sea_grid_x,ysea_grid[0][4]),(float(Sea_grid_x)/res, ysea_real[0][4]),3*math.pi/2, 'normal')
 	waypoints['Se06'] = ((Sea_grid_x,ysea_grid[0][5]),(float(Sea_grid_x)/res, ysea_real[0][5]),3*math.pi/2, 'normal')
 	
+	#calculate x and y values for land
+	'''
+	land_grid_x = int(map_grid_vars['wall']+map_grid_vars['startW']+4.5*map_grid_vars['whiteLine']+map_grid_vars['start2land']+3*map_grid_vars['zone_short'])
+	land_grid_y = map_grid_vars['wall']+map_grid_vars['land_long']+map_grid_vars['whiteLine']+map_grid_vars['offset']
+	land_grid = (land_grid_x, land_grid_y)
+	land_real = (float(land_grid_x)/res,float(land_grid_y)/res)
+	waypoints['land'] = (land_grid,land_real, 0, 'normal')	#midpoint of land locations
+	'''
+	waypoints['land'] = waypoints['L06']	
+
+	#calculate x and y for sea
+	'''
+	sea_grid_x = map_grid_vars['wall']+map_grid_vars['sea_long']+map_grid_vars['whiteLine']+map_grid_vars['offset']
+	sea_grid_y = int(map_grid_vars['wall']+map_grid_vars['startH']+4.5*map_grid_vars['whiteLine']+map_grid_vars['Start2Sea']+3*map_grid_vars['zone_short'])
+	sea_grid = (sea_grid_x, sea_grid_y)
+	sea_real = (float(sea_grid_x)/res, float(sea_grid_y)/res)
+	waypoints['sea'] = (sea_grid,sea_real, 3*math.pi/2, 'normal')	#midpoint of sea locations
+	'''
+	waypoints['sea'] = waypoints['Se06']
+
+	#calculate x and y values for air
+	'''
+	air_grid_x = map_grid_vars['air_long']+map_grid_vars['whiteLine']+map_grid_vars['offset']
+	air_grid_y = int(map_grid_vars['height']-map_grid_vars['upPlt_2_Air']-1.5*map_grid_vars['whiteLine']-map_grid_vars['zone_short'])
+	air_grid = (air_grid_x, air_grid_y)
+	air_real = (float(air_grid_x)/res, float(air_grid_y)/res)
+	waypoints['air'] = (air_grid, air_real, 3*math.pi/2, 'ramp')	#midpoint of air locations
+	'''
+	waypoints['air'] = waypoints['A01']
+
+	#calculate x and y values for storage	
+	'''
+	stor_grid_x = int(map_grid_vars['wall']+map_grid_vars['edge2storage']+7.5*map_grid_vars['whiteLine']+7*map_grid_vars['zone_short'])
+	stor_grid_y = map_grid_vars['height']-map_grid_vars['upPltH']-map_grid_vars['wall']-map_grid_vars['stor_long']-map_grid_vars['whiteLine']-map_grid_vars['offset']
+	stor_grid = (stor_grid_x, stor_grid_y)
+	stor_real = (float(stor_grid_x)/res, float(stor_grid_y)/res)
+	waypoints['storage'] = (stor_grid, stor_real, math.pi, 'normal')#midpoint of storage locations
+	'''
+	waypoints['storage'] = waypoints['St01']
+
 	return(waypoints)
 
 
