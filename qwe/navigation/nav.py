@@ -211,7 +211,7 @@ class Nav:
       # Signal that we nav is no longer running and is waiting for a goal pose
       self.bot_state["naving"] = False
       move_cmd = self.qMove_nav.get()
-      self.bot_state["naving"] = True
+      #self.bot_state["naving"] = True
       self.logger.info("Received move command: " + pp.pformat(move_cmd))
 
       if type(move_cmd) == macro_move:
@@ -484,7 +484,7 @@ class Nav:
     :param commResult_m: Move result reported by comm in meters"""
 
     sensor_data = self.scNav.getAllSensorData()
-    self.qNav_loc.put({"dXY" : self.distToLocUC(commResult_m), "dTheta" : None, "sensorData" : sensor_data, "timestamp" : datetime.now()})
+    self.qNav_loc.put({"dXY" : self.distToLocUC(commResult_m), "dTheta" : 0, "sensorData" : sensor_data, "timestamp" : datetime.now()})
 
   def feedLocalizerTheta(self, commResult_rads):
     """Give localizer information about theta dimension rotate results. Also, package up sensor information and a timestamp.
@@ -492,7 +492,7 @@ class Nav:
     :param commResult_rads: Turn result reported by comm in radians"""
 
     sensor_data = self.scNav.getAllSensorData()
-    self.qNav_loc.put({"dTheta" : self.angleToLocUC(commResult_rads), "dXY" : None, "sensorData" : sensor_data, "timestamp" : datetime.now()})
+    self.qNav_loc.put({"dTheta" : self.angleToLocUC(commResult_rads), "dXY" : 0, "sensorData" : sensor_data, "timestamp" : datetime.now()})
 
   def whichXYTheta(self, step_prev, step_cur):
     """Find if movement is to be in the XY plane or the theta dimension.
