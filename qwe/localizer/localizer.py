@@ -1,17 +1,23 @@
 #!/usr/bin/python
 
-from numpy import random, pi
+from numpy import random, pi, zeros
 
 import robot, particles, map, pose
 import time  # sleep
 
 import std_sensors, std_noise
 
+import sys
+sys.path.append('..')
+import mapping.map_class
+sys.modules['map_class'] = mapping.map_class  # deal with the fact we pickled a module in another dir
+import mapping.pickler
+
 # blocks status + map = walls 
 def run( start_x, start_y, start_theta, ipc_channel = None, shared_data = {}, map_data = None ):
 
   start_pose = pose.Pose(start_x,start_y,start_theta)
-  ideal = robot.SimRobot(start_pose, std_sensors.sensors)
+  ideal = robot.SimRobot(start_pose, std_sensors.default)
 
   if not ipc_channel:
     print "Using stub IPC"
@@ -21,7 +27,7 @@ def run( start_x, start_y, start_theta, ipc_channel = None, shared_data = {}, ma
   print
 
   localizer = DumbLocalizer(start_pose)
-  #localizer = particles.ParticleLocalizer(std_sensors.sensors, std_noise.noise_params, map_data, pcount=1000)
+  #localizer = particles.ParticleLocalizer(std_sensors.default, std_noise.noise_params, map_data, pcount=1000)
 
   while True:
     msg = ipc_channel.read()
@@ -43,7 +49,7 @@ class Fake_IPC(object):
   def __init__(self, start_pose, map_data, delay = 0.0):
     self.delay = delay
     self.map = map_data
-    self.simbot = robot.SimRobot(pose = start_pose, sensors = std_sensors.sensors, 
+    self.simbot = robot.SimRobot(pose = start_pose, sensors = std_sensors.default, 
                             noise_params = std_noise.noise_params)
 
   def read(self):
@@ -73,7 +79,10 @@ class DumbLocalizer(object):
 
 if __name__ == '__main__':
 
-  m = map.Map('maps/test3.map')
+  #m = map.Map('maps/test3.map')
+  map_obj = mapping.pickler.unpickle_map('../mapping/map.pkl')
+  m = map.Map.from_map_class(map_obj)
+
   start_x = m.xdim / 2
   start_y = m.ydim / 2
   start_theta = 0

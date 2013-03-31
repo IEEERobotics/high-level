@@ -6,7 +6,8 @@ from particleplot import *
 from robot import *
 from robotplot import *
 
-from map import *
+#from map import *
+import map
 from mapplot import *
 
 #from probability import *
@@ -21,10 +22,16 @@ from numpy.random import random
 import std_sensors
 import std_noise
 
+import sys
+sys.path.append('..')
+import mapping.map_class
+sys.modules['map_class'] = mapping.map_class  # deal with the fact we pickled a module in another dir
+import mapping.pickler
+
 noise_params = std_noise.noise_params
 
-particle_count = None
-map = None
+#particle_count = None
+#map = None
 
 class Simulator(HasTraits):
     container = Instance(OverlayPlotContainer)
@@ -55,7 +62,7 @@ class Simulator(HasTraits):
     traits_view = View(
                        #Item('robot', editor=InstanceEditor(), style='custom'),
                        Item('container', editor=ComponentEditor(), show_label=False),
-                       Group(Item('actual'), Item('guess'),Item('score',springy=True), orientation = 'horizontal'),
+                       Group(Item('actual',springy=True), Item('guess', springy=True),Item('score',springy=True), orientation = 'horizontal'),
                        Group(Item('sense'),Item('update'), orientation = 'horizontal'),
                        Group(Item('random'), 
                              Item('move'),
@@ -70,13 +77,13 @@ class Simulator(HasTraits):
         )
 
     def _sense_fired(self):
-      measured = self.robot.sense(map)
+      measured = self.robot.sense(themap)
       self.sensors = "F: %0.2f  L: %0.2f  R: %0.2f  B: %0.2f" % ( measured[0], measured[1], measured[2], measured[3])
 
     # currently not used, logic wrapped into move_fired for now
     def _update_fired(self):
       print "update!"
-      measured = self.robot.sense(map)
+      measured = self.robot.sense(themap)
       self.sensors = "F: %0.2f  L: %0.2f  R: %0.2f  B: %0.2f" % ( measured[0], measured[1], measured[2], measured[3])
       self.localizer.update(measured)
 
@@ -105,23 +112,24 @@ class Simulator(HasTraits):
       self.guessplotter.do_redraw()
 
     def __init__(self):
-      m = MapPlot(map = map)
-      self.map_scale = map.scale
-      self.map_info = "%s" % map
+      m = MapPlot(map = themap)
+      self.map_scale = themap.scale
+      self.map_info = "%s" % themap
 
       self.noise_sensor = std_sensors.default[0].noise
       self.noise_move = noise_params['move']
       self.noise_turn = noise_params['turn']
 
-      start_pose = Pose(map.x_inches/2, map.y_inches/2, 0.0)
-      robot = SimRobot(start_pose, std_sensors.centered_cone, noise_params = noise_params)
-      rplotter = RobotPlotter(robot = robot, xsize = map.x_inches, ysize = map.y_inches)
+      #start_pose = Pose(themap.x_inches/2, themap.y_inches/2, 0.0)
+      start_pose = Pose(6, 2.6, pi/2)
+      robot = SimRobot(start_pose, std_sensors.offset_cone, noise_params = noise_params)
+      rplotter = RobotPlotter(robot = robot, xsize = themap.x_inches, ysize = themap.y_inches)
 
-      localizer = ParticleLocalizer(std_sensors.centered_cone, noise_params, map, particle_count, start_pose)
-      pplotter = ParticlePlotter(particles = localizer.p, xsize = map.x_inches, ysize = map.y_inches, color = 'red')
+      localizer = ParticleLocalizer(std_sensors.offset_cone, noise_params, themap, particle_count, start_pose)
+      pplotter = ParticlePlotter(particles = localizer.p, xsize = themap.x_inches, ysize = themap.y_inches, color = 'red')
 
       guessbot = Robot(start_pose)
-      guessplotter = RobotPlotter(robot = guessbot, xsize = map.x_inches, ysize = map.y_inches, color = 'green' )
+      guessplotter = RobotPlotter(robot = guessbot, xsize = themap.x_inches, ysize = themap.y_inches, color = 'green' )
 
       c = OverlayPlotContainer()
       c.add(m.plot)
@@ -144,10 +152,21 @@ if __name__ == "__main__":
   parser.add_argument('-r', '--res', help='Map res (inchs/block)', type=float, default='1.0' )
   args = parser.parse_args()
 
-  map = Map(args.map, args.res)
+  #map = Map(args.map, args.res)
+  map_obj = mapping.pickler.unpickle_map('../mapping/map.pkl')
+  waypoints = mapping.pickler.unpickle_waypoints('../mapping/waypoints.pkl')
+  for i in range(14):
+    map_obj.fillLoc(waypoints, "St%02d"%(i+1), {'desc':8})
+  #for i in range(6):
+  #  map_obj.fillLoc(waypoints, "L%02d"%(i+1), {'desc':8})
+  #for i in range(6):
+  #  map_obj.fillLoc(waypoints, "Se%02d"%(i+1), {'desc':8})
+
+  themap = map.Map.from_map_class(map_obj)
+
   particle_count = args.num
 
-  print map
+  print themap
   #print map.data
 
   s = Simulator()

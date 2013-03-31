@@ -18,10 +18,10 @@ centered_cone.append(Ultrasonic('L', Pose(0.0,0.0,pi/2), sensor_noise, cone=True
 centered_cone.append(Ultrasonic('R', Pose(0.0,0.0,-pi/2), sensor_noise, cone=True))
 centered_cone.append(Ultrasonic('B', Pose(0.0,0.0,-pi), sensor_noise, cone=True))
 
-offset = []
-offset.append(Ultrasonic('F', Pose(4.0,0,0.0), sensor_noise))
-offset.append(Ultrasonic('L', Pose(0.0,-4.0,pi/2), sensor_noise))
-offset.append(Ultrasonic('R', Pose(0.0,4.0,-pi/2), sensor_noise))
-offset.append(Ultrasonic('B', Pose(-4.0,0,-pi), sensor_noise))
+offset_cone = []
+offset_cone.append(Ultrasonic('F', Pose(0.0,8.4,0.0), sensor_noise, cone=True))
+offset_cone.append(Ultrasonic('L', Pose(-5.0,3.4,pi/2), sensor_noise, cone=True))
+offset_cone.append(Ultrasonic('R', Pose(5.0,3.4,-pi/2), sensor_noise, cone=True))
+offset_cone.append(Ultrasonic('B', Pose(0.0,-1.6,-pi), sensor_noise, cone=True))
 
-default = centered_cone
+default = offset_cone

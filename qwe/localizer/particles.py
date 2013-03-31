@@ -43,7 +43,8 @@ class ParticleLocalizer(object):
     #else:
     #  self.resample(10.0)
     #  print "Worse"
-    self.resample(10.0)
+
+    self.resample(0.0)
 
   # Sense and Resample
   def score(self):
@@ -163,9 +164,9 @@ class Particles(object):
     else:
       xy_var = noise['move']
       theta_var = noise['turn']
-      self.x = random.randn(self.pcount) * xy_var + start_pose.x
-      self.y = random.randn(self.pcount) * xy_var + start_pose.y
-      self.theta = random.randn(self.pcount) * theta_var + start_pose.theta
+      self.x = random.randn(self.pcount) * xy_var*2 + start_pose.x
+      self.y = random.randn(self.pcount) * xy_var*2 + start_pose.y
+      self.theta = random.randn(self.pcount) * theta_var*2 + start_pose.theta
 
   def __str__(self):
     out = "Particles:\n"

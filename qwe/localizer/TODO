@@ -1,12 +1,5 @@
-- map starting locations
-- PF starting distribution other than random
 - PF shortcut through center
-- use Ricker's map
 - dynamic resampler based on error (measured versus modelled sense of best guess)
   - error increasing -> more particles
   - error decreasing -> less particles
-
------
-
-x weighted guess
-
+- handle ramps and edges
