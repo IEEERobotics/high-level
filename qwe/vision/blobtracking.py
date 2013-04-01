@@ -2,8 +2,14 @@
 
 from math import sqrt, hypot
 import numpy as np
-import cv2
-import cv2.cv as cv
+
+try:
+  import cv2
+  import cv2.cv as cv
+except ImportError:
+  print "You need OpenCV to use vision modules, sorry."
+  sys.exit(1)
+
 from util import Enum
 from base import DependentFrameProcessor
 from main import main

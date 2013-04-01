@@ -5,7 +5,13 @@ import sys
 import argparse
 import signal
 import numpy as np
-import cv2
+
+try:
+  import cv2
+except ImportError:
+  print "You need OpenCV to use vision modules, sorry."
+  sys.exit(1)
+
 from util import KeyCode, isImageFile, log, rotateImage
 from base import FrameProcessor, FrameProcessorPipeline
 from colorfilter import ColorFilterProcessor

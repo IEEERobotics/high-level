@@ -4,8 +4,13 @@ Utility classes and functions.
 
 import os
 import numpy as np
-import cv2
-from cv2 import cv
+
+try:
+  import cv2
+  from cv2 import cv
+except ImportError:
+  print "You need OpenCV to use vision modules, sorry."
+  sys.exit(1)
 
 image_file_exts = ("png", "jpg", "jpeg", "tiff", "bmp", "gif")  # file extensions that indicate image files
 

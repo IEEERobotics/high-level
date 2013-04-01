@@ -1,7 +1,13 @@
 """Navigation along a white line using visual feedback."""
 
 import numpy as np
-import cv2
+
+try:
+  import cv2
+except ImportError:
+  print "You need OpenCV to use vision modules, sorry."
+  sys.exit(1)
+
 from util import Enum, rotateImage
 from base import DependentFrameProcessor
 from main import main

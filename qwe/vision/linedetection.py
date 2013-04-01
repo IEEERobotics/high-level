@@ -3,7 +3,13 @@
 
 from math import sqrt, atan2, degrees
 import numpy as np
-import cv2
+
+try:
+  import cv2
+except ImportError:
+  print "You need OpenCV to use vision modules, sorry."
+  sys.exit(1)
+
 from util import Enum
 from base import DependentFrameProcessor, FrameProcessorPipeline
 from main import main

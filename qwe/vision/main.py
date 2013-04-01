@@ -3,7 +3,13 @@
 
 import sys
 from time import sleep
-import cv2
+
+try:
+  import cv2
+except ImportError:
+  print "You need OpenCV to use vision modules, sorry."
+  sys.exit(1)
+
 from util import KeyCode, isImageFile
 from base import FrameProcessor
 

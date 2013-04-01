@@ -1,6 +1,12 @@
 import numpy as np
-import cv2
-from cv2 import cv
+
+try:
+  import cv2
+  from cv2 import cv
+except ImportError:
+  print "You need OpenCV to use vision modules, sorry."
+  sys.exit(1)
+
 import util as util
 import random
 

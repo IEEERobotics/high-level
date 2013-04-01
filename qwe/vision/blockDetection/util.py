@@ -3,8 +3,13 @@ Utility classes and functions.
 """
 
 import numpy as np
-import cv2
-from cv2 import cv
+
+try:
+  import cv2
+  from cv2 import cv
+except ImportError:
+  print "You need OpenCV to use vision modules, sorry."
+  sys.exit(1)
 
 class Enum(tuple):
   """Simple enumeration type based on tuple with indices as integer values."""
