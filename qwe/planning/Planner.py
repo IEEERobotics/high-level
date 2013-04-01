@@ -106,7 +106,7 @@ class Planner:
       
       #get block from vision
       block = self.storageSim[i]
-      print "Processing: [", block.getColor(), block.getSize(), block.getLocation(), "]"
+      #print "Processing: [", block.getColor(), block.getSize(), block.getLocation(), "]"
            
       #if the block is small, assign that to list of air blocks
       #continue / move to next block
@@ -114,9 +114,8 @@ class Planner:
         self.nextAirBlock.append(block)
         continue
       
-      #in order to pick up a block, we must first check if we are centered...
+      #in order to pick up a block, first check if bot is centered
       #that code can exist in pickUpBlock().
-      self.goToBlock(block.getLocation())             
       self.pickUpBlock(armCount) #arm 0 or 1.
       armList.append(block)
       armCount = armCount + 1;
@@ -133,24 +132,6 @@ class Planner:
           
           goToNextDropOff(armList[1], "sea")
           self.placeBlock(1)
-          #if not self.nextSeaBlockLoc:
-          #  self.scanLandorSeaFirstTime("sea")
-          
-          #print "Arm 0 - [", armList[0].getColor(), armList[0].getLocation(), "] -- Location: ", self.nsbl[armList[0].getColor()]
-          #print "Arm 1 - [", armList[1].getColor(), armList[1].getLocation(), "] -- Location: ", self.nsbl[armList[1].getColor()]
-          
-          #get location color, and centering information from vision
-          #if the color matches one of the blocks in hand, put the block down,
-          #else store the color to nextblockloc...
-                    
-#          if self.nsbl[armList[0].getColor()] > self.nsbl[armList[1].getColor()]:
-#            self.placeBlock(armList[1], self.nsbl[armList[1].getColor()], 1)
-#            self.placeBlock(armList[0], self.nsbl[armList[0].getColor()], 0)
-#          else:
-#            print "arm 0 first"
-#            self.placeBlock(armList[0], self.nsbl[armList[0].getColor()], 0)
-#            self.placeBlock(armList[1], self.nsbl[armList[1].getColor()], 1)
-          #place A and B in the closeness order (sea.ColorLoc)
 
         #Both arms contain land blocks
         elif armList[0].getSize() == "large" and armList[1].getSize() == "large":
