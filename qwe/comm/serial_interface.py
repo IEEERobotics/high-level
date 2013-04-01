@@ -315,11 +315,11 @@ class SerialCommand:
   
   def gripperOpen(self, arm):
     gripper = grippers[arm]
-    return gripperSetAngle(gripper, gripper_angles[gripper][0])
+    return self.gripperSetAngle(gripper, gripper_angles[gripper][0])
   
   def gripperClose(self, arm):
     gripper = grippers[arm]
-    return gripperSetAngle(gripper, gripper_angles[gripper][1])
+    return self.gripperSetAngle(gripper, gripper_angles[gripper][1])
   
   def getAllSensorData(self):
     return self.runCommand("sensors")  # return the entire dict full of sensor data
