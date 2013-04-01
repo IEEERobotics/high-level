@@ -32,7 +32,7 @@ import comm.serial_interface as comm
 
 if __name__ == "__main__":
   # Confirm that controller is being run from correct directory
-  if not os.getcwd().endswith("high-level/qwe"):
+  if not os.getcwd().endswith("qwe"):
     print "Run me from ./qwe"
     sys.exit(errors["ERROR_BAD_CWD"])
 
