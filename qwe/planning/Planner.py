@@ -87,8 +87,11 @@ class Planner:
     x, y = self.waypoints[endLoc][1]
     theta = self.waypoints[endLoc][2]
     speed = self.waypoints[endLoc][3]
+	self.bot_state["naving"] = True
     macro_m = nav.macro_move(x, y, theta, datetime.now())
     self.qMove_nav.put(macro_m)
+	while self.bot_state["naving"] != False:
+	  continue
 
   def moveTo(Self, startLoc, endLoc):
     print "Moving from ", startLoc, " to ", endLoc
