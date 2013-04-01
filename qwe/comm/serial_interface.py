@@ -10,7 +10,7 @@ import threading
 from multiprocessing import Process, Queue, Manager
 from Queue import Empty as Queue_Empty
 from time import sleep
-
+from collections import namedtuple
 import test
 
 default_port = "/dev/ttyO3"
@@ -27,17 +27,10 @@ prefix_id = False  # send id pre-pended with commands?
 servo_delay = 1.0  # secs.; duration to sleep after sending a servo command to let it finish (motor-controller returns immediately)
 fake_delay = 0.001  # secs.; duration to sleep for when faking serial comm.
 
-# TODO move arm info out into action, creating an Arm class to encapsulate?
-left_arm = 0
-right_arm = 2
-
-arm_angles = { left_arm: (670, 340),
-               right_arm: (340, 670) }  # arm: (up, down)
-
-grippers = { left_arm: 1, right_arm: 3 }
 # TODO get correct gripper angles
-gripper_angles = { grippers[left_arm]: (200, 400),
-                   grippers[right_arm]: (200, 400) }  # gripper: (open, close)
+Arm = namedtuple('Arm', ['arm_id', 'arm_angles', 'gripper_id', 'gripper_angles'])
+left_arm = Arm(arm_id=0, arm_angles=(670, 340), gripper_id=1, gripper_angles=(200, 400))
+right_arm = Arm(arm_id=2, arm_angles=(340, 670), gripper_id=3, gripper_angles=(200, 400))
 
 sensors = { "heading": 0,  # compass / magnetometer
             "accel.x": 1,
@@ -297,29 +290,27 @@ class SerialCommand:
     response = self.runCommand("turn_rel {angle}".format(angle=int(angle)))
     return (angle + response.get('relHeading', 0))  # turn_rel returns remaining heading error, i.e. actual - desired; TODO confirm this
   
-  def armSetAngle(self, arm, angle, ramp=default_servo_ramp):  # angle: 
-    response = self.runCommand("servo {channel} {ramp} {angle}".format(channel=arm, ramp=ramp, angle=angle))
+  def armSetAngle(self, arm_id, angle, ramp=default_servo_ramp):
+    response = self.runCommand("servo {channel} {ramp} {angle}".format(channel=arm_id, ramp=ramp, angle=angle))
     sleep(servo_delay)  # wait here for servo to reach angle
     return response.get('result', False)
   
   def armUp(self, arm):
-    return self.armSetAngle(arm, arm_angles[arm][0])
+    return self.armSetAngle(arm.arm_id, arm.arm_angles[0])
   
   def armDown(self, arm):
-    return self.armSetAngle(arm, arm_angles[arm][1])
+    return self.armSetAngle(arm.arm_id, arm.arm_angles[1])
   
-  def gripperSetAngle(self, arm, angle, ramp=default_servo_ramp):
-    response = self.runCommand("servo {channel} {ramp} {angle}".format(channel=grippers[arm], ramp=ramp, angle=angle))
+  def gripperSetAngle(self, gripper_id, angle, ramp=default_servo_ramp):
+    response = self.runCommand("servo {channel} {ramp} {angle}".format(channel=gripper_id, ramp=ramp, angle=angle))
     sleep(servo_delay)  # wait here for servo to reach angle
     return response.get('result', False)
   
   def gripperOpen(self, arm):
-    gripper = grippers[arm]
-    return self.gripperSetAngle(gripper, gripper_angles[gripper][0])
+    return self.gripperSetAngle(arm.gripper_id, arm.gripper_angles[0])
   
   def gripperClose(self, arm):
-    gripper = grippers[arm]
-    return self.gripperSetAngle(gripper, gripper_angles[gripper][1])
+    return self.gripperSetAngle(arm.gripper_id, arm.gripper_angles[1])
   
   def getAllSensorData(self):
     return self.runCommand("sensors")  # return the entire dict full of sensor data
@@ -361,11 +352,11 @@ def main():
   # Serial interface
   print "main(): Creating SerialInterface(port=\"{port}\", baudrate={baudrate}, timeout={timeout}) process...".format(port=port, baudrate=baudrate, timeout=(-1 if timeout is None else timeout))
   
-  #manager = Manager()  # manager service to share data across processes; NOTE must on Windows
-  #si_commands = Queue(default_queue_maxsize)  # queue to store commands, process-safe; NOTE must on Windows
-  #si_responses = manager.dict()  # shared dict to store responses, process-safe; NOTE must on Windows
-  #si = SerialInterface(port, baudrate, timeout, si_commands, si_responses)  # NOTE commands and responses need not be passed in (other than in Windows?); SerialInterface creates its own otherwise
-  si = SerialInterface(port, baudrate, timeout)
+  manager = Manager()  # manager service to share data across processes; NOTE must on Windows
+  si_commands = Queue(default_queue_maxsize)  # queue to store commands, process-safe; NOTE must on Windows
+  si_responses = manager.dict()  # shared dict to store responses, process-safe; NOTE must on Windows
+  si = SerialInterface(port, baudrate, timeout, si_commands, si_responses)  # NOTE commands and responses need not be passed in (other than in Windows?); SerialInterface creates its own otherwise
+  #si = SerialInterface(port, baudrate, timeout)
   si.start()
   
   # Serial command(s): Wrappers for serial interface
