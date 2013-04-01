@@ -73,6 +73,8 @@ class Nav:
     can be helpful for testing."""
     self.logger.info("Started nav")
 
+    self.logger.debug("CWD of nav is {}".format(getcwd()))
+
     # Find path to ./qwe directory. Allows for flexibility in the location nav is run from.
     # TODO Could make this arbitrary by counting the number of slashes
     if getcwd().endswith("qwe"):
@@ -89,12 +91,16 @@ class Nav:
     self.build_env_script = path_to_qwe + "../scripts/build_env_file.sh"
     self.build_sbpl_script = path_to_qwe + "navigation/build_sbpl.sh"
     self.sbpl_executable = path_to_qwe + "navigation/sbpl/cmake_build/bin/test_sbpl"
+    self.sbpl_exec_from_sol_dir = "../sbpl/cmake_build/bin/test_sbpl"
     self.env_file = path_to_qwe + "navigation/envs/env.cfg"
+    self.env_file_from_sol_dir = "../envs/env.cfg"
     self.mprim_file = path_to_qwe + "navigation/mprim/prim_tip_priority_4inch_step3"
+    self.mprim_file_from_sol_dir = "../mprim/prim_tip_priority_4inch_step3"
     self.map_file = path_to_qwe + "navigation/maps/binary_map.txt"
     self.sol_file = path_to_qwe + "navigation/sols/sol.txt"
     self.sol_dir = path_to_qwe + "navigation/sols"
     self.sbpl_build_dir = path_to_qwe + "navigation/sbpl/cmake_build"
+    self.script_dir = path_to_qwe + "../scripts"
 
     # Open /dev/null for suppressing SBPL output
     #self.devnull = open("/dev/null", "w")
@@ -135,11 +141,13 @@ class Nav:
     # TODO Upgrade this to call SBPL directly, as described above
     # "Usage: ./build_env_file.sh <obsthresh> <cost_inscribed_thresh> <cost_possibly_circumscribed_thresh> <cellsize> <nominalvel>
     # <timetoturn45degsinplace> <start_x> <start_y> <start_theta> <end_x> <end_y> <end_theta> [<env_file> <map_file>]"
-    self.logger.debug("env_config: " + "{obsthresh} {cost_ins} {cost_cir} {cellsize} {nominalvel} {timetoturn45}".format(**env_config))
+    self.logger.debug("env_config: {}".format(pp.pformat(env_config)))
     self.logger.debug("Current pose: {} {} {}".format(curX, curY, curTheta))
     self.logger.debug("Goal pose: {} {} {}".format(goal_x, goal_y, goal_theta))
     self.logger.debug("Map file: " + str(self.map_file))
     self.logger.debug("Environment file to write: " + str(self.env_file))
+    self.logger.debug("Environment script to use {}".format(self.build_env_script))
+    self.logger.debug("CWD: {}".format(getcwd()))
 
     build_env_rv = call([self.build_env_script, env_config["obsthresh"],
                                                 env_config["cost_ins"],
@@ -154,7 +162,8 @@ class Nav:
                                                 str(goal_y),
                                                 str(goal_theta),
                                                 str(self.env_file),
-                                                str(self.map_file)])
+                                                str(self.map_file)],
+                                                cwd=str(getcwd()))
 
     # Check results of build_env_script call
     if build_env_rv != 0:
@@ -165,13 +174,13 @@ class Nav:
     # Run SBPL
     origCWD = getcwd()
     self.logger.debug("Changing dir from {}".format(origCWD))
-    #chdir(self.sol_dir)
+    chdir(self.sol_dir)
     self.logger.debug("Running SBPL CWD {}".format(getcwd()))
-    self.logger.debug("Running SBPL with executable {}".format(self.sbpl_executable))
-    self.logger.debug("Running SBPL with env_file {}".format(self.env_file))
-    self.logger.debug("Running SBPL with mprim_file {}".format(self.mprim_file))
-    sbpl_rv = call([self.sbpl_executable, self.env_file, self.mprim_file])
-    #chdir(origCWD)
+    self.logger.debug("Running SBPL with executable {}".format(self.sbpl_exec_from_sol_dir))
+    self.logger.debug("Running SBPL with env_file {}".format(self.env_file_from_sol_dir))
+    self.logger.debug("Running SBPL with mprim_file {}".format(self.mprim_file_from_sol_dir))
+    sbpl_rv = call([self.sbpl_exec_from_sol_dir, self.env_file_from_sol_dir, self.mprim_file_from_sol_dir])
+    chdir(origCWD)
 
     # Check results of SBPL run
     if sbpl_rv == -6:

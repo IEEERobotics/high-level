@@ -4,7 +4,6 @@ cmake_build/Makefile
 cmake_build/cmake_install.cmake
 cmake_build/libsbpl.a
 cmake_build/CMakeFiles/
-envs/env.cfg
 maps/map1.txt
 sols/debug.txt
 sols/envdebug.txt
