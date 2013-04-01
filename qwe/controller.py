@@ -120,7 +120,7 @@ if __name__ == "__main__":
 
   # Start navigator process, pass it shared data
   scNav = comm.SerialCommand(si.commands, si.responses)
-  pNav = Process(target=nav.run, args=(bot_loc, course_map, waypoints, qNav_loc, scNav, bot_state, qMove_nav))
+  pNav = Process(target=nav.run, args=(bot_loc, qNav_loc, scNav, bot_state, qMove_nav))
   pNav.start()
   logger.info("Navigator process started")
 

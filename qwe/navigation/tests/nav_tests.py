@@ -43,7 +43,7 @@ def fakeLoc(testQueue, bot_loc, logger):
   while True:
     logger.info("testQueue is waiting on data")
     ideal_loc = testQueue.get()
-    logger.info("testQueue recieved {}".format(pp.pformat(ideal_loc)))
+    logger.info("testQueue received {}".format(pp.pformat(ideal_loc)))
 
     if type(ideal_loc) == str and ideal_loc == "die":
       logger.info("fakeLoc is exiting")
@@ -107,7 +107,7 @@ class TestFileGeneration(unittest.TestCase):
 
     # Build nav object
     self.scNav = comm.SerialCommand(self.si.commands, self.si.responses)
-    self.Nav = nav.Nav(self.bot_loc, self.course_map, self.waypoints, self.qNav_loc, self.scNav, self.bot_state, self.qMove_nav, \
+    self.Nav = nav.Nav(self.bot_loc, self.qNav_loc, self.scNav, self.bot_state, self.qMove_nav, \
       self.logger)
     self.logger.info("Nav object instantiated")
 
@@ -217,7 +217,7 @@ class TestFullInteraction(unittest.TestCase):
 
     # Start nav process
     self.scNav = comm.SerialCommand(self.si.commands, self.si.responses)
-    self.pNav = Process(target=nav.run, args=(self.bot_loc, self.course_map, self.waypoints, self.qNav_loc, self.scNav, \
+    self.pNav = Process(target=nav.run, args=(self.bot_loc, self.qNav_loc, self.scNav, \
       self.bot_state, self.qMove_nav, self.logger, self.testQueue))
     self.pNav.start()
     self.logger.info("Navigator process started")
@@ -286,7 +286,7 @@ class TestFullInteraction(unittest.TestCase):
     self.qMove_nav.put("die")
 
   def test_simple_XY_move(self):
-    """Pass in a goal pose that only differes on the XY plane from the start pose"""
+    """Pass in a goal pose that only differs on the XY plane from the start pose"""
     self.logger.debug("Building goal pose")
 
     # Build goal pose
@@ -451,7 +451,7 @@ class TestUC(unittest.TestCase):
 
     # Build nav object
     self.scNav = comm.SerialCommand(self.si.commands, self.si.responses)
-    self.Nav = nav.Nav(self.bot_loc, self.course_map, self.waypoints, self.qNav_loc, self.scNav, self.bot_state, self.qMove_nav, \
+    self.Nav = nav.Nav(self.bot_loc, self.qNav_loc, self.scNav, self.bot_state, self.qMove_nav, \
       self.logger)
     self.logger.info("Nav object instantiated")
 
@@ -528,7 +528,7 @@ class TestlocsEqual(unittest.TestCase):
 
     # Build nav object
     self.scNav = comm.SerialCommand(self.si.commands, self.si.responses)
-    self.Nav = nav.Nav(self.bot_loc, self.course_map, self.waypoints, self.qNav_loc, self.scNav, self.bot_state, self.qMove_nav, \
+    self.Nav = nav.Nav(self.bot_loc, self.qNav_loc, self.scNav, self.bot_state, self.qMove_nav, \
       self.logger)
     self.logger.info("Nav object instantiated")
 
@@ -543,7 +543,7 @@ class TestlocsEqual(unittest.TestCase):
 
   def test_locsEqual_default_config_mixed_sign_twice_error(self):
     """Test function that's to check if two poses are equal to within some error. This test uses twice the acceptable error and
-    mixed negitive and positve values"""
+    mixed negative and positive values"""
 
     # Translate bot_loc data into internal units
     x0 = nav.config["XYErr"]
@@ -565,7 +565,7 @@ class TestlocsEqual(unittest.TestCase):
 
   def test_locsEqual_default_config_mixed_sign_half_error(self):
     """Test function that's to check if two poses are equal to within some error. This test uses half the acceptable error and
-    mixed negitive and positve values"""
+    mixed negative and positive values"""
 
     # Translate bot_loc data into internal units
     x0 = nav.config["XYErr"] / 4
@@ -587,7 +587,7 @@ class TestlocsEqual(unittest.TestCase):
 
   def test_locsEqual_default_config_neg_vals_half_error(self):
     """Test function that's to check if two poses are equal to within some error. This test uses half the acceptable error and
-    negitve values"""
+    negative values"""
 
     # Translate bot_loc data into internal units
     x0 = self.Nav.XYFrombot_locUC(self.bot_loc["x"]) * -1
@@ -605,11 +605,11 @@ class TestlocsEqual(unittest.TestCase):
 
     self.logger.debug("locsEqual returned {}".format(result))
 
-    self.assertTrue(result, "locsEqual returned False with negitive values and diff of half the acceptable error")
+    self.assertTrue(result, "locsEqual returned False with negative values and diff of half the acceptable error")
 
   def test_locsEqual_default_config_neg_vals_twice_error(self):
     """Test function that's to check if two poses are equal to within some error. This test uses twice the acceptable error and
-    negitve values"""
+    negative values"""
 
     # Translate bot_loc data into internal units
     x0 = self.Nav.XYFrombot_locUC(self.bot_loc["x"]) * -1
@@ -627,10 +627,10 @@ class TestlocsEqual(unittest.TestCase):
 
     self.logger.debug("locsEqual returned {}".format(result))
 
-    self.assertFalse(result, "locsEqual returned True with negitive values and with diff twice of acceptable error")
+    self.assertFalse(result, "locsEqual returned True with negative values and with diff twice of acceptable error")
 
   def test_locsEqual_default_config_neg_vals_0_error(self):
-    """Test function that's to check if two poses are equal to within some error. This test uses zero error and negitive values."""
+    """Test function that's to check if two poses are equal to within some error. This test uses zero error and negative values."""
 
     self.logger.info("Testing locsEqual with {} {} {} and {} {} {}".format(-1, -.5, -.25, -1, -.5, -.25))
 
@@ -638,7 +638,7 @@ class TestlocsEqual(unittest.TestCase):
 
     self.logger.debug("locsEqual returned {}".format(result))
 
-    self.assertTrue(result, "locsEqual returned False with negitve values and zero error")
+    self.assertTrue(result, "locsEqual returned False with negative values and zero error")
 
   def test_locsEqual_default_config_0_vals(self):
     """Test function that's to check if two poses are equal to within some error. This test uses zero for all values."""
@@ -756,7 +756,7 @@ class TestwhichXYTheta(unittest.TestCase):
 
     # Build nav object
     self.scNav = comm.SerialCommand(self.si.commands, self.si.responses)
-    self.Nav = nav.Nav(self.bot_loc, self.course_map, self.waypoints, self.qNav_loc, self.scNav, self.bot_state, self.qMove_nav, \
+    self.Nav = nav.Nav(self.bot_loc, self.qNav_loc, self.scNav, self.bot_state, self.qMove_nav, \
       self.logger)
     self.logger.info("Nav object instantiated")
 
