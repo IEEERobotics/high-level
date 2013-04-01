@@ -1,4 +1,4 @@
-"""Blob detection in CMYK color space."""
+"""Blob detection in CMYK + HSV color spaces."""
 
 import random
 import numpy as np
@@ -167,12 +167,13 @@ def getRects(ctrs, imageOut=None):
   rectList = []
   
   for ct in ctrs[0]:
+    #ct = ct.astype(np.int32)
     x, y, w, h = cv2.boundingRect(ct)
 
     #process only vertical rectagles (ie, w<h) with w and h > 1
     if w < h and w > 30 and h > 70:
       #print i, ". ", len(ct), " -- ", cv2.boundingRect(ct), (x+w/2), cv2.minAreaRect(ct)
-      rectList.append([cv2.boundingRect(ct), cv2.minAreaRect(ct)])
+      
       
       if imageOut is not None:
         clr=(random.randrange(0,255),random.randrange(0,255),random.randrange(0,255))
@@ -187,17 +188,28 @@ def getRects(ctrs, imageOut=None):
         #print box
         #cv2.drawContours(imageOut, [box], 0, (0,0,255),2)
       
-      if (x < 320) and ((x+w) > 320):
-        length = ""
-        if h > 173:
-          length = "large"
-        elif h > 140:
-          length = "medium"
-        elif h > 100:
-          length = "small"
-        print i, " : ", cv2.boundingRect(ct), " -- ", length, "---", x, x+w, y, h
+	  #dist = 320-(x+w/2)
+	  #direction = 1
+	  #if dist < 0:
+	  #  direction = -1
+	  #print "Distance to center: ", dist, "pixels -- ", dist*0.0192, "inches --", dist*0.0192*1622/9.89,"revolutions"
+	  	  
+      #if (x < 320) and ((x+w) > 320):
+      length = ""
+      if h > 173:
+        length = "large"
+      elif h > 140:
+        length = "medium"
+      elif h > 100:
+        length = "small"
+      #print i, " : ", cv2.boundingRect(ct), " -- ", length, "---", x, x+w, y, h
       
       i = i + 1
+	  
+	  #color detection code here... 
+	  color = "red"
+	  
+	  rectList.append([cv2.boundingRect(ct), cv2.minAreaRect(ct),length, color])
   
   if imageOut is not None:
     cv2.rectangle(imageOut, (318,0), (322,640), (255,255,255), -1)

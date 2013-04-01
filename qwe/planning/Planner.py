@@ -93,10 +93,10 @@ class Planner:
     while self.bot_state["naving"] != False:
       continue
 
-  def moveTo(Self, startLoc, endLoc):
+  def microMove(self, distance):
     print "Moving from ", startLoc, " to ", endLoc
-    #micro_m = nav.micro_move(x, y, theta, datetime.now())
-    #self.qMove_nav.put(micro_m)
+	micro_m = nav.microMoveXY(distance, comm.default_speed)
+    self.qMove_nav.put(micro_m)
     
   def processSeaLand(self):
     armCount = 0
@@ -126,6 +126,9 @@ class Planner:
       if armCount == 2:
         print "picked up 2 blocks"
         
+		#when dropping blocks off, offset the center of the bot
+		# about 0.5 from the center of the dropoff zone
+		
         #Both arms contain sea blocks
         if armList[0].getSize() == "medium" and armList[1].getSize() == "medium":
           self.moveToWayPoint(self.getCurrentLocation(), "sea")
