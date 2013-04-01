@@ -250,7 +250,7 @@ class Planner:
   def pickUpBlock(self, arm):
     armId = self.armID[arm]    
     #self.moveTo(self.getCurrentLocation(), blockLoc)
-    print "Picking Up Block at ", blockLoc, "with Arm", armId
+    #print "Picking Up Block at ", blockLoc, "with Arm", armId
     #call vision to make sure we are centered on the block
     #if we are not centered, micromove
     self.scPlanner.gripperOpen(armId)
@@ -262,7 +262,7 @@ class Planner:
   def placeBlock(self, arm):
     armId = self.armID[arm]
     #self.moveTo(self.getCurrentLocation(), blockLoc)
-    print "Placing block from ", self.armID[arm], "at", blockLoc
+    #print "Placing block from ", self.armID[arm], "at", blockLoc
     #call vision to make sure we are centered on the block
     #if we are not centered, micromove
     self.scPlanner.armDown(armId)
