@@ -105,7 +105,7 @@ class Planner:
       self.moveToWayPoint(self.getCurrentLocation(), stID)
       
       #get block from vision
-      block = storageSim[i]
+      block = self.storageSim[i]
       print "Processing: [", block.getColor(), block.getSize(), block.getLocation(), "]"
            
       #if the block is small, assign that to list of air blocks
