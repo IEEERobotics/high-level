@@ -13,12 +13,12 @@ except ImportError:
 from util import KeyCode, isImageFile
 from base import FrameProcessor
 
-def main(processor=FrameProcessor(options={ 'gui': True, 'debug': True })):  # default options
+def main(processor=FrameProcessor(options={ 'gui': True, 'debug': True }), gui=True):  # default options
     """Run a FrameProcessor object on a static image (repeatedly) or on frames from a camera/video."""
     # * Initialize parameters and flags
     delay = 10  # ms
     delayS = delay / 1000.0  # sec; only used in non-GUI mode, so this can be set to 0
-    gui = True  # TODO pass gui flag to FrameProcessors and make them change their behavior accordingly (i.e. suppress imshows when gui == False)
+    #gui = options.get('gui', True)
     showInput = gui and True
     showOutput = gui and True
     showFPS = False
@@ -143,7 +143,8 @@ def main(processor=FrameProcessor(options={ 'gui': True, 'debug': True })):  # d
     
     # * Clean-up
     print "main(): Cleaning up..."
-    cv2.destroyAllWindows()
+    if gui:
+      cv2.destroyAllWindows()
     if not isImage:
         camera.release()
     

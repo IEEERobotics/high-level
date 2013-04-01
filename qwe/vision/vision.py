@@ -15,6 +15,7 @@ except ImportError:
 from util import KeyCode, isImageFile, log, rotateImage
 from base import FrameProcessor, FrameProcessorPipeline
 from colorfilter import ColorFilterProcessor
+from blobdetection import CMYKBlobDetector
 from blobtracking import BlobTracker
 from linedetection import LineDetector
 from linewalking import LineWalker
@@ -99,7 +100,8 @@ class VisionManager:
     
     # * Create pipeline(s) of FrameProcessor objects, initialize supporting variables
     #pipeline = FrameProcessorPipeline(self.options, [ColorFilterProcessor, LineDetector, LineWalker])  # line walking pipeline
-    pipeline = FrameProcessorPipeline(self.options, [ColorFilterProcessor, BlobTracker])  # blob tracking pipeline
+    pipeline = FrameProcessorPipeline(self.options, [CMYKBlobDetector])  # CMYK blob detection pipeline
+    #pipeline = FrameProcessorPipeline(self.options, [ColorFilterProcessor, BlobTracker])  # blob tracking pipeline
     #pipeline = FrameProcessorPipeline(self.options, [ColorFilterProcessor, LineDetector, LineWalker, BlobTracker])  # combined pipeline
     # ** Get references to specific processors for fast access
     #colorFilter = pipeline.getProcessorByType(ColorFilterProcessor)
@@ -243,9 +245,9 @@ class VisionManager:
       log(self, func, msg)
 
 
-def run(bot_loc=None, blocks=None, zones=None, corners=None, waypoints=None, options=None, standalone=False):
+def run(bot_loc=None, blobs=None, blocks=None, zones=None, corners=None, waypoints=None, sc=None, bot_state=None, options=None, standalone=False):
   """Entry point for vision process: Create VisionManager to handle shared data and start vision loop."""
-  visManager = VisionManager(bot_loc=bot_loc, blocks=blocks, zones=zones, corners=corners, waypoints=waypoints, options=options, standalone=standalone)  # passing in shared data, options dict and stand-alone flag; use named arguments to avoid positional errors
+  visManager = VisionManager(bot_loc=bot_loc, blobs=blobs, blocks=blocks, zones=zones, corners=corners, waypoints=waypoints, sc=sc, bot_state=bot_state, options=options, standalone=standalone)  # passing in shared data, options dict and stand-alone flag; use named arguments to avoid positional errors
   visManager.start()  # start vision loop
 
 
