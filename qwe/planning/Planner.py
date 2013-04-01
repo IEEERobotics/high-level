@@ -60,15 +60,15 @@ class Planner:
     self.nextLandBlockLoc = ["L01","L02","L03","L04","L05","L06"]
     self.colors = ["red", "blue", "green", "orange", "brown", "yellow"]
     
-    for i in range(len(nextSeaLandBlock)):
+    for i in range(len(self.nextSeaLandBlock)):
       self.blocks[i] = 1
-    for i in range(len(nextSeaBlockLoc)):
+    for i in range(len(self.nextSeaBlockLoc)):
       self.zones[i] = 0
-    for i in range(len(nextLandBlockLoc)):
+    for i in range(len(self.nextLandBlockLoc)):
       self.zones[i] = 0
-    for i in range(len(colors)):
-      self.scannedSeaLocs[colors[i]] = "empty"
-      self.scannedLandLocs[colors[i]] = "empty"
+    for i in range(len(self.colors)):
+      self.scannedSeaLocs[self.colors[i]] = "empty"
+      self.scannedLandLocs[self.colors[i]] = "empty"
     
   #get current location
   def getCurrentLocation(self):
