@@ -40,13 +40,13 @@ gripper_angles = { grippers[left_arm]: (200, 400),
                    grippers[right_arm]: (200, 400) }  # gripper: (open, close)
 
 sensors = { "heading": 0,  # compass / magnetometer
-            "accel_x": 1,
-            "accel_y": 2,
-            "accel_z": 3,
-            "ultrasonic_left": 4,
-            "ultrasonic_front": 5,
-            "ultrasonic_right": 6,
-            "ultrasonic_back": 7 }
+            "accel.x": 1,
+            "accel.y": 2,
+            "accel.z": 3,
+            "ultrasonic.left": 4,
+            "ultrasonic.front": 5,
+            "ultrasonic.right": 6,
+            "ultrasonic.back": 7 }
 
 class SerialInterface(Process):
   """Encapsulates functionality to send (multiplexed) commands over a serial line."""
@@ -285,19 +285,19 @@ class SerialCommand:
     response = self.runCommand("pwm_drive {left} {right}".format(left=left, right=right))  # TODO use putCommand() [see botStop()]
     return response.get('result', False)
   
-  def botMove(self, distance, speed=default_speed):
+  def botMove(self, distance, speed=default_speed):  # distance: mm, speed: mm / sec (?)
     response = self.runCommand("move {speed} {distance}".format(speed=speed, distance=distance))
-    return int(response.get('distance', 0))
+    return int(response.get('distance', distance))
   
-  def botTurnAbs(self, angle):
-    response = self.runCommand("turn_abs {angle}".format(angle=int(angle * 10.0)))  # angle is 10ths of a degree
-    return float(response.get('absHeading', 0)) / 10.0  # TODO make 10.0 factor a parameter
+  def botTurnAbs(self, angle):  # angle: 10ths of a degree
+    response = self.runCommand("turn_abs {angle}".format(angle=int(angle)))
+    return response.get('absHeading', angle)
   
-  def botTurnRel(self, angle):
-    response = self.runCommand("turn_rel {angle}".format(angle=int(angle * 10.0)))  # angle is 10ths of a degree
-    return float(response.get('relHeading', 0)) / 10.0  # TODO make 10.0 factor a parameter
+  def botTurnRel(self, angle):  # angle: 10ths of a degree
+    response = self.runCommand("turn_rel {angle}".format(angle=int(angle)))
+    return (angle + response.get('relHeading', 0))  # turn_rel returns remaining heading error, i.e. actual - desired; TODO confirm this
   
-  def armSetAngle(self, arm, angle, ramp=default_servo_ramp):
+  def armSetAngle(self, arm, angle, ramp=default_servo_ramp):  # angle: 
     response = self.runCommand("servo {channel} {ramp} {angle}".format(channel=arm, ramp=ramp, angle=angle))
     sleep(servo_delay)  # wait here for servo to reach angle
     return response.get('result', False)
