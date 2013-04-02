@@ -139,48 +139,48 @@ class Planner:
       if armCount == 2:
         print "picked up 2 blocks"
         
-    #when dropping blocks off, offset the center of the bot
-    # about 0.5 from the center of the dropoff zone
+        #when dropping blocks off, offset the center of the bot
+        #about 0.5 from the center of the dropoff zone
     
         #Both arms contain sea blocks
         if armList[0].getSize() == "medium" and armList[1].getSize() == "medium":
           self.moveToWayPoint(self.getCurrentLocation(), "sea")
           
-          goToNextDropOff(armList[0], "sea")
+          self.goToNextSeaDropOff(armList[0])
           self.placeBlock(0)
           
-          goToNextDropOff(armList[1], "sea")
+          self.goToNextSeaDropOff(armList[1])
           self.placeBlock(1)
 
         #Both arms contain land blocks
         elif armList[0].getSize() == "large" and armList[1].getSize() == "large":
           self.moveToWayPoint(self.getCurrentLocation(), "land")
           
-          goToNextDropOff(armList[0], "land")
+          self.goToNextLandDropOff(armList[0])
           self.placeBlock(0)
           
-          armId = goToNextDropOff(armList[1], "land")
+          self.goToNextLandDropOff(armList[1])
           self.placeBlock(1)
               
         #One arm contains sea block and other contains land block
         elif armList[0].getSize() == "medium" and armList[1].getSize() == "large":
           self.moveToWayPoint(self.getCurrentLocation(), "sea")
-          goToNextDropOff(armList, "sea")
+          self.goToNextSeaDropOff(armList[0])
           self.placeBlock(0)
         
           self.moveToWayPoint(self.getCurrentLocation(), "land")
-          goToNextDropOff(armList, "land")
+          self.goToNextLandDropOff(armList[1])
           self.placeBlock(1)
             
         #One arm contains land block and other contains sea block
         elif armList[0].getSize() == "large" and armList[1].getSize() == "medium":
           # even if the orders are different, first go to sea then land
           self.moveToWayPoint(self.getCurrentLocation(), "sea")
-          goToNextDropOff(armList[1], "sea")
+          self.goToNextSeaDropOff(armList[1])
           self.placeBlock(1)
         
           self.moveToWayPoint(self.getCurrentLocation(), "land")
-          goToNextDropOff(armList[0], "land")
+          self.goToNextLandDropOff(armList[0])
           self.placeBlock(0)
                 
         armCount = 0
