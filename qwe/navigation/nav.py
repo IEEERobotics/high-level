@@ -34,7 +34,7 @@ errors.update(dict((v,k) for k,v in errors.iteritems())) # Converts errors to a 
 env_config = { "obsthresh" : "1", "cost_ins" : "1", "cost_cir" : "0", "cellsize" : "0.00635", "nominalvel" : "1000.0", 
   "timetoturn45" : "2", "max_sensor_tries" : 10 }
 
-config = { "steps_between_locs" : 5, "XYErr" : (float(env_config["cellsize"]) * 1.01), "thetaErr" : (0.39269908169 * 1.5),
+config = { "steps_between_locs" : 5, "XYErr" : (float(env_config["cellsize"]) * 50), "thetaErr" : (0.39269908169 * 1.5),
 "loc_wait" : .01, "default_left_US" : 100, "default_right_US" : 100, "default_front_US" : 100, "default_back_US" : 100, 
 "default_accel_x" : 0, "default_accel_y" : 0, "default_accel_z" : 980, "default_heading" : 0 }
 
@@ -396,11 +396,13 @@ class Nav:
 
     :param dist: Distance to convert from meters to comm distance units (mm)"""
 
+    self.logger.debug("Translated XY move command from {} to {}".format(dist, float(dist) * 1000 ))
+
     # Mark location as dirty, since I'm about to issue a move command
     self.bot_loc["dirty"] = True
     self.logger.info("Bot loc is now marked as dirty")
 
-    return float(dist) * 100
+    return float(dist) * 1000
 
   def angleToCommUC(self, angle):
     """Convert from internal angle units (radians) to units used by comm for angles (tenths of degrees). Also, since all move 
@@ -408,6 +410,8 @@ class Nav:
 
 
     :param angle: Angle to convert from radians to comm angle units"""
+
+    self.logger.debug("Translated theta move command from {} to {}".format(angle, float(angle) * 57.2957795 * 10))
 
     # Should feed 1/10 degrees with sign
 
@@ -421,12 +425,16 @@ class Nav:
     """Convert result returned by comm for distance moves to internal units (meters)
 
     :param commResult: Distance result returned by comm (mm) to convert to meters"""
-    return float(commResult) / 100
+
+    self.logger.debug("Translated XY commResult from {} to {}".format(commResult, float(commResult) / 1000))
+    return float(commResult) / 1000
 
   def angleFromCommUC(self, commResult):
     """Convert result returned by comm for angle moves to internal units (radians)
 
     :param commResult: Angle result returned by comm to convert to radians"""
+
+    self.logger.debug("Translated theta commResult from {} to {}".format(commResult, float(commResult) / 10 / 57.2957795))
     return float(commResult) / 10 / 57.2957795
 
   def distToLocUC(self, dist):
