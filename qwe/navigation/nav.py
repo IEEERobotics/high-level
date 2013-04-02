@@ -218,7 +218,6 @@ class Nav:
 
       self.logger.info("Blocking while waiting for command from queue with ID: " + pp.pformat(self.qMove_nav))
       # Signal that we nav is no longer running and is waiting for a goal pose
-      self.bot_state["naving"] = False
       move_cmd = self.qMove_nav.get()
       #self.bot_state["naving"] = True
       self.logger.info("Received move command: " + pp.pformat(move_cmd))
@@ -240,6 +239,7 @@ class Nav:
         if self.testQueue is not None:
           self.testQueue.put("die")
 
+        self.bot_state["naving"] = False
         exit(0)
       else:
         self.logger.warn("Move command is of unknown type")
@@ -250,6 +250,8 @@ class Nav:
         self.logger.info("Move command failed with error {}".format(errors[rv]))
       else:
         self.logger.info("Move command returned unknown value {}".format(rv))
+
+      self.bot_state["naving"] = False
 
   def macroMove(self, x, y, theta):
     """Handle global movement commands. Accept a goal pose and use SBPL + other logic to navigate to that goal pose.
@@ -627,7 +629,7 @@ class Nav:
     self.logger.info("Bot loc is now marked as dirty")
 
     # Pass distance to comm and block for response
-    commResult_m = self.distFromCommUC(self.scNav.botMove(self.distToCommUC(distance, speed)))
+    commResult_m = self.distFromCommUC(self.scNav.botMove(self.distToCommUC(distance), speed))
     self.logger.info("Comm returned XY movement feedback of {}".format(commResult_m))
 
     # Report move result to localizer ASAP
