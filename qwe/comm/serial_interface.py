@@ -19,18 +19,19 @@ default_timeout = 10  # seconds; float allowed
 default_queue_maxsize = 10
 
 default_speed = 400  # TODO set correct default speed when units are established
-default_servo_ramp = 10  # 0-63; 10 is a good number
+default_arm_ramp = 10  # 0-63; 10 is a good number
+default_servo_ramp = 5  # 0-63; 5 is a good number
 
 command_eol = "\r\n"
 is_sequential = True  # force sequential execution of commands
-prefix_id = False  # send id pre-pended with commands?
+prefix_id = True  # send id pre-pended with commands?
 servo_delay = 1.0  # secs.; duration to sleep after sending a servo command to let it finish (motor-controller returns immediately)
 fake_delay = 0.001  # secs.; duration to sleep for when faking serial comm.
 
-# TODO get correct gripper angles
+# TODO use direct commands [left, right]_[up, down, open, close, grab, drop]
 Arm = namedtuple('Arm', ['arm_id', 'arm_angles', 'gripper_id', 'gripper_angles'])
-left_arm = Arm(arm_id=0, arm_angles=(670, 340), gripper_id=1, gripper_angles=(200, 400))
-right_arm = Arm(arm_id=2, arm_angles=(340, 670), gripper_id=3, gripper_angles=(200, 400))
+left_arm = Arm(arm_id=0, arm_angles=(680, 310), gripper_id=1, gripper_angles=(900, 450))
+right_arm = Arm(arm_id=2, arm_angles=(330, 710), gripper_id=3, gripper_angles=(0, 350))
 
 sensors = { "heading": 0,  # compass / magnetometer
             "accel.x": 1,
@@ -290,7 +291,7 @@ class SerialCommand:
     response = self.runCommand("turn_rel {angle}".format(angle=int(angle)))
     return (angle + response.get('relHeading', 0))  # turn_rel returns remaining heading error, i.e. actual - desired; TODO confirm this
   
-  def armSetAngle(self, arm_id, angle, ramp=default_servo_ramp):
+  def armSetAngle(self, arm_id, angle, ramp=default_arm_ramp):
     response = self.runCommand("servo {channel} {ramp} {angle}".format(channel=arm_id, ramp=ramp, angle=angle))
     sleep(servo_delay)  # wait here for servo to reach angle
     return response.get('result', False)
@@ -301,7 +302,7 @@ class SerialCommand:
   def armDown(self, arm):
     return self.armSetAngle(arm.arm_id, arm.arm_angles[1])
   
-  def gripperSetAngle(self, gripper_id, angle, ramp=default_servo_ramp):
+  def gripperSetAngle(self, gripper_id, angle, ramp=default_gripper_ramp):
     response = self.runCommand("servo {channel} {ramp} {angle}".format(channel=gripper_id, ramp=ramp, angle=angle))
     sleep(servo_delay)  # wait here for servo to reach angle
     return response.get('result', False)

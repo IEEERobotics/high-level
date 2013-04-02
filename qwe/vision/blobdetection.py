@@ -13,20 +13,22 @@ except ImportError:
 import util
 from base import FrameProcessor
 from main import main
+from blobtracking import BlobTracker
 
 class SimpleBlob:
-  def __init__(self, contour, area=None, bbox=None, rect=None):
-    self.contour = contour
-    self.area = area if area is not None else cv2.contourArea(contour)  # area should've been pre-computed
-    self.bbox = bbox if bbox is not None else cv2.boundingRect(contour)
-    self.rect = rect if rect is not None else cv2.minAreaRect(contour)
+  colorBlue = (255, 0, 0)
+  colorDarkBlue = (128, 64, 64)
+  
+  def __init__(self, area, bbox, rect, length, color_bgr, color):
+    self.area = area
+    self.bbox = bbox
+    self.rect = rect
     self.center = (int(self.rect[0][0]), int(self.rect[0][1]))  # int precision is all we need
     self.size = self.rect[1]
     self.angle = self.rect[2]
-    self.color_bgr = (0, 0, 0)
-    self.color = "none"
-    self.length = "large"
-    # TODO compute color_bgr, color, length
+    self.length = length
+    self.color_bgr = color_bgr
+    self.color = color
     
     #if self.size[0] > self.size[1]:
     #  self.size = (self.size[1], self.size[0])  # force it to be tall and narrow (for convenience)
@@ -36,8 +38,15 @@ class SimpleBlob:
     #self.aspect = self.size[0] / self.size[1]
     #self.rectArea = self.size[0] * self.size[1]
     #self.density = self.area / self.rectArea
-    ##self.lastCenter = None  # filled in when a matching blob is found from last frame
+    #self.lastCenter = None  # filled in when a matching blob is found from last frame
     #self.active = True
+  
+  def draw(self, imageOut):
+    cv2.rectangle(imageOut, (self.bbox[0], self.bbox[1]), (self.bbox[0] + self.bbox[2], self.bbox[1] + self.bbox[3]), self.colorBlue, 2)
+  
+  def detail(self):
+    return "SimpleBlob: color: {color}, length: {length}, center: {center}, size: {size}, angle: {angle:.2f}, color_bgr: {color_bgr}".format(color=self.color, length=self.length, center=self.center, size=self.size, area=self.area, angle=self.angle, color_bgr=self.color_bgr)
+
 
 def hsv(img):
   hsv = cv2.cvtColor(img,cv.CV_BGR2HSV)
@@ -63,7 +72,6 @@ def hsv(img):
   #cv2.imshow("imBlack -- ", imBlack)
   
   imBlack3 = cv2.merge([imBlack, imBlack, imBlack])
-
   
   #cv2.imshow("h",h)
   #cv2.imshow("h1",h1)
@@ -193,7 +201,8 @@ def getRects(ctrs, imageOut=None):
   #print "getRects(): {0} contours".format(len(ctrs[0]))
   for ct in ctrs[0]:
     #ct = ct.astype(np.int32)
-    x, y, w, h = cv2.boundingRect(ct)
+    bbox = cv2.boundingRect(ct)
+    x, y, w, h = bbox
 
     length = ""
     #process only vertical rectagles (ie, w<h) with w and h > 1
@@ -249,6 +258,9 @@ def getRects(ctrs, imageOut=None):
 class CMYKBlobDetector(FrameProcessor):
   """Detects blobs in using transformations in CMYK color space."""
   
+  minBlobWidth = 20
+  minBlobHeight = 70
+  
   def __init__(self, options):
     FrameProcessor.__init__(self, options)
   
@@ -265,11 +277,6 @@ class CMYKBlobDetector(FrameProcessor):
     self.blobs = []
     
     imageColors, imageWhites = hsv(self.image)
-    self.processBlobs(imageColors, imageWhites, self.imageOut)
-    
-    return True, self.imageOut
-  
-  def processBlobs(self, imageColors, imageWhites, imageOut=None):
     if self.gui:
       cv2.imshow("imageColors", imageColors)
       cv2.imshow("imageWhites", imageWhites)
@@ -292,12 +299,61 @@ class CMYKBlobDetector(FrameProcessor):
     _,imbw = cv2.threshold(imgray, 0, 255, cv2.THRESH_BINARY)
     if self.gui:
       cv2.imshow("bw for imageWhites", imbw)
-    #cv2.imshow("imageColors Blocks", imgBlocks)
+    #cv2.imshow("imgBlocks", imgBlocks)
+    
+    # Contour processing: Old way
+    '''
     ctrs = cv2.findContours(imbw, cv2.RETR_LIST , cv2.CHAIN_APPROX_SIMPLE);
     #imgCopy = imageColors
+    
     rectList = getRects(ctrs, imageOut)
     self.logd("processBlobs", "{0} rects".format(len(rectList)))
+    '''
     
+    # Contour processing: New way
+    # * Find contours
+    contours, _ = cv2.findContours(imbw, cv2.RETR_LIST , cv2.CHAIN_APPROX_SIMPLE)
+    # TODO convert contours to 32-bit int here or for each individual contour?
+    
+    # * Walk through list of contours
+    for contour in contours:
+      # ** Compute blob properties to be used for filtering
+      area = cv2.contourArea(contour)
+      bbox = cv2.boundingRect(contour)
+      x, y, w, h = bbox
+      
+      # ** Filter out ones that are too small or too big
+      if area < BlobTracker.minBlobArea or area > BlobTracker.maxBlobArea: continue
+      
+      # ** Process only vertical rectangles (ie, w<h) with w and h > some threshold
+      if w >= h or w <= self.minBlobWidth or h <= self.minBlobHeight: continue
+      
+      # ** Compute additional blob properties to be stored
+      rect = cv2.minAreaRect(contour)
+      
+      length = ""
+      if h > 173:
+        length = "large"
+      elif h > 140:
+        length = "medium"
+      elif h > 100:
+        length = "small"
+      
+      imageBlob = imgBlocks[y:y+h, x:x+w]
+      #imageBlob = np.asarray(cv.GetSubRect(cv.fromarray(imgBlocks),rectList[i][0]))
+      color_bgr = cv2.mean(imageBlob)
+      
+      # ** Create blob object
+      blob = SimpleBlob(area=area, bbox=bbox, rect=rect, length=length, color_bgr=color_bgr, color="none")  # TODO identify color
+      
+      # ** Apply additional filter(s) on computed blob properties  # NOTE density is not being calculated in SimpleBlob
+      #if blob.density < BlobTracker.minBlobDensity: continue
+      
+      # ** Add to blobs list; TODO resolve with existing blob objects and update properties if a match is found?
+      self.blobs.append(blob)
+    
+    # Blob drawing: Old way
+    '''
     if self.gui:
       #print "B:\tG:\tR:"
       for i in range(len(rectList)):
@@ -307,20 +363,32 @@ class CMYKBlobDetector(FrameProcessor):
         #print x,y,w,h,t
         #x,y,w,h = rectList[i][0]
         
-        rec = np.asarray(cv.GetSubRect(cv.fromarray(imgBlocks),rectList[i][0]))
-        cv2.imshow(str(i), rec)
-        #showHist(rec, i)
-        #print rec.shape
-        #rh,rw,rc = rec.shape
-        #print rec[rh/2][rw/2][0],rec[rh/2][rw/2][1],rec[rh/2][rw/2][2]
-        #Cfinal, Mfinal, Yfinal, Kfinal = util.cvtColorBGR2CMYK_(rec)
+        
+        cv2.imshow(str(i), imageBlob)
+        #showHist(imageBlob, i)
+        #print imageBlob.shape
+        #rh,rw,rc = imageBlob.shape
+        #print imageBlob[rh/2][rw/2][0],imageBlob[rh/2][rw/2][1],imageBlob[rh/2][rw/2][2]
+        #Cfinal, Mfinal, Yfinal, Kfinal = util.cvtColorBGR2CMYK_(imageBlob)
         #print Cfinal[rh/2][rw/2],Mfinal[rh/2][rw/2],Yfinal[rh/2][rw/2],Kfinal[rh/2][rw/2]
-        #hsv = cv2.cvtColor(rec, cv.CV_BGR2HSV)
+        #hsv = cv2.cvtColor(imageBlob, cv.CV_BGR2HSV)
         #print hsv[rh/2][rw/2][0],hsv[rh/2][rw/2][1],hsv[rh/2][rw/2][2]
         #cv2.imshow('hsv'+str(i),hsv)
       #print "***********************"
+    '''
     
-    # TODO copy rectList into self.blobs?
+    self.blobs.sort(key=lambda blob: blob.bbox)  # sort blob list by bbox (left-to-right, top-to-bottom, ...)
+    
+    # * Report and draw blobs
+    self.logd("process", "{0} blobs".format(len(self.blobs)))
+    for blob in self.blobs:
+      self.logd("process", blob.detail())
+      if self.gui: blob.draw(self.imageOut)
+    
+    if self.gui:
+      cv2.rectangle(self.imageOut, (318,0), (322,640), (255,255,255), -1)  # draw center line
+    
+    return True, self.imageOut
 
 
 if __name__ == "__main__":
