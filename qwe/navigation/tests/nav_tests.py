@@ -32,6 +32,7 @@ sys.path.append(path_to_qwe + "mapping") # Makes map unpickle work
 # Local module imports
 import mapping.pickler as mapper
 import navigation.nav as nav
+import localizer.localizer as localizer
 import comm.serial_interface as comm
 
 # Paths to various files from qwe
@@ -91,7 +92,7 @@ class TestFileGeneration(unittest.TestCase):
     self.qMove_nav = Queue()
     self.logger.debug("Queue objects created")
 
-    # Get map, waypoints and map properties
+    # Get map, waypoints
     self.course_map = mapper.unpickle_map(path_to_qwe + "mapping/map.pkl")
     self.logger.info("Map unpickled")
     self.waypoints = mapper.unpickle_waypoints(path_to_qwe + "mapping/waypoints.pkl")
@@ -198,6 +199,8 @@ class TestFullInteraction(unittest.TestCase):
     self.logger.info("Map unpickled")
     self.waypoints = mapper.unpickle_waypoints(path_to_qwe + "mapping/waypoints.pkl")
     self.logger.info("Waypoints unpickled")
+    self.map_properties = mapper.unpickle_map_prop_vars(path_to_qwe + "mapping/map_prop_vars.pkl")
+    self.logger.debug("Map properties unpickled")
 
     # Find start location
     self.start_x = self.waypoints["start"][0][0] * float(nav.env_config["cellsize"]) * 39.3701
@@ -207,20 +210,27 @@ class TestFullInteraction(unittest.TestCase):
     # Build shared data structures
     self.manager = Manager()
     self.bot_loc = self.manager.dict(x=self.start_x, y=self.start_y, theta=self.start_theta, dirty=False)
-    self.bot_state = self.manager.dict(nav_type=None, action_type=None)
+    self.bot_state = self.manager.dict(nav_type=None, action_type=None, naving=False) #nav_type is "micro" or "macro"
+    self.blocks = self.manager.dict()
     self.logger.debug("Shared data structures created")
 
     # Start fakeLoc process
-    self.pfakeLoc = Process(target=fakeLoc, args=(self.testQueue, self.bot_loc, self.logger))
-    self.pfakeLoc.start()
-    self.logger.info("fakeLoc process started")
+    #self.pfakeLoc = Process(target=fakeLoc, args=(self.testQueue, self.bot_loc, self.logger))
+    #self.pfakeLoc.start()
+    #self.logger.info("fakeLoc process started")
 
     # Start nav process
     self.scNav = comm.SerialCommand(self.si.commands, self.si.responses)
     self.pNav = Process(target=nav.run, args=(self.bot_loc, self.qNav_loc, self.scNav, \
-      self.bot_state, self.qMove_nav, self.logger, self.testQueue))
+      self.bot_state, self.qMove_nav, self.logger))
     self.pNav.start()
     self.logger.info("Navigator process started")
+
+    # Start localizer process, pass it shared data, waypoints, map_properties course_map and queue for talking to nav
+    self.pLocalizer = Process(target=localizer.run, args=(self.bot_loc, self.blocks, self.map_properties, self.course_map, \
+      self.qNav_loc, self.bot_state, self.logger))
+    self.pLocalizer.start()
+    self.logger.info("Localizer process started")
 
   def tearDown(self):
     """Close serial interface threads"""
@@ -229,8 +239,11 @@ class TestFullInteraction(unittest.TestCase):
     self.pNav.join() 
     self.logger.info("Joined navigation process")
 
-    self.pfakeLoc.join()
-    self.logger.info("Joined fakeLoc process")
+    self.pLocalizer.join()
+    self.logger.info("Joined localizer process")
+
+    #self.pfakeLoc.join()
+    #self.logger.info("Joined fakeLoc process")
 
     # Join serial interface process
     self.scNav.quit()
@@ -269,8 +282,8 @@ class TestFullInteraction(unittest.TestCase):
     self.logger.debug("Building goal pose")
 
     # Build goal pose
-    goal_x = float(self.bot_loc["x"]) + (nav.config["XYErr"] / 2 / 0.0254)
-    goal_y = float(self.bot_loc["y"]) + (nav.config["XYErr"] / 2 / 0.0254)
+    goal_x = float(self.bot_loc["x"]) + (float(nav.env_config["cellsize"]) / 2 / 0.0254)
+    goal_y = float(self.bot_loc["y"]) + (float(nav.env_config["cellsize"]) / 2 / 0.0254)
     goal_theta = float(self.bot_loc["theta"]) + (nav.config["thetaErr"] / 2)
 
     goal_pose = nav.macro_move(goal_x, goal_y, goal_theta, datetime.now())
@@ -290,8 +303,10 @@ class TestFullInteraction(unittest.TestCase):
     self.logger.debug("Building goal pose")
 
     # Build goal pose
-    goal_x = float(self.bot_loc["x"]) + (nav.config["XYErr"] * 20 / 0.0254)
-    goal_y = float(self.bot_loc["y"]) + (nav.config["XYErr"] * 25 / 0.0254)
+    goal_x = float(self.bot_loc["x"]) + (float(nav.env_config["cellsize"]) * 20 / 0.0254)
+    goal_y = float(self.bot_loc["y"]) + (float(nav.env_config["cellsize"]) * 25 / 0.0254)
+    #goal_x = float(self.bot_loc["x"]) + (nav.config["XYerr"] * 20 / 0.0254)
+    #goal_y = float(self.bot_loc["y"]) + (nav.config["XYErr"] * 25 / 0.0254)
     goal_theta = float(self.bot_loc["theta"])
 
     goal_pose = nav.macro_move(goal_x, goal_y, goal_theta, datetime.now())
@@ -332,8 +347,8 @@ class TestFullInteraction(unittest.TestCase):
     self.logger.debug("Building goal pose")
 
     # Build goal pose
-    goal_x = float(self.bot_loc["x"]) + (nav.config["XYErr"] * 20 / 0.0254)
-    goal_y = float(self.bot_loc["y"]) + (nav.config["XYErr"] * 25 / 0.0254)
+    goal_x = float(self.bot_loc["x"]) + (float(nav.env_config["cellsize"]) * 20 / 0.0254)
+    goal_y = float(self.bot_loc["y"]) + (float(nav.env_config["cellsize"]) * 25 / 0.0254)
     goal_theta = float(self.bot_loc["theta"]) + (nav.config["thetaErr"] * 3)
 
     goal_pose = nav.macro_move(goal_x, goal_y, goal_theta, datetime.now())
@@ -354,8 +369,8 @@ class TestFullInteraction(unittest.TestCase):
     self.logger.debug("Building goal pose")
 
     # Build goal pose
-    goal_x0 = float(self.bot_loc["x"]) + (nav.config["XYErr"] * 20 / 0.0254)
-    goal_y0 = float(self.bot_loc["y"]) + (nav.config["XYErr"] * 25 / 0.0254)
+    goal_x0 = float(self.bot_loc["x"]) + (float(nav.env_config["cellsize"]) * 20 / 0.0254)
+    goal_y0 = float(self.bot_loc["y"]) + (float(nav.env_config["cellsize"]) * 25 / 0.0254)
     goal_theta0 = float(self.bot_loc["theta"]) + (nav.config["thetaErr"] * 3)
 
     goal_pose0 = nav.macro_move(goal_x0, goal_y0, goal_theta0, datetime.now())
@@ -367,12 +382,17 @@ class TestFullInteraction(unittest.TestCase):
     self.logger.debug("Put goal pose into queue")
 
     # Build goal pose
-    goal_x1 = float(self.bot_loc["x"]) - (nav.config["XYErr"] * 10 / 0.0254)
-    goal_y1 = float(self.bot_loc["y"]) - (nav.config["XYErr"] * 10 / 0.0254)
+    goal_x1 = float(self.bot_loc["x"]) - (float(nav.env_config["cellsize"]) * 10 / 0.0254)
+    goal_y1 = float(self.bot_loc["y"]) - (float(nav.env_config["cellsize"]) * 10 / 0.0254)
     goal_theta1 = float(self.bot_loc["theta"]) + (nav.config["thetaErr"] * 6)
 
     goal_pose1 = nav.macro_move(goal_x1, goal_y1, goal_theta1, datetime.now())
     self.logger.debug("Created goal pose {}".format(pp.pformat(goal_pose1)))
+
+    # Send goal pose via queue
+    self.logger.debug("About to send goal pose to queue with ID {}".format(str(self.qMove_nav)))
+    self.qMove_nav.put(goal_pose1)
+    self.logger.debug("Put goal pose into queue")
 
     # Pass a die command to nav
     self.logger.info("Telling nav to die")
@@ -395,6 +415,39 @@ class TestFullInteraction(unittest.TestCase):
     # Send goal pose via queue
     self.logger.debug("About to send goal pose to queue with ID {}".format(str(self.qMove_nav)))
     self.qMove_nav.put(goal_pose)
+    self.logger.debug("Put goal pose into queue")
+
+    # Pass a die command to nav
+    self.logger.info("Telling nav to die")
+    self.qMove_nav.put("die")
+
+  def test_move_to_loading_then_land(self):
+    """Pass in a goal pose that differes in X, Y and theta from the start pose"""
+    self.logger.debug("Building goal pose")
+
+    # Build goal pose
+    goal_x0 = self.waypoints["St01"][1][0]
+    goal_y0 = self.waypoints["St01"][1][1]
+    goal_theta0 = self.waypoints["St01"][2]
+
+    goal_pose0 = nav.macro_move(goal_x0, goal_y0, goal_theta0, datetime.now())
+    self.logger.debug("Created goal pose {}".format(pp.pformat(goal_pose0)))
+
+    # Send goal pose via queue
+    self.logger.debug("About to send goal pose to queue with ID {}".format(str(self.qMove_nav)))
+    self.qMove_nav.put(goal_pose0)
+    self.logger.debug("Put goal pose into queue")
+
+    goal_x1 = self.waypoints["L06"][1][0]
+    goal_y1 = self.waypoints["L06"][1][1]
+    goal_theta1 = self.waypoints["L06"][2]
+
+    goal_pose1 = nav.macro_move(goal_x1, goal_y1, goal_theta1, datetime.now())
+    self.logger.debug("Created goal pose {}".format(pp.pformat(goal_pose1)))
+
+    # Send goal pose via queue
+    self.logger.debug("About to send goal pose to queue with ID {}".format(str(self.qMove_nav)))
+    self.qMove_nav.put(goal_pose1)
     self.logger.debug("Put goal pose into queue")
 
     # Pass a die command to nav
@@ -434,7 +487,7 @@ class TestUC(unittest.TestCase):
     self.qMove_nav = Queue()
     self.logger.debug("Queue objects created")
 
-    # Get map, waypoints and map properties
+    # Get map, waypoints
     self.course_map = mapper.unpickle_map(path_to_qwe + "mapping/map.pkl")
     self.logger.info("Map unpickled")
     self.waypoints = mapper.unpickle_waypoints(path_to_qwe + "mapping/waypoints.pkl")
@@ -511,7 +564,7 @@ class TestlocsEqual(unittest.TestCase):
     self.qMove_nav = Queue()
     self.logger.debug("Queue objects created")
 
-    # Get map, waypoints and map properties
+    # Get map, waypoints
     self.course_map = mapper.unpickle_map(path_to_qwe + "mapping/map.pkl")
     self.logger.info("Map unpickled")
     self.waypoints = mapper.unpickle_waypoints(path_to_qwe + "mapping/waypoints.pkl")
@@ -748,7 +801,7 @@ class TestwhichXYTheta(unittest.TestCase):
     self.qMove_nav = Queue()
     self.logger.debug("Queue objects created")
 
-    # Get map, waypoints and map properties
+    # Get map, waypoints
     self.course_map = mapper.unpickle_map(path_to_qwe + "mapping/map.pkl")
     self.logger.info("Map unpickled")
     self.waypoints = mapper.unpickle_waypoints(path_to_qwe + "mapping/waypoints.pkl")
