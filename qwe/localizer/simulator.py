@@ -111,7 +111,7 @@ class Simulator(HasTraits):
       self.pplotter.do_redraw()
       self.guessplotter.do_redraw()
 
-    def __init__(self):
+    def __init__(self, sensors = std_sensors.offset_str):
       m = MapPlot(map = themap)
       self.map_scale = themap.scale
       self.map_info = "%s" % themap
@@ -122,10 +122,10 @@ class Simulator(HasTraits):
 
       #start_pose = Pose(themap.x_inches/2, themap.y_inches/2, 0.0)
       start_pose = Pose(6, 2.6, pi/2)
-      robot = SimRobot(start_pose, std_sensors.offset_cone, noise_params = noise_params)
+      robot = SimRobot(start_pose, sensors, noise_params = noise_params)
       rplotter = RobotPlotter(robot = robot, xsize = themap.x_inches, ysize = themap.y_inches)
 
-      localizer = ParticleLocalizer(std_sensors.offset_cone, noise_params, themap, particle_count, start_pose)
+      localizer = ParticleLocalizer(sensors, noise_params, themap, particle_count, start_pose)
       pplotter = ParticlePlotter(particles = localizer.p, xsize = themap.x_inches, ysize = themap.y_inches, color = 'red')
 
       guessbot = Robot(start_pose)

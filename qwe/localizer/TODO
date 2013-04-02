@@ -1,5 +1,7 @@
+- handle ramps and edges
+- fix cone bounce
+- dynamically update walls after block status changes
 - PF shortcut through center
 - dynamic resampler based on error (measured versus modelled sense of best guess)
   - error increasing -> more particles
   - error decreasing -> less particles
-- handle ramps and edges
