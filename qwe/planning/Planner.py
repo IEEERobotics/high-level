@@ -117,7 +117,7 @@ class Planner:
         closest = i
         mindir = direction
 
-    return self.blobs[i], mindir, mindist
+    return self.blobs[closest], mindir, mindist
   
   def alignWithCenter(self, loc):
     pass
@@ -132,7 +132,7 @@ class Planner:
   
   def microMove(self, distance, direction):
     #print "Moving from ", startLoc, " to ", endLoc
-    micro_m = nav.microMoveXY(distance, comm.default_speed * direction)
+    micro_m = nav.micro_move_XY(distance, comm.default_speed * direction, datetime.now())
     self.qMove_nav.put(micro_m)
 
     
@@ -143,7 +143,7 @@ class Planner:
     for i in range(len(self.nextSeaLandBlock)):
     
       elapsedTime = datetime.now() - startTime
-      if elapsedTime > 250:
+      if elapsedTime.seconds > 250:
         print "Don't you have a flight to catch?" #time to start processing air.
         #things to do: if location of both airblocks are known, pick them up, else continue scanning
         # if one of the arms has a block, use the other arm to pick up block, place other block down
@@ -274,14 +274,14 @@ class Planner:
   def goToNextSeaDropOff(self, block):
     # if seaDropLocList is empty, go to Se01
     # else, check if color of either block matches
-    availList = getAvailableSeaDropOffs()
+    availList = self.getAvailableSeaDropOffs()
     #blockColor = block.getColor()
     blockColor = block.color
     
     #movement along white lines
     self.bot_state["cv_blockDetect"] = False
     self.bot_state["cv_lineTrack"] = True
-    if scannedSeaLocs[blockColor] == "empty": 
+    if self.scannedSeaLocs[blockColor] == "empty": 
       #block location unknown
       for i in range(len(availList)):
         self.moveToWayPoint(self.getCurrentLocation(), availList[i])
@@ -302,23 +302,23 @@ class Planner:
           self.microMove(distance, direction)
           break
         else:
-          scannedSeaLocs[color] = availList[i]
+          self.scannedSeaLocs[color] = availList[i]
         #end if-else
       #end for     
     else:
-      self.moveToWayPoint(self.getCurrentLocation(), scannedSeaLocs[blockColor])
+      self.moveToWayPoint(self.getCurrentLocation(), self.scannedSeaLocs[blockColor])
 
   #go to the next land dropoff zone
   #separate function to handle land specific movements
   def goToNextLandDropOff(self, block):
-    availList = getAvailableLandDropOffs()
+    availList = self.getAvailableLandDropOffs()
     #blockColor = block.getColor()
     blockColor = block.color
     
     #movement along white lines
     self.bot_state["cv_blockDetect"] = False
     self.bot_state["cv_lineTrack"] = True
-    if scannedLandLocs[blockColor] == "empty": 
+    if self.scannedLandLocs[blockColor] == "empty": 
       #block location unknown
       for i in range(len(availList)):
         self.moveToWayPoint(self.getCurrentLocation(), availList[i])
@@ -339,10 +339,10 @@ class Planner:
           self.microMove(distance, direction)
           break
         else:
-          scannedLandLocs[color] = availList[i]
+          self.scannedLandLocs[color] = availList[i]
           
     else:
-      self.moveToWayPoint(self.getCurrentLocation(), scannedLandLocs[blockColor])
+      self.moveToWayPoint(self.getCurrentLocation(), self.scannedLandLocs[blockColor])
 
   # pick up a block given armID
   def pickUpBlock(self, arm):
