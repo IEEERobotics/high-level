@@ -82,8 +82,9 @@ class Planner:
   #more to the next block - use this if next block location is
   #handled by nav instead of planner
   def moveToNextBlock(self):
-    print "Moving to Next Block"
-    self.moveTo(self.getCurrentLocation(), "nextblock loc")
+    pass
+    #print "Moving to Next Block"
+    #self.moveTo(self.getCurrentLocation(), "nextblock loc")
     #micro or macro???
   
   #move from start to end
