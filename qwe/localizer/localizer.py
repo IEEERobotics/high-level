@@ -16,17 +16,18 @@ import logging.config
 
 # blocks status + map = walls 
 #def run( start_x, start_y, start_theta, ipc_channel = None, shared_data = {}, map_data = None ):
-def run( bot_loc, blocks, map_properties, course_map, ipc_channel, bot_state ):
- 
-  if not os.getcwd().endswith('qwe'):
-    oldcwd = os.getcwd()
-    os.chdir('..')
-    logging.config.fileConfig('logging.conf')
-    logger = logging.getLogger(__name__)
-    os.chdir(oldcwd)
-  else:
-    logging.config.fileConfig('logging.conf')
-    logger = logging.getLogger(__name__)
+def run( bot_loc, blocks, map_properties, course_map, ipc_channel, bot_state, logger=None ):
+
+  if logger is None: 
+    if not os.getcwd().endswith('qwe'):
+      oldcwd = os.getcwd()
+      os.chdir('..')
+      logging.config.fileConfig('logging.conf')
+      logger = logging.getLogger(__name__)
+      os.chdir(oldcwd)
+    else:
+      logging.config.fileConfig('logging.conf')
+      logger = logging.getLogger(__name__)
 
   start_pose = pose.Pose(bot_loc["x"],bot_loc["y"],bot_loc["theta"])
   #start_pose = pose.Pose(start_x,start_y,start_theta)
