@@ -66,14 +66,14 @@ class ParticleLocalizer(object):
       # what if we init to 1.0 once, then refine this probability continuously?
       prob[i] = 1.0
       raw[i] = 0
-      for index,s in enumerate(self.p.sensors):
+      for name,sensor in self.p.sensors.items():
         # compare measured input of sensor versus the particle's value, adjusting prob accordingly
         #   TODO: refine 1.0 noise parameter to something meaningful
         #         perhaps this should actually just lookup the measurement difference in
         #         a precomputed PDF for the sensor (gaussian around zero diff and a bump at max)
-        prob[i] *= ngaussian(self.p.sensed[index][i], 5.0, measured[index])
-        raw[i] += abs(self.p.sensed[index][i] - measured[index])
-      #print "  %d : %0.2f, %0.2f @ %0.2f = %0.2e" % (i, x[i], y[i], theta[i], prob[i]) 
+        prob[i] *= ngaussian(self.p.sensed[name][i], 5.0, measured[name])
+        raw[i] += abs(self.p.sensed[name][i] - measured[name])
+      #print "  %d : raw_err: %0.2f,  prob: %0.2f" % (i, raw[i], prob[i])
 
   def random_particles(self, count):
     x = random.random(count) * self.p.map.x_inches
@@ -151,8 +151,10 @@ class Particles(object):
     #  - robot params: sensors, movement error/noise
     self.pcount = pcount
     self.map = map
-    self.sensed = zeros((len(sensors),self.pcount))  # modeled sensor data
     self.sensors = sensors
+    self.sensed = {}
+    for s in sensors:
+      self.sensed[s] = zeros(self.pcount)  # modeled sensor data
     self.noise = noise
 
     # Create starting points for the vectors.
@@ -203,10 +205,10 @@ class Particles(object):
   def particle_sense(self):
     x = self.x
     y = self.y
-    for index,s in enumerate(self.sensors):
+    for name,sensor in self.sensors.items():
       # get the full set of particle senses for this sensor
       for i in range(self.pcount):
-        self.sensed[index, i] = s.sense(Pose(self.x[i], self.y[i], self.theta[i]), self.map)
+        self.sensed[name][i] = sensor.sense(Pose(self.x[i], self.y[i], self.theta[i]), self.map)
     #print "Particle sense:"
     #for i in range(self.pcount):
     #  print "  %0.2f, %0.2f @ %0.2f = " % (x[i], y[i], self.theta[i]),

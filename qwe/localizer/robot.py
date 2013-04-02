@@ -63,10 +63,10 @@ class SimRobot(Robot):
   #   currently a very simple model -- straightline distance to closest wall
   def sense(self, map):
     #print "SimRobot: Robot sense:"
-    sensed = []
-    for s in self.sensors:
-      val = s.sense(self.pose, map, noisy = True)
-      sensed.append(val)
+    sensed = {}
+    for name,sensor in self.sensors.items():
+      val = sensor.sense(self.pose, map, noisy = True)
+      sensed[name] = val
     return sensed
 
   # simulate robot motion

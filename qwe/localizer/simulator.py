@@ -78,13 +78,19 @@ class Simulator(HasTraits):
 
     def _sense_fired(self):
       measured = self.robot.sense(themap)
-      self.sensors = "F: %0.2f  L: %0.2f  R: %0.2f  B: %0.2f" % ( measured[0], measured[1], measured[2], measured[3])
+      out = ""
+      for name,val in measured.items():
+        out += "%s: %s " % (name, val)
+      self.sensors = out
 
     # currently not used, logic wrapped into move_fired for now
     def _update_fired(self):
       print "update!"
       measured = self.robot.sense(themap)
-      self.sensors = "F: %0.2f  L: %0.2f  R: %0.2f  B: %0.2f" % ( measured[0], measured[1], measured[2], measured[3])
+      out = ""
+      for name,val in measured.items():
+        out += "%s: %s " % (name, val)
+      self.sensors = out
       self.localizer.update(measured)
 
       guess = self.localizer.guess()
@@ -116,7 +122,7 @@ class Simulator(HasTraits):
       self.map_scale = themap.scale
       self.map_info = "%s" % themap
 
-      self.noise_sensor = std_sensors.default[0].noise
+      self.noise_sensor = std_sensors.ultra_noise
       self.noise_move = noise_params['move']
       self.noise_turn = noise_params['turn']
 

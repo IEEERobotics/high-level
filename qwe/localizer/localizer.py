@@ -30,7 +30,6 @@ def run( bot_loc, blocks, map_properties, course_map, ipc_channel, bot_state, lo
       logger = logging.getLogger(__name__)
 
   start_pose = pose.Pose(bot_loc["x"],bot_loc["y"],bot_loc["theta"])
-  #start_pose = pose.Pose(start_x,start_y,start_theta)
   ideal = robot.SimRobot(start_pose, std_sensors.offset_str)
 
   themap = map.Map.from_map_class(course_map)
@@ -40,8 +39,8 @@ def run( bot_loc, blocks, map_properties, course_map, ipc_channel, bot_state, lo
     logging.debug("Using Fake_IPC queue")
     ipc_channel = Fake_IPC(start_pose, themap, delay = 1.0, logger = logger)
 
-  localizer = DumbLocalizer(start_pose)
-  #localizer = particles.ParticleLocalizer(std_sensors.default, std_noise.noise_params, map_data, pcount=1000)
+  #localizer = DumbLocalizer(start_pose)
+  localizer = particles.ParticleLocalizer(std_sensors.offset_str, std_noise.noise_params, themap, 500, start_pose)
 
   while True:
     msg = ipc_channel.get()
@@ -79,11 +78,7 @@ class Fake_IPC(object):
     turn = random.random() * pi - pi/2
     move = random.random() * 2
     self.simbot.move(turn,move)
-    sensed = self.simbot.sense(self.map)
-    sensors = self.simbot.sensors
-    sensorDict = {}
-    for i in range(len(sensors)):
-      sensorDict[sensors[i].name] = sensed[i]
+    sensorDict = self.simbot.sense(self.map)
 
     # %todo: x, y, theta -> dx, dy, dtheta
     msg = {'dTheta': turn, 'dXY': move, 'sensorData': sensorDict, 'timestamp': None}

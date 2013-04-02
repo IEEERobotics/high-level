@@ -28,7 +28,7 @@ p_error = []
 d_error = []
 
 parser = argparse.ArgumentParser(description='Particle Filter Tester')
-parser.add_argument('-n', '--num', help='Number of partiles', type=int, default='500' )
+parser.add_argument('-n', '--num', help='Number of partiles', type=int, default='100' )
 parser.add_argument('-m', '--map', help='Map file', default='maps/test3.map' )
 parser.add_argument('-r', '--res', help='Map res (inchs/block)', type=float, default='3.0' )
 args = parser.parse_args()
