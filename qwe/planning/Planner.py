@@ -7,6 +7,8 @@ import twoWayDict as twd
 import navigation.nav as nav
 from datetime import datetime
 import comm.serial_interface as comm
+import math
+import time
 
 class Planner:
   nextSeaLandBlock = [] #list of the next available sea or land block to pick up
@@ -51,6 +53,9 @@ class Planner:
     self.bot_state = bot_state
     self.qMove_nav = qMove_nav
     
+    self.bot_state["cv_blockDetect"] = True
+    self.bot_state["cv_lineTrack"] = False
+    
     self.armID[0] = comm.right_arm 
     self.armID[1] = comm.left_arm
   
@@ -92,48 +97,85 @@ class Planner:
     self.qMove_nav.put(macro_m)
     while self.bot_state["naving"] != False:
       continue
+  
+  def getBlobNearCenter(self):
+    closest = 0
+    mindist = 641 #some large number at least as large as width of image
+    direction = 1
+    mindir = direction
+    for i in range(len(self.blobs)):
+      direction = 1
+      x,y,w,h = self.blobs[i].bbox
+      blockDist = (320-x+w/2)
+      if blockDist < 0:
+        blockDist = blockDist * -1
+        direction = -1
+        
+      if blockDist < mindist:
+        mindist = blockDist
+        closest = i
+        mindir = direction
 
+    return self.blobs[i], mindir, mindist
+  
   def alignWithCenter(self, loc):
     pass
-    
   
-  #dist = 320-(x+w/2)
-  #direction = 1
-  #if dist < 0:
-  #  direction = -1
-  #print "Distance to center: ", dist, "pixels -- ", dist*0.0192, "inches --", dist*0.0192*1622/9.89,"revolutions"
+    #dist = 320-(x+w/2)
+    #direction = 1
+    #if dist < 0:
+    #  direction = -1
+    #print "Distance to center: ", dist, "pixels -- ", dist*0.0192, "inches --", dist*0.0192*1622/9.89,"revolutions"
+    #self.micromove(dist, direction)
+
   
-  #self.micromove(dist, direction)
-  
-    
   def microMove(self, distance, direction):
     #print "Moving from ", startLoc, " to ", endLoc
     micro_m = nav.microMoveXY(distance, comm.default_speed * direction)
     self.qMove_nav.put(micro_m)
+
     
-  def processSeaLand(self):
+  def processSeaLand(self, startTime):
     armCount = 0
-    armList = []
+    self.armList = []
     print "+++++ +++++ +++++ +++++ +++++ +++++"
     for i in range(len(self.nextSeaLandBlock)):
+    
+      elapsedTime = datetime.now() - startTime
+      if elapsedTime > 250:
+        print "Don't you have a flight to catch?" #time to start processing air.
+        #things to do: if location of both airblocks are known, pick them up, else continue scanning
+        # if one of the arms has a block, use the other arm to pick up block, place other block down
+        # if both arms have blocks -- this is not good!
+      
       stID = self.nextSeaLandBlock[i];
       print "Processing: [", stID, self.waypoints[stID], "]"
+      
+      #movement along the whiteline, close to the blocks
+      self.bot_state["cv_blockDetect"] = False
+      self.bot_state["cv_lineTrack"] = True
       self.moveToWayPoint(self.getCurrentLocation(), stID)
       
-      #get block from vision
-      block = self.storageSim[i]
+      #get block from vision, do not track lines
+      self.bot_state["cv_blockDetect"] = True
+      self.bot_state["cv_lineTrack"] = False
+      block, direction, distance = self.getBlobNearCenter()
+      
+      #block = self.storageSim[i]
       #print "Processing: [", block.getColor(), block.getSize(), block.getLocation(), "]"
-           
+         
       #if the block is small, assign that to list of air blocks
       #continue / move to next block
-      if block.getSize() == "small":
-        self.nextAirBlock.append(block)
+      #if block.getSize() == "small":
+      if block.length == "small":
+        self.nextAirBlock.append([stID, block])
         continue
       
       #in order to pick up a block, first check if bot is centered
-      #that code can exist in pickUpBlock().
+      #self.alignWithCenter()
+      self.microMove(distance, direction)
       self.pickUpBlock(armCount) #arm 0 or 1.
-      armList.append(block)
+      self.armList.append(block)
       armCount = armCount + 1;
 
       if armCount == 2:
@@ -143,48 +185,52 @@ class Planner:
         #about 0.5 from the center of the dropoff zone
     
         #Both arms contain sea blocks
-        if armList[0].getSize() == "medium" and armList[1].getSize() == "medium":
+        #if self.armList[0].getSize() == "medium" and self.armList[1].getSize() == "medium":
+        if self.armList[0].length == "medium" and self.armList[1].length == "medium":
           self.moveToWayPoint(self.getCurrentLocation(), "sea")
           
-          self.goToNextSeaDropOff(armList[0])
+          self.goToNextSeaDropOff(self.armList[0])
           self.placeBlock(0)
           
-          self.goToNextSeaDropOff(armList[1])
+          self.goToNextSeaDropOff(self.armList[1])
           self.placeBlock(1)
 
         #Both arms contain land blocks
-        elif armList[0].getSize() == "large" and armList[1].getSize() == "large":
+        #elif self.armList[0].getSize() == "large" and self.armList[1].getSize() == "large":
+        elif self.armList[0].length == "large" and self.armList[1].length == "large":
           self.moveToWayPoint(self.getCurrentLocation(), "land")
           
-          self.goToNextLandDropOff(armList[0])
+          self.goToNextLandDropOff(self.armList[0])
           self.placeBlock(0)
           
-          self.goToNextLandDropOff(armList[1])
+          self.goToNextLandDropOff(self.armList[1])
           self.placeBlock(1)
               
         #One arm contains sea block and other contains land block
-        elif armList[0].getSize() == "medium" and armList[1].getSize() == "large":
+        #elif self.armList[0].getSize() == "medium" and self.armList[1].getSize() == "large":
+        elif self.armList[0].length == "medium" and self.armList[1].length == "large":
           self.moveToWayPoint(self.getCurrentLocation(), "sea")
-          self.goToNextSeaDropOff(armList[0])
+          self.goToNextSeaDropOff(self.armList[0])
           self.placeBlock(0)
         
           self.moveToWayPoint(self.getCurrentLocation(), "land")
-          self.goToNextLandDropOff(armList[1])
+          self.goToNextLandDropOff(self.armList[1])
           self.placeBlock(1)
             
         #One arm contains land block and other contains sea block
-        elif armList[0].getSize() == "large" and armList[1].getSize() == "medium":
+        #elif self.armList[0].getSize() == "large" and self.armList[1].getSize() == "medium":
+        elif self.armList[0].length == "large" and self.armList[1].length == "medium":
           # even if the orders are different, first go to sea then land
           self.moveToWayPoint(self.getCurrentLocation(), "sea")
-          self.goToNextSeaDropOff(armList[1])
+          self.goToNextSeaDropOff(self.armList[1])
           self.placeBlock(1)
         
           self.moveToWayPoint(self.getCurrentLocation(), "land")
-          self.goToNextLandDropOff(armList[0])
+          self.goToNextLandDropOff(self.armList[0])
           self.placeBlock(0)
                 
         armCount = 0
-        armList = []
+        self.armList = []
         print "===== ===== ===== ===== ===== ===== ===== ===== ===== ====="
         self.moveToWayPoint(self.getCurrentLocation(), "storage")
       #end if
@@ -194,8 +240,9 @@ class Planner:
   def processAir(self):
     for i in range(len(self.nextAirBlock)):
       block = self.nextAirBlock[i];
-      print "Processing: [", block.getColor(), block.getSize(), block.getLocation(), "]"
-      self.pickUpBlock(block.getLocation(), i);
+      #print "Processing: [", block.getColor(), block.getSize(), block.getLocation(), "]"
+      #self.pickUpBlock(block.getLocation(), i);
+      self.pickUpBlock(block[0], i);
     #end for
     
     print "Move to Ramp, up the ramp, to the drop-off"
@@ -227,20 +274,36 @@ class Planner:
     # if seaDropLocList is empty, go to Se01
     # else, check if color of either block matches
     availList = getAvailableSeaDropOffs()
-    blockColor = block.getColor()
+    #blockColor = block.getColor()
+    blockColor = block.color
     
+    #movement along white lines
+    self.bot_state["cv_blockDetect"] = False
+    self.bot_state["cv_lineTrack"] = True
     if scannedSeaLocs[blockColor] == "empty": 
       #block location unknown
       for i in range(len(availList)):
         self.moveToWayPoint(self.getCurrentLocation(), availList[i])
-        #get the color at waypoint
-        color = seaBlockSim[availList[i]]
+        
+        #get the color at waypoint from vision
+        self.bot_state["cv_blockDetect"] = True
+        self.bot_state["cv_lineTrack"] = False
+        
+        #color = seaBlockSim[availList[i]]
+        zone, direction, distance = self.getBlobNearCenter()
+        color = zone.color
+                
         if color == blockColor:
           #found color
+          #align with center
+          #TODO :add condition for when distacne is less than a particular val
+          #and, to micromove based on which arm is being lowered.
+          self.microMove(distance, direction)
           break
         else:
           scannedSeaLocs[color] = availList[i]
-          
+        #end if-else
+      #end for     
     else:
       self.moveToWayPoint(self.getCurrentLocation(), scannedSeaLocs[blockColor])
 
@@ -248,16 +311,31 @@ class Planner:
   #separate function to handle land specific movements
   def goToNextLandDropOff(self, block):
     availList = getAvailableLandDropOffs()
-    blockColor = block.getColor()
+    #blockColor = block.getColor()
+    blockColor = block.color
     
+    #movement along white lines
+    self.bot_state["cv_blockDetect"] = False
+    self.bot_state["cv_lineTrack"] = True
     if scannedLandLocs[blockColor] == "empty": 
       #block location unknown
       for i in range(len(availList)):
         self.moveToWayPoint(self.getCurrentLocation(), availList[i])
-        #get the color at waypoint
-        color = LandBlockSim[availList[i]]
+        
+        #get the color at waypoint from vision
+        self.bot_state["cv_blockDetect"] = True
+        self.bot_state["cv_lineTrack"] = False
+        
+        #color = LandBlockSim[availList[i]]
+        zone, direction, distance = self.getBlobNearCenter()
+        color = zone.color
+        
         if color == blockColor:
           #found color
+          #align with center
+          #TODO :add condition for when distacne is less than a particular val
+          #and, to micromove based on which arm is being lowered.
+          self.microMove(distance, direction)
           break
         else:
           scannedLandLocs[color] = availList[i]
@@ -295,6 +373,9 @@ class Planner:
     self.dropOffSimulator("sea") ##use when vision is not available
     self.dropOffSimulator("land")
     print "Move to Storage Start"
+    
+    startTime = datetime.now()
+    
     self.moveToWayPoint(self.getCurrentLocation(), "storage")
     #print "Scan Storage"
     #self.scanStorageFirstTime("storage") # BUG: This should not be hardcoded. Currently fails.
@@ -303,7 +384,7 @@ class Planner:
     print "***********************************************"
     print "********** Processing - Sea and Land **********"
     print "***********************************************"
-    self.processSeaLand()
+    self.processSeaLand(startTime)
     print "**************************************"
     print "********** Processing - Air **********"
     print "**************************************"
