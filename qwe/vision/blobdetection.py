@@ -188,12 +188,12 @@ def getRects(ctrs, imageOut=None):
         #print box
         #cv2.drawContours(imageOut, [box], 0, (0,0,255),2)
       
-	  #dist = 320-(x+w/2)
-	  #direction = 1
-	  #if dist < 0:
-	  #  direction = -1
-	  #print "Distance to center: ", dist, "pixels -- ", dist*0.0192, "inches --", dist*0.0192*1622/9.89,"revolutions"
-	  	  
+    #dist = 320-(x+w/2)
+    #direction = 1
+    #if dist < 0:
+    #  direction = -1
+    #print "Distance to center: ", dist, "pixels -- ", dist*0.0192, "inches --", dist*0.0192*1622/9.89,"revolutions"
+        
       #if (x < 320) and ((x+w) > 320):
       length = ""
       if h > 173:
@@ -205,11 +205,11 @@ def getRects(ctrs, imageOut=None):
       #print i, " : ", cv2.boundingRect(ct), " -- ", length, "---", x, x+w, y, h
       
       i = i + 1
-	  
-	  #color detection code here... 
-	  color = "red"
-	  
-	  rectList.append([cv2.boundingRect(ct), cv2.minAreaRect(ct),length, color])
+    
+    #color detection code here... 
+    color = "red"
+    
+    rectList.append([cv2.boundingRect(ct), cv2.minAreaRect(ct),length, color])
   
   if imageOut is not None:
     cv2.rectangle(imageOut, (318,0), (322,640), (255,255,255), -1)

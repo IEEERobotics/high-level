@@ -18,7 +18,7 @@ class Planner:
   seaBlockSim = {}
   landBlockSim = {}
   airBlockSim = []
-	
+  
   nextSeaBlockLoc = []
   nextLandBlockLoc = []
   nextAirBlockLoc = []
@@ -94,20 +94,21 @@ class Planner:
       continue
 
   def alignWithCenter(self, loc):
+    pass
     
-	
-	#dist = 320-(x+w/2)
-	#direction = 1
-	#if dist < 0:
-	#  direction = -1
-	#print "Distance to center: ", dist, "pixels -- ", dist*0.0192, "inches --", dist*0.0192*1622/9.89,"revolutions"
-	
-	#self.micromove(dist, direction)
-	
-	  
+  
+  #dist = 320-(x+w/2)
+  #direction = 1
+  #if dist < 0:
+  #  direction = -1
+  #print "Distance to center: ", dist, "pixels -- ", dist*0.0192, "inches --", dist*0.0192*1622/9.89,"revolutions"
+  
+  #self.micromove(dist, direction)
+  
+    
   def microMove(self, distance, direction):
     #print "Moving from ", startLoc, " to ", endLoc
-	micro_m = nav.microMoveXY(distance, comm.default_speed * direction)
+    micro_m = nav.microMoveXY(distance, comm.default_speed * direction)
     self.qMove_nav.put(micro_m)
     
   def processSeaLand(self):
@@ -138,9 +139,9 @@ class Planner:
       if armCount == 2:
         print "picked up 2 blocks"
         
-		#when dropping blocks off, offset the center of the bot
-		# about 0.5 from the center of the dropoff zone
-		
+    #when dropping blocks off, offset the center of the bot
+    # about 0.5 from the center of the dropoff zone
+    
         #Both arms contain sea blocks
         if armList[0].getSize() == "medium" and armList[1].getSize() == "medium":
           self.moveToWayPoint(self.getCurrentLocation(), "sea")
