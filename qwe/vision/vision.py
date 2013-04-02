@@ -23,11 +23,13 @@ from linewalking import LineWalker
 class VisionManager:
   def __init__(self, bot_loc, blobs, blocks, zones, corners, waypoints, sc, bot_state, options=None, standalone=False):
     self.bot_loc = bot_loc
+    self.blobs = blobs if blobs is not None else list()  # must be a list
     self.blocks = blocks
     self.zones = zones
     self.corners = corners
     self.waypoints = waypoints
-    # TODO save other shared structures
+    self.sc = sc
+    self.bot_state = bot_state
     
     # * Get parameters and flags from options dict
     # ** Populate options first, if none given
@@ -47,7 +49,7 @@ class VisionManager:
     self.debug = self.options['debug']
     
     # * [Sim] If standalone or navigator is not available otherwise, make self a simulator (to be passed along to processors)
-    self.sim = True  # TODO get a reference to navigator to do line-walking
+    self.sim = False  # TODO get a reference to navigator to do line-walking
     self.heading = 0.0
   
   def start(self):
@@ -106,6 +108,7 @@ class VisionManager:
     # ** Get references to specific processors for fast access
     #colorFilter = pipeline.getProcessorByType(ColorFilterProcessor)
     lineWalker = pipeline.getProcessorByType(LineWalker)
+    blobDetector = pipeline.getProcessorByType(CMYKBlobDetector)
     #blobTracker = pipeline.getProcessorByType(BlobTracker)
     
     # * Set signal handler before starting vision loop (NOTE must be done in the main thread of this process)
@@ -153,12 +156,19 @@ class VisionManager:
       if(fresh):
         pipeline.initialize(frame, timeNow)
         fresh = False
-        # TODO activate only those processors that should be active initially
+      
+      # TODO check bot_state activate only those processors that should be active
       
       # ** Process frame
       keepRunning, imageOut = pipeline.process(frame, timeNow)
       if not keepRunning:
         self.stop()
+      
+      # ** Perform post-process functions
+      if blobDetector is not None:  # TODO check bot_state
+        del self.blobs[:]
+        self.blobs.extend(blobDetector.blobs)
+        self.logd("start", "[LOOP] Got {0} blobs from blob detector".format(len(self.blobs)))
       
       # [Sim] Compute simulated bot movement from heading error reported by LineWalker
       # TODO Send out actual movement commands to navigator (only in LINE_WALKING state)

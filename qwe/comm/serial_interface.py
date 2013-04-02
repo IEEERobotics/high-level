@@ -20,7 +20,7 @@ default_queue_maxsize = 10
 
 default_speed = 400  # TODO set correct default speed when units are established
 default_arm_ramp = 10  # 0-63; 10 is a good number
-default_servo_ramp = 5  # 0-63; 5 is a good number
+default_gripper_ramp = 5  # 0-63; 5 is a good number
 
 command_eol = "\r\n"
 is_sequential = True  # force sequential execution of commands

@@ -44,8 +44,11 @@ class SimpleBlob:
   def draw(self, imageOut):
     cv2.rectangle(imageOut, (self.bbox[0], self.bbox[1]), (self.bbox[0] + self.bbox[2], self.bbox[1] + self.bbox[3]), self.colorBlue, 2)
   
+  def __str__(self):
+    return "<SimpleBlob at ({center[0]:.2f}, {center[1]:.2f}), {length}, {color} ({color_bgr[2]:.2f}, {color_bgr[1]:.2f}, {color_bgr[0]:.2f})>".format(center=self.center, length=self.length, color=self.color, color_bgr=self.color_bgr)
+  
   def detail(self):
-    return "SimpleBlob: color: {color}, length: {length}, center: {center}, size: {size}, angle: {angle:.2f}, color_bgr: {color_bgr}".format(color=self.color, length=self.length, center=self.center, size=self.size, area=self.area, angle=self.angle, color_bgr=self.color_bgr)
+    return "SimpleBlob: length: {length}, color: {color}, center: {center}, size: {size}, angle: {angle:.2f}, color_bgr: {color_bgr}".format(length=self.length, color=self.color, center=self.center, size=self.size, area=self.area, angle=self.angle, color_bgr=self.color_bgr)
 
 
 def hsv(img):
@@ -331,7 +334,7 @@ class CMYKBlobDetector(FrameProcessor):
       # ** Compute additional blob properties to be stored
       rect = cv2.minAreaRect(contour)
       
-      length = ""
+      length = "unknown"
       if h > 173:
         length = "large"
       elif h > 140:
@@ -382,7 +385,7 @@ class CMYKBlobDetector(FrameProcessor):
     # * Report and draw blobs
     self.logd("process", "{0} blobs".format(len(self.blobs)))
     for blob in self.blobs:
-      self.logd("process", blob.detail())
+      self.logd("process", str(blob))  #blob.detail()
       if self.gui: blob.draw(self.imageOut)
     
     if self.gui:
