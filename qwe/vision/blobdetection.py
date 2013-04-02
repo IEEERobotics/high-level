@@ -170,6 +170,7 @@ def getRects(ctrs, imageOut=None):
     #ct = ct.astype(np.int32)
     x, y, w, h = cv2.boundingRect(ct)
 
+    length = ""
     #process only vertical rectagles (ie, w<h) with w and h > 1
     if w < h and w > 30 and h > 70:
       #print i, ". ", len(ct), " -- ", cv2.boundingRect(ct), (x+w/2), cv2.minAreaRect(ct)
@@ -195,7 +196,6 @@ def getRects(ctrs, imageOut=None):
     #print "Distance to center: ", dist, "pixels -- ", dist*0.0192, "inches --", dist*0.0192*1622/9.89,"revolutions"
         
       #if (x < 320) and ((x+w) > 320):
-      length = ""
       if h > 173:
         length = "large"
       elif h > 140:
