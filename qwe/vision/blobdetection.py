@@ -14,6 +14,31 @@ import util
 from base import FrameProcessor
 from main import main
 
+class SimpleBlob:
+  def __init__(self, contour, area=None, bbox=None, rect=None):
+    self.contour = contour
+    self.area = area if area is not None else cv2.contourArea(contour)  # area should've been pre-computed
+    self.bbox = bbox if bbox is not None else cv2.boundingRect(contour)
+    self.rect = rect if rect is not None else cv2.minAreaRect(contour)
+    self.center = (int(self.rect[0][0]), int(self.rect[0][1]))  # int precision is all we need
+    self.size = self.rect[1]
+    self.angle = self.rect[2]
+    self.color_bgr = (0, 0, 0)
+    self.color = "none"
+    self.length = "large"
+    # TODO compute color_bgr, color, length
+    
+    #if self.size[0] > self.size[1]:
+    #  self.size = (self.size[1], self.size[0])  # force it to be tall and narrow (for convenience)
+    #  self.angle = (self.angle + 90) % 360
+    
+    #self.hypot = hypot(self.size[0], self.size[1])
+    #self.aspect = self.size[0] / self.size[1]
+    #self.rectArea = self.size[0] * self.size[1]
+    #self.density = self.area / self.rectArea
+    ##self.lastCenter = None  # filled in when a matching blob is found from last frame
+    #self.active = True
+
 def hsv(img):
   hsv = cv2.cvtColor(img,cv.CV_BGR2HSV)
   h,s,v=cv2.split(hsv)
@@ -165,7 +190,7 @@ def getWhiteLines(C, M, Y, K):
 def getRects(ctrs, imageOut=None):
   i = 1
   rectList = []
-  
+  #print "getRects(): {0} contours".format(len(ctrs[0]))
   for ct in ctrs[0]:
     #ct = ct.astype(np.int32)
     x, y, w, h = cv2.boundingRect(ct)
@@ -175,6 +200,25 @@ def getRects(ctrs, imageOut=None):
     if w < h and w > 30 and h > 70:
       #print i, ". ", len(ct), " -- ", cv2.boundingRect(ct), (x+w/2), cv2.minAreaRect(ct)
       
+      #dist = 320-(x+w/2)
+      #direction = 1
+      #if dist < 0:
+      #  direction = -1
+      #print "Distance to center: ", dist, "pixels -- ", dist*0.0192, "inches --", dist*0.0192*1622/9.89,"revolutions"
+      
+      #if (x < 320) and ((x+w) > 320):
+      if h > 173:
+        length = "large"
+      elif h > 140:
+        length = "medium"
+      elif h > 100:
+        length = "small"
+      #print i, " : ", cv2.boundingRect(ct), " -- ", length, "---", x, x+w, y, h
+      
+      #color detection code here... 
+      color = "red"
+      
+      rectList.append([cv2.boundingRect(ct), cv2.minAreaRect(ct),length, color])
       
       if imageOut is not None:
         clr=(random.randrange(0,255),random.randrange(0,255),random.randrange(0,255))
@@ -189,27 +233,7 @@ def getRects(ctrs, imageOut=None):
         #print box
         #cv2.drawContours(imageOut, [box], 0, (0,0,255),2)
       
-    #dist = 320-(x+w/2)
-    #direction = 1
-    #if dist < 0:
-    #  direction = -1
-    #print "Distance to center: ", dist, "pixels -- ", dist*0.0192, "inches --", dist*0.0192*1622/9.89,"revolutions"
-        
-      #if (x < 320) and ((x+w) > 320):
-      if h > 173:
-        length = "large"
-      elif h > 140:
-        length = "medium"
-      elif h > 100:
-        length = "small"
-      #print i, " : ", cv2.boundingRect(ct), " -- ", length, "---", x, x+w, y, h
-      
       i = i + 1
-    
-    #color detection code here... 
-    color = "red"
-    
-    rectList.append([cv2.boundingRect(ct), cv2.minAreaRect(ct),length, color])
   
   if imageOut is not None:
     cv2.rectangle(imageOut, (318,0), (322,640), (255,255,255), -1)
@@ -272,6 +296,7 @@ class CMYKBlobDetector(FrameProcessor):
     ctrs = cv2.findContours(imbw, cv2.RETR_LIST , cv2.CHAIN_APPROX_SIMPLE);
     #imgCopy = imageColors
     rectList = getRects(ctrs, imageOut)
+    self.logd("processBlobs", "{0} rects".format(len(rectList)))
     
     if self.gui:
       #print "B:\tG:\tR:"
