@@ -93,9 +93,21 @@ class Planner:
     while self.bot_state["naving"] != False:
       continue
 
-  def microMove(self, distance):
-    print "Moving from ", startLoc, " to ", endLoc
-	micro_m = nav.microMoveXY(distance, comm.default_speed)
+  def alignWithCenter(self, loc):
+    
+	
+	#dist = 320-(x+w/2)
+	#direction = 1
+	#if dist < 0:
+	#  direction = -1
+	#print "Distance to center: ", dist, "pixels -- ", dist*0.0192, "inches --", dist*0.0192*1622/9.89,"revolutions"
+	
+	#self.micromove(dist, direction)
+	
+	  
+  def microMove(self, distance, direction):
+    #print "Moving from ", startLoc, " to ", endLoc
+	micro_m = nav.microMoveXY(distance, comm.default_speed * direction)
     self.qMove_nav.put(micro_m)
     
   def processSeaLand(self):
