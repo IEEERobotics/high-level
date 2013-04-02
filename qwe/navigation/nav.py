@@ -27,14 +27,16 @@ micro_move_theta = namedtuple("micro_move_theta", ["angle", "timestamp"])
 # Dict of error codes and their human-readable names
 errors = { 100 : "ERROR_BAD_CWD",  101 : "ERROR_SBPL_BUILD", 102 : "ERROR_SBPL_RUN", 103 : "ERROR_BUILD_ENV", 
   104 : "ERROR_BAD_RESOLUTION", 105 : "WARNING_SHORT_SOL", 106 : "ERROR_ARCS_DISALLOWED", 107 : "ERROR_DYNAMIC_DEM_UNKN", 108 :
-  "ERROR_NO_CHANGE", 109 : "ERROR_FAILED_MOVE", 110 : "NO_SOL", 111 : "UNKNOWN_ERROR"}
+  "ERROR_NO_CHANGE", 109 : "ERROR_FAILED_MOVE", 110 : "NO_SOL", 111 : "UNKNOWN_ERROR", 112 : "ERROR_SENSORS" }
 errors.update(dict((v,k) for k,v in errors.iteritems())) # Converts errors to a two-way dict
 
 # TODO These need to be calibrated
 env_config = { "obsthresh" : "1", "cost_ins" : "1", "cost_cir" : "0", "cellsize" : "0.00635", "nominalvel" : "1000.0", 
-  "timetoturn45" : "2" }
+  "timetoturn45" : "2", "max_sensor_tries" : 10 }
 
-config = { "steps_between_locs" : 5, "XYErr" : (float(env_config["cellsize"]) * 1.01), "thetaErr" : (0.39269908169 * 1.5), "loc_wait" : .01}
+config = { "steps_between_locs" : 5, "XYErr" : (float(env_config["cellsize"]) * 1.01), "thetaErr" : (0.39269908169 * 1.5),
+"loc_wait" : .01, "default_left_US" : 100, "default_right_US" : 100, "default_front_US" : 100, "default_back_US" : 100, 
+"default_accel_x" : 0, "default_accel_y" : 0, "default_accel_z" : 980, "default_heading" : 0 }
 
 class Nav:
 
@@ -485,21 +487,74 @@ class Nav:
     :param theta: theta internal value (radians) to convert to bot_loc units (radians)"""
     return float(theta)
 
+  def sensorsFromCommUC(self, sensor_data):
+    """"Convert sensor data returned from comm into typical units. Heading is in tenths of degrees"""
+
+    # US sensor result * .34 * 0.0393701 to get inches
+    sensor_data["ultrasonic"]["left"] = float(sensor_data["ultrasonic"]["left"]) * 0.013385834
+    sensor_data["ultrasonic"]["right"] = float(sensor_data["ultrasonic"]["right"]) * 0.013385834
+    sensor_data["ultrasonic"]["front"] = float(sensor_data["ultrasonic"]["front"]) * 0.013385834
+    sensor_data["ultrasonic"]["back"] = float(sensor_data["ultrasonic"]["back"]) * 0.013385834
+
+    # Heading in tenths of degrees / 10 / 57.2957795 to get radians
+    sensor_data["heading"] = float(sensor_data["heading"]) / 10 / 57.2957795
+
+    # Acc unites in mm/sec**2 going to leave them that way for now
+
+    return sensor_data
+
+  def getSensorData(self):
+
+    self.logger.debug("Polling sensors...")
+    sensor_data = self.scNav.getAllSensorData()
+
+    tries = 0
+
+    while sensor_data["result"] is not True and tries < config["max_sensor_tries"]:
+      self.logger.warning("Sensor data problem! {}".format(pp.pformat(sensor_data)))
+      self.logger.info("Polling sensor again...")
+      sensor_data = self.scNav.getAllSensorData()
+      tries = tries + 1
+
+    if sensor_data["result"] is not True:
+      self.logger.error("Failed to get sensor data after {} attempts".format(config["max_sensor_tries"]))
+      return errors["ERROR_SENSORS"]
+
+    # Check if this was a real sensor data result, and if not build a fake one
+    if "heading" not in sensor_data:
+      self.logger.info("Sensor data was fake, building realistic fake one")
+      sensor_data = { "result" : True, "msg" : "This is fake", "id" : 0, "heading" : config["default_heading"], 
+                      "accel" : {"x" : config["default_accel_x"], "y" : config["default_accel_y"], 
+                                 "z" : config["default_accel_z"]},
+                      "ultrasonic" : {"left" : config["default_left_US"], "right" : config["default_right_US"], 
+                                      "front" : config["default_front_US"], "back" : config["default_back_US"]}}
+  
+    self.logger.info("Sensor data from comm: {}".format(pp.pformat(sensor_data)))
+
+    converted_sensor_data = self.sensorsFromCommUC(sensor_data)
+
+    self.logger.info("Converted sensor data: {}".format(pp.pformat(converted_sensor_data)))
+    return converted_sensor_data
+
+
   def feedLocalizerXY(self, commResult_m):
     """Give localizer information about XP plane move results. Also, package up sensor information and a timestamp.
 
     :param commResult_m: Move result reported by comm in meters"""
 
-    sensor_data = self.scNav.getAllSensorData()
-    self.qNav_loc.put({"dXY" : self.distToLocUC(commResult_m), "dTheta" : 0, "sensorData" : sensor_data, "timestamp" : datetime.now()})
+
+    sensor_data = self.getSensorData()
+    self.qNav_loc.put({"dXY" : self.distToLocUC(commResult_m), "dTheta" : 0, "sensorData" : sensor_data, \
+                                                                              "timestamp" : datetime.now()})
 
   def feedLocalizerTheta(self, commResult_rads):
     """Give localizer information about theta dimension rotate results. Also, package up sensor information and a timestamp.
 
     :param commResult_rads: Turn result reported by comm in radians"""
 
-    sensor_data = self.scNav.getAllSensorData()
-    self.qNav_loc.put({"dTheta" : self.angleToLocUC(commResult_rads), "dXY" : 0, "sensorData" : sensor_data, "timestamp" : datetime.now()})
+    sensor_data = self.getSensorData()
+    self.qNav_loc.put({"dTheta" : self.angleToLocUC(commResult_rads), "dXY" : 0, "sensorData" : sensor_data, \
+                                                                                  "timestamp" : datetime.now()})
 
   def whichXYTheta(self, step_prev, step_cur):
     """Find if movement is to be in the XY plane or the theta dimension.
