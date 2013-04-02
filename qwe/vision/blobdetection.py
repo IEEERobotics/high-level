@@ -316,10 +316,11 @@ class CMYKBlobDetector(FrameProcessor):
     # Contour processing: New way
     # * Find contours
     contours, _ = cv2.findContours(imbw, cv2.RETR_LIST , cv2.CHAIN_APPROX_SIMPLE)
-    # TODO convert contours to 32-bit int here or for each individual contour?
     
     # * Walk through list of contours
     for contour in contours:
+      contour = contour.astype(np.int32)  # convert contours to 32-bit int for each individual contour
+      
       # ** Compute blob properties to be used for filtering
       area = cv2.contourArea(contour)
       bbox = cv2.boundingRect(contour)

@@ -10,6 +10,8 @@ import comm.serial_interface as comm
 import math
 import time
 
+pixelsToInches = 0.0195
+
 class Planner:
   nextSeaLandBlock = [] #list of the next available sea or land block to pick up
   nextAirBlock = [] #list of the 2 air blocks in storage
@@ -116,7 +118,7 @@ class Planner:
         mindist = blockDist
         closest = i
         mindir = direction
-
+    mindist = pixelsToInches * mindist
     return self.blobs[closest], mindir, mindist
   
   def alignWithCenter(self, loc):
