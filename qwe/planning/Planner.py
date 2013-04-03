@@ -69,7 +69,7 @@ class Planner:
     self.colors = ["red", "blue", "green", "orange", "brown", "yellow"]
     
     for i in range(len(self.nextSeaLandBlock)):
-      self.blocks[i] = 1
+      self.zones[i] = 1
     for i in range(len(self.nextSeaBlockLoc)):
       self.zones[i] = 0
     for i in range(len(self.nextLandBlockLoc)):
