@@ -6,7 +6,7 @@ do_test_move = False
 do_test_arm = True
 
 def testPoly(sc, numSides=4, sideLength=1000, dir=1):
-  turnAngle = dir * 360 / numSides
+  turnAngle = 10 * dir * 360 / numSides  # angle must be sent in 10ths of a degree
   
   for i in range(numSides):
     print "testPoly(): Command : botMove({0})".format(sideLength)
