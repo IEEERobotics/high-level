@@ -19,15 +19,14 @@ import logging.config
 def run( bot_loc, blocks, map_properties, course_map, waypoints, ipc_channel, bot_state, logger=None ):
 
   if logger is None: 
-    if not os.getcwd().endswith('qwe'):
-      oldcwd = os.getcwd()
+    oldcwd = os.getcwd()
+    print "oldcwd is {}".format(oldcwd)
+    while not os.getcwd().endswith('qwe'):
       os.chdir('..')
-      logging.config.fileConfig('logging.conf')
-      logger = logging.getLogger(__name__)
-      os.chdir(oldcwd)
-    else:
-      logging.config.fileConfig('logging.conf')
-      logger = logging.getLogger(__name__)
+      print "Canged dir to {}".format(os.getcwd())
+    logging.config.fileConfig('logging.conf')
+    logger = logging.getLogger(__name__)
+    os.chdir(oldcwd)
 
   start_pose = pose.Pose(bot_loc["x"],bot_loc["y"],bot_loc["theta"])
   ideal = robot.SimRobot(start_pose, std_sensors.offset_str)
@@ -43,6 +42,7 @@ def run( bot_loc, blocks, map_properties, course_map, waypoints, ipc_channel, bo
   localizer = particles.ParticleLocalizer(std_sensors.offset_str, std_noise.noise_params, themap, 500, start_pose, logger = logger)
 
   while True:
+    logger.debug("About to get from qNav_loc of object {}".format(str(ipc_channel)))
     msg = ipc_channel.get()
     logger.debug("From qNav (raw): %s" % msg)
     if type(msg) == str and msg == 'die':

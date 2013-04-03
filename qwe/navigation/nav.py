@@ -375,6 +375,7 @@ class Nav:
 
       # If using a fake localizer, feed it the ideal location
       if self.testQueue is not None:
+        self.logger.debug("Using testQueue")
         self.testQueue.put({ "x" : self.XYTobot_locUC(sol[cur_step]["cont_x"]), "y" : self.XYTobot_locUC(sol[cur_step]["cont_y"]), 
                             "theta" : self.thetaTobot_locUC(sol[cur_step]["cont_theta"]) })
 
@@ -593,8 +594,10 @@ class Nav:
 
 
     sensor_data = self.getSensorData()
+    self.logger.debug("About to put data into qNav_loc, object {}".format(str(self.qNav_loc)))
     self.qNav_loc.put({"dXY" : self.distToLocUC(commResult_m), "dTheta" : 0, "sensorData" : sensor_data, \
                                                                               "timestamp" : datetime.now()})
+    self.logger.debug("Back from puting data into qNav_loc")
 
   def feedLocalizerTheta(self, commResult_rads):
     """Give localizer information about theta dimension rotate results. Also, package up sensor information and a timestamp.
@@ -602,15 +605,19 @@ class Nav:
     :param commResult_rads: Turn result reported by comm in radians"""
 
     sensor_data = self.getSensorData()
+    self.logger.debug("About to put data into qNav_loc, object {}".format(str(self.qNav_loc)))
     self.qNav_loc.put({"dTheta" : self.angleToLocUC(commResult_rads), "dXY" : 0, "sensorData" : sensor_data, \
                                                                                   "timestamp" : datetime.now()})
+    self.logger.debug("Back from puting data into qNav_loc")
 
   def feedLocalizerXYTheta(self, actual_dist, abs_heading):
     """Give localizer information about XY and theta results. Also, package up sensor information and a timestamp."""
 
     sensor_data = self.getSensorData()
+    self.logger.debug("About to put data into qNav_loc, object {}".format(str(self.qNav_loc)))
     self.qNav_loc.put({"dTheta" : self.angleToLocUC(abs_heading), "dXY" : self.distToLocUC(actual_dist), \
                       "sensorData" : sensor_data, "timestamp" : datetime.now()})
+    self.logger.debug("Back from puting data into qNav_loc")
 
   def whichXYTheta(self, step_prev, step_cur):
     """Find if movement is to be in the XY plane or the theta dimension.
