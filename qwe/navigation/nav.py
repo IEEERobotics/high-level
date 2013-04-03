@@ -398,13 +398,15 @@ class Nav:
 
     :param dist: Distance to convert from meters to comm distance units (mm)"""
 
-    self.logger.debug("Translated XY move command from {} to {}".format(dist, float(dist) * 1000 ))
+    #self.logger.debug("Translated XY move command from {} to {}".format(dist, float(dist) * 1000 ))
+    self.logger.debug("Translated XY move command from {} to {}".format(dist, float(dist) * 39.3701 * (1633/9.89)))
 
     # Mark location as dirty, since I'm about to issue a move command
     self.bot_loc["dirty"] = True
     self.logger.info("Bot loc is now marked as dirty")
 
-    return float(dist) * 1000
+    #return float(dist) * 1000
+    return float(dist) * 39.3701 * (1633/9.89)
 
   def angleToCommUC(self, angle):
     """Convert from internal angle units (radians) to units used by comm for angles (tenths of degrees). Also, since all move 
