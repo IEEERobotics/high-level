@@ -8,6 +8,7 @@ import numpy as np
 
 try:
   import cv2
+  import cv2.cv as cv
 except ImportError:
   print "You need OpenCV to use vision modules, sorry."
   sys.exit(1)
@@ -19,6 +20,9 @@ from blobdetection import CMYKBlobDetector
 from blobtracking import BlobTracker
 from linedetection import LineDetector
 from linewalking import LineWalker
+
+camera_frame_width = 640
+camera_frame_height = 480
 
 class VisionManager:
   def __init__(self, bot_loc, blobs, blocks, zones, corners, waypoints, sc, bot_state, options=None, standalone=False):
@@ -95,6 +99,9 @@ class VisionManager:
       camera = cv2.VideoCapture(0)
       # ** Final check before vision loop
       if camera.isOpened():
+        result_width = camera.set(cv.CV_CAP_PROP_FRAME_WIDTH, camera_frame_width)
+        result_height = camera.set(cv.CV_CAP_PROP_FRAME_HEIGHT, camera_frame_height)
+        self.logd("start", "Camera frame size set to {width}x{height} (result: {result_width}, {result_height})".format(width=camera_frame_width, height=camera_frame_height, result_width=result_width, result_height=result_height))
         isReady = True
       else:
         self.loge("start", "Error opening camera; giving up now.")

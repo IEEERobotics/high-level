@@ -141,10 +141,12 @@ class BlobTracker(DependentFrameProcessor):
         contours, _ = cv2.findContours(mask, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
         if len(contours) > 0:
           #self.logd("process", "[%.2f] %d %s contour(s)" % (timeNow, len(contours), maskName))  # report contours found
-          if self.gui and self.debug: cv2.drawContours(self.imageOut, contours, -1, (0, 255, 255))  # draw all contours found
+          #if self.gui and self.debug: cv2.drawContours(self.imageOut, contours, -1, (0, 255, 255))  # draw all contours found
           
           # **** Walk through list of contours
           for contour in contours:
+            contour = contour.astype(np.int32)  # convert contours to 32-bit int for each individual contour [Pandaboard OpenCV bug workaround]
+            
             # ***** Filter out ones that are too small or too big
             area = cv2.contourArea(contour)
             if area < self.minBlobArea or area > self.maxBlobArea: continue

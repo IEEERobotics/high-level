@@ -6,12 +6,18 @@ from time import sleep
 
 try:
   import cv2
+  import cv2.cv as cv
 except ImportError:
   print "You need OpenCV to use vision modules, sorry."
   sys.exit(1)
 
 from util import KeyCode, isImageFile
 from base import FrameProcessor
+#from vision import camera_frame_width, camera_frame_height
+
+camera_frame_width = 640
+camera_frame_height = 480
+
 
 def main(processor=FrameProcessor(options={ 'gui': True, 'debug': True }), gui=True):  # default options
     """Run a FrameProcessor object on a static image (repeatedly) or on frames from a camera/video."""
@@ -57,6 +63,9 @@ def main(processor=FrameProcessor(options={ 'gui': True, 'debug': True }), gui=T
         camera = cv2.VideoCapture(0)
         # ** Final check before processing loop
         if camera.isOpened():
+            result_width = camera.set(cv.CV_CAP_PROP_FRAME_WIDTH, camera_frame_width)
+            result_height = camera.set(cv.CV_CAP_PROP_FRAME_HEIGHT, camera_frame_height)
+            print "main(): Camera frame size set to {width}x{height} (result: {result_width}, {result_height})".format(width=camera_frame_width, height=camera_frame_height, result_width=result_width, result_height=result_height)
             isOkay = True
         else:
             print "main(): Error opening camera; giving up now."
