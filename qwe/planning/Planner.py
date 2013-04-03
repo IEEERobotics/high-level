@@ -210,6 +210,8 @@ class Planner:
       #self.alignWithCenter()
       self.microMove(distance, direction)
       self.pickUpBlock(armCount) #arm 0 or 1.
+      self.zones[stID] = 0
+      self.bot_state["zone_change"] = self.bot_state["zone_change"] + 1
       self.armList.append(block)
       armCount = armCount + 1;
 
@@ -380,6 +382,8 @@ class Planner:
           #align with center
           #TODO :add condition for when distacne is less than a particular val
           #and, to micromove based on which arm is being lowered.
+          self.zones[ availList[i]] = 1
+          self.bot_state["zone_change"] = self.bot_state["zone_change"] + 1
           self.microMove(distance, direction)
           break
         else:
@@ -388,6 +392,8 @@ class Planner:
       #end for     
     else:
       self.moveToWayPoint(self.getCurrentLocation(), self.scannedSeaLocs[blockColor])
+      self.zones[self.scannedSeaLocs[blockColor]] = 1
+      self.bot_state["zone_change"] = self.bot_state["zone_change"] + 1
 
   #go to the next land dropoff zone
   #separate function to handle land specific movements
@@ -424,12 +430,16 @@ class Planner:
           #TODO :add condition for when distacne is less than a particular val
           #and, to micromove based on which arm is being lowered.
           self.microMove(distance, direction)
+          self.zones[availList[i]] = 1
+          self.bot_state["zone_change"] = self.bot_state["zone_change"] + 1
           break
         else:
           self.scannedLandLocs[color] = availList[i]
           
     else:
       self.moveToWayPoint(self.getCurrentLocation(), self.scannedLandLocs[blockColor])
+      self.zones[self.scannedLandLocs[blockColor]] = 1
+      self.bot_state["zone_change"] = self.bot_state["zone_change"] + 1
 
   
   def getAirDropOffColor(self):
