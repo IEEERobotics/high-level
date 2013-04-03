@@ -77,6 +77,8 @@ class Planner:
     for i in range(len(self.colors)):
       self.scannedSeaLocs[self.colors[i]] = "empty"
       self.scannedLandLocs[self.colors[i]] = "empty"
+
+    self.bot_state["zone_change"] = 1
     
   #get current location
   def getCurrentLocation(self):
