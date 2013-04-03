@@ -47,7 +47,7 @@ def fakeLoc(testQueue, bot_loc, logger):
   while True:
     logger.info("testQueue is waiting on data")
     ideal_loc = testQueue.get()
-    logger.info("testQueue received {}".format(pp.pformat(ideal_loc)))
+    logger.info("testQueue received {}".format(str(ideal_loc)))
 
     if type(ideal_loc) == str and ideal_loc == "die":
       logger.info("fakeLoc is exiting")
@@ -527,7 +527,7 @@ class TestFullInteraction(unittest.TestCase):
     goal_theta = float(self.bot_loc["theta"])
 
     goal_pose = nav.macro_move(goal_x, goal_y, goal_theta, datetime.now())
-    self.logger.debug("Created goal pose {}".format(pp.pformat(goal_pose)))
+    self.logger.debug("Created goal pose {}".format(str(goal_pose)))
 
     # Send goal pose via queue
     self.logger.debug("About to send goal pose to queue with ID {}".format(str(self.qMove_nav)))
@@ -545,7 +545,7 @@ class TestFullInteraction(unittest.TestCase):
     goal_theta = float(self.bot_loc["theta"]) + (nav.config["thetaErr"] / 2)
 
     goal_pose = nav.macro_move(goal_x, goal_y, goal_theta, datetime.now())
-    self.logger.debug("Created goal pose {}".format(pp.pformat(goal_pose)))
+    self.logger.debug("Created goal pose {}".format(str(goal_pose)))
 
     # Send goal pose via queue
     self.logger.debug("About to send goal pose to queue with ID {}".format(str(self.qMove_nav)))
@@ -565,7 +565,7 @@ class TestFullInteraction(unittest.TestCase):
     goal_theta = float(self.bot_loc["theta"])
 
     goal_pose = nav.macro_move(goal_x, goal_y, goal_theta, datetime.now())
-    self.logger.debug("Created goal pose {}".format(pp.pformat(goal_pose)))
+    self.logger.debug("Created goal pose {}".format(str(goal_pose)))
 
     # Send goal pose via queue
     self.logger.debug("About to send goal pose to queue with ID {}".format(str(self.qMove_nav)))
@@ -583,7 +583,7 @@ class TestFullInteraction(unittest.TestCase):
     goal_theta = float(self.bot_loc["theta"]) + (nav.config["thetaErr"] * 3)
 
     goal_pose = nav.macro_move(goal_x, goal_y, goal_theta, datetime.now())
-    self.logger.debug("Created goal pose {}".format(pp.pformat(goal_pose)))
+    self.logger.debug("Created goal pose {}".format(str(goal_pose)))
 
     # Send goal pose via queue
     self.logger.debug("About to send goal pose to queue with ID {}".format(str(self.qMove_nav)))
@@ -601,7 +601,7 @@ class TestFullInteraction(unittest.TestCase):
     goal_theta = float(self.bot_loc["theta"]) + (nav.config["thetaErr"] * 3)
 
     goal_pose = nav.macro_move(goal_x, goal_y, goal_theta, datetime.now())
-    self.logger.debug("Created goal pose {}".format(pp.pformat(goal_pose)))
+    self.logger.debug("Created goal pose {}".format(str(goal_pose)))
 
     # Send goal pose via queue
     self.logger.debug("About to send goal pose to queue with ID {}".format(str(self.qMove_nav)))
@@ -619,7 +619,7 @@ class TestFullInteraction(unittest.TestCase):
     goal_theta0 = float(self.bot_loc["theta"]) + (nav.config["thetaErr"] * 3)
 
     goal_pose0 = nav.macro_move(goal_x0, goal_y0, goal_theta0, datetime.now())
-    self.logger.debug("Created goal pose {}".format(pp.pformat(goal_pose0)))
+    self.logger.debug("Created goal pose {}".format(str(goal_pose0)))
 
     # Send goal pose via queue
     self.logger.debug("About to send goal pose to queue with ID {}".format(str(self.qMove_nav)))
@@ -632,7 +632,7 @@ class TestFullInteraction(unittest.TestCase):
     goal_theta1 = float(self.bot_loc["theta"]) + (nav.config["thetaErr"] * 6)
 
     goal_pose1 = nav.macro_move(goal_x1, goal_y1, goal_theta1, datetime.now())
-    self.logger.debug("Created goal pose {}".format(pp.pformat(goal_pose1)))
+    self.logger.debug("Created goal pose {}".format(str(goal_pose1)))
 
     # Send goal pose via queue
     self.logger.debug("About to send goal pose to queue with ID {}".format(str(self.qMove_nav)))
@@ -649,7 +649,7 @@ class TestFullInteraction(unittest.TestCase):
     goal_theta = self.waypoints["St01"][2]
 
     goal_pose = nav.macro_move(goal_x, goal_y, goal_theta, datetime.now())
-    self.logger.debug("Created goal pose {}".format(pp.pformat(goal_pose)))
+    self.logger.debug("Created goal pose {}".format(str(goal_pose)))
 
     # Send goal pose via queue
     self.logger.debug("About to send goal pose to queue with ID {}".format(str(self.qMove_nav)))
@@ -666,7 +666,7 @@ class TestFullInteraction(unittest.TestCase):
     goal_theta0 = self.waypoints["St01"][2]
 
     goal_pose0 = nav.macro_move(goal_x0, goal_y0, goal_theta0, datetime.now())
-    self.logger.debug("Created goal pose {}".format(pp.pformat(goal_pose0)))
+    self.logger.debug("Created goal pose {}".format(str(goal_pose0)))
 
     # Send goal pose via queue
     self.logger.debug("About to send goal pose to queue with ID {}".format(str(self.qMove_nav)))
@@ -678,7 +678,7 @@ class TestFullInteraction(unittest.TestCase):
     goal_theta1 = self.waypoints["L06"][2]
 
     goal_pose1 = nav.macro_move(goal_x1, goal_y1, goal_theta1, datetime.now())
-    self.logger.debug("Created goal pose {}".format(pp.pformat(goal_pose1)))
+    self.logger.debug("Created goal pose {}".format(str(goal_pose1)))
 
     # Send goal pose via queue
     self.logger.debug("About to send goal pose to queue with ID {}".format(str(self.qMove_nav)))
@@ -695,7 +695,7 @@ class TestFullInteraction(unittest.TestCase):
     goal_theta = self.waypoints["L01"][2]
 
     goal_pose = nav.macro_move(goal_x, goal_y, goal_theta, datetime.now())
-    self.logger.debug("Created goal pose {}".format(pp.pformat(goal_pose)))
+    self.logger.debug("Created goal pose {}".format(str(goal_pose)))
 
     # Send goal pose via queue
     self.logger.debug("About to send goal pose to queue with ID {}".format(str(self.qMove_nav)))
@@ -708,7 +708,7 @@ class TestFullInteraction(unittest.TestCase):
     goal_theta = pi/2
 
     goal_pose = nav.macro_move(goal_x, goal_y, goal_theta, datetime.now())
-    self.logger.debug("Created goal pose {}".format(pp.pformat(goal_pose)))
+    self.logger.debug("Created goal pose {}".format(str(goal_pose)))
 
     # Send goal pose via queue
     self.logger.debug("About to send goal pose to queue with ID {}".format(str(self.qMove_nav)))
@@ -795,11 +795,11 @@ class TestCleanSol(unittest.TestCase):
 
     #self.logger.debug("Need solution from {} {} {} to {} {} {}
     sol = self.Nav.genSol(goal_x, goal_y, goal_theta)
-    self.logger.info("Built solution: {}".format(pp.pformat(sol)))
+    self.logger.info("Built solution: {}".format(str(sol)))
 
     # Convert XY translations to be of desired length
     clean_sol = self.Nav.cleanSol(sol)
-    self.logger.info("Cleaned solution: {}".format(pp.pformat(clean_sol)))
+    self.logger.info("Cleaned solution: {}".format(str(clean_sol)))
 
     # Setup some initial vars
     total_dx, total_dy, total_dTheta, total_disp, disp, last_disp, last_dyn_dem = 0, 0, 0, 0, 0, None, None
@@ -1429,7 +1429,7 @@ class TestwhichXYTheta(unittest.TestCase):
     'x': 32,
     'y': 32}]
 
-    self.logger.debug("Testing whichXYTheta with sol: " + pp.pformat(sol))
+    self.logger.debug("Testing whichXYTheta with sol: " + str(sol))
 
     result = self.Nav.whichXYTheta(sol[0], sol[1])
 
@@ -1454,7 +1454,7 @@ class TestwhichXYTheta(unittest.TestCase):
     'x': 32,
     'y': 40}]
 
-    self.logger.debug("Testing whichXYTheta with sol: " + pp.pformat(sol))
+    self.logger.debug("Testing whichXYTheta with sol: " + str(sol))
 
     result = self.Nav.whichXYTheta(sol[0], sol[1])
 
@@ -1479,7 +1479,7 @@ class TestwhichXYTheta(unittest.TestCase):
     'x': 24,
     'y': 17}]
 
-    self.logger.debug("Testing whichXYTheta with sol: " + pp.pformat(sol))
+    self.logger.debug("Testing whichXYTheta with sol: " + str(sol))
 
     result = self.Nav.whichXYTheta(sol[0], sol[1])
 
@@ -1504,7 +1504,7 @@ class TestwhichXYTheta(unittest.TestCase):
     'x': '49',
     'y': '38'}]
 
-    self.logger.debug("Testing whichXYTheta with sol: " + pp.pformat(sol))
+    self.logger.debug("Testing whichXYTheta with sol: " + str(sol))
 
     result = self.Nav.whichXYTheta(sol[0], sol[1])
 
@@ -1529,7 +1529,7 @@ class TestwhichXYTheta(unittest.TestCase):
     'x': '49',
     'y': '43'}]
 
-    self.logger.debug("Testing whichXYTheta with sol: " + pp.pformat(sol))
+    self.logger.debug("Testing whichXYTheta with sol: " + str(sol))
 
     result = self.Nav.whichXYTheta(sol[0], sol[1])
 
@@ -1555,7 +1555,7 @@ class TestwhichXYTheta(unittest.TestCase):
     'x': '43',
     'y': '32'}]
 
-    self.logger.debug("Testing whichXYTheta with sol: " + pp.pformat(sol))
+    self.logger.debug("Testing whichXYTheta with sol: " + str(sol))
 
     result = self.Nav.whichXYTheta(sol[0], sol[1])
 
@@ -1581,7 +1581,7 @@ class TestwhichXYTheta(unittest.TestCase):
     'x': '49',
     'y': '32'}]
 
-    self.logger.debug("Testing whichXYTheta with sol: " + pp.pformat(sol))
+    self.logger.debug("Testing whichXYTheta with sol: " + str(sol))
 
     result = self.Nav.whichXYTheta(sol[0], sol[1])
 
@@ -1607,7 +1607,7 @@ class TestwhichXYTheta(unittest.TestCase):
     'x': 33,
     'y': 32}]
 
-    self.logger.debug("Testing whichXYTheta with sol: " + pp.pformat(sol))
+    self.logger.debug("Testing whichXYTheta with sol: " + str(sol))
 
     result = self.Nav.whichXYTheta(sol[0], sol[1])
 
