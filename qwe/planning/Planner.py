@@ -109,7 +109,7 @@ class Planner:
     for i in range(len(self.blobs)):
       direction = 1
       x,y,w,h = self.blobs[i].bbox
-      blockDist = (320-x+w/2)
+      blockDist = (320 - (x + w / 2))  # TODO use SimpleBlob.center instead
       if blockDist < 0:
         blockDist = blockDist * -1
         direction = -1

@@ -2,6 +2,9 @@ import sys
 from multiprocessing import Process, Queue, Manager
 import comm.serial_interface
 
+do_test_move = False
+do_test_arm = True
+
 def testPoly(sc, numSides=4, sideLength=1000, dir=1):
   turnAngle = dir * 360 / numSides
   
@@ -56,12 +59,16 @@ def main():
   
   # Test suite
   sc.botStop()
-  testPoly(sc, 4)
-  sc.botStop()
-  testArm(sc, comm.serial_interface.left_arm)
-  sc.botStop()
-  testArm(sc, comm.serial_interface.right_arm)
-  sc.botStop()
+
+  if do_test_move:
+    testPoly(sc, 4)
+    sc.botStop()
+
+  if do_test_arm:
+    testArm(sc, comm.serial_interface.left_arm)
+    sc.botStop()
+    testArm(sc, comm.serial_interface.right_arm)
+    sc.botStop()
   
   sc.quit()
   si.join()

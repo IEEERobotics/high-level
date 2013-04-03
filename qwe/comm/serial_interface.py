@@ -22,8 +22,9 @@ default_speed = 400  # TODO set correct default speed when units are established
 default_arm_ramp = 10  # 0-63; 10 is a good number
 default_gripper_ramp = 5  # 0-63; 5 is a good number
 
-command_eol = "\r\n"
-is_sequential = True  # force sequential execution of commands
+max_command_id = 32767
+command_eol = "\r"
+is_sequential = False  # force sequential execution of commands
 prefix_id = True  # send id pre-pended with commands?
 servo_delay = 1.0  # secs.; duration to sleep after sending a servo command to let it finish (motor-controller returns immediately)
 fake_delay = 0.001  # secs.; duration to sleep for when faking serial comm.
@@ -186,7 +187,8 @@ class SerialInterface(Process):
     """Send a command, adding terminating EOL char(s)."""
     try:
       if prefix_id:
-        self.device.write(str(id) + ' ') # TODO add id in the command message itself so that response can be mapped back
+        command = str(id) + ' ' + command
+      print "SerialInterface.send(): Sending: \"{command}\"".format(command=command)
       self.device.write(command + command_eol)  # add EOL char(s)
       return True
     except Exception as e:
@@ -198,8 +200,9 @@ class SerialInterface(Process):
     try:
       responseStr = self.device.readline()  # NOTE response must be \n terminated
       responseStr = responseStr.strip()  # strip EOL
+      print "SerialInterface.recv(): Recvd: \"{0}\"".format(responseStr)
       if len(responseStr) == 0:
-        "SerialInterface.recv(): Warning: Blank response (timeout?)"
+        print "SerialInterface.recv(): Warning: Blank response (timeout?)"
         return { }  # return a blank dict
       else:
         response = json.loads(responseStr)
@@ -243,7 +246,7 @@ class SerialCommand:
   
   def putCommand(self, command):  # priority=0
     """Add command to queue, assigning a unique identifier."""
-    id = random.randrange(sys.maxint)  # generate unique command id; TODO if id is sent to motor-control, make sure it is in range
+    id = random.randrange(max_command_id)  # generate unique command id
     self.commands.put((id, command))  # insert command into queue as 2-tuple (id, command)
     # TODO insert into appropriate queue by priority?
     return id  # return id
@@ -289,7 +292,7 @@ class SerialCommand:
   
   def botTurnRel(self, angle):  # angle: 10ths of a degree
     response = self.runCommand("turn_rel {angle}".format(angle=int(angle)))
-    return (angle + response.get('relHeading', 0))  # turn_rel returns remaining heading error, i.e. actual - desired; TODO confirm this
+    return (angle - response.get('headingErr', 0))  # turn_rel returns remaining heading error, i.e. actual - desired; TODO confirm this
   
   def armSetAngle(self, arm_id, angle, ramp=default_arm_ramp):
     response = self.runCommand("servo {channel} {ramp} {angle}".format(channel=arm_id, ramp=ramp, angle=angle))
