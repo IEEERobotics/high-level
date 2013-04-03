@@ -16,6 +16,8 @@ from math import pi, radians, degrees
 errors = {100 : "ERROR_BAD_CWD"}
 errors.update(dict((v,k) for k,v in errors.iteritems())) # Converts errors to a two-way dict
 
+config = { "si_timeout" : .01 }
+
 # Find path to ./qwe directory. Allows for flexibility in the location tests are fired from.
 if os.getcwd().endswith("qwe"):
   path_to_qwe = "./"
@@ -84,7 +86,7 @@ class TestFileGeneration(unittest.TestCase):
     self.logger.debug("Logger is set up")
      
     # Start serial communication to low-level board
-    self.si = comm.SerialInterface()
+    self.si = comm.SerialInterface(timeout=config["si_timeout"])
     self.si.start() # Displays an error if port not found (not running on Pandaboard)
     self.logger.info("Serial interface set up")
 
@@ -185,7 +187,7 @@ class TestFullInteraction(unittest.TestCase):
     self.logger.debug("Logger is set up")
      
     # Start serial communication to low-level board
-    self.si = comm.SerialInterface()
+    self.si = comm.SerialInterface(timeout=config["si_timeout"])
     self.si.start() # Displays an error if port not found (not running on Pandaboard)
     self.logger.info("Serial interface set up")
 
@@ -479,7 +481,7 @@ class TestUC(unittest.TestCase):
     self.logger.debug("Logger is set up")
      
     # Start serial communication to low-level board
-    self.si = comm.SerialInterface()
+    self.si = comm.SerialInterface(timeout=config["si_timeout"])
     self.si.start() # Displays an error if port not found (not running on Pandaboard)
     self.logger.info("Serial interface set up")
 
@@ -700,7 +702,7 @@ class TestlocsEqual(unittest.TestCase):
     self.logger.debug("Logger is set up")
      
     # Start serial communication to low-level board
-    self.si = comm.SerialInterface()
+    self.si = comm.SerialInterface(timeout=config["si_timeout"])
     self.si.start() # Displays an error if port not found (not running on Pandaboard)
     self.logger.info("Serial interface set up")
 
@@ -931,7 +933,7 @@ class TestwhichXYTheta(unittest.TestCase):
     self.logger.debug("Logger is set up")
      
     # Start serial communication to low-level board
-    self.si = comm.SerialInterface()
+    self.si = comm.SerialInterface(timeout=config["si_timeout"])
     self.si.start() # Displays an error if port not found (not running on Pandaboard)
     self.logger.info("Serial interface set up")
 
