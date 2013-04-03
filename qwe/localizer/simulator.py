@@ -28,6 +28,10 @@ import mapping.map_class
 sys.modules['map_class'] = mapping.map_class  # deal with the fact we pickled a module in another dir
 import mapping.pickler
 
+import logging.config
+logging.config.fileConfig('logging.conf')  # local version
+logger = logging.getLogger(__name__)
+
 noise_params = std_noise.noise_params
 
 #particle_count = None
@@ -131,7 +135,7 @@ class Simulator(HasTraits):
       robot = SimRobot(start_pose, sensors, noise_params = noise_params)
       rplotter = RobotPlotter(robot = robot, xsize = themap.x_inches, ysize = themap.y_inches)
 
-      localizer = ParticleLocalizer(sensors, noise_params, themap, particle_count, start_pose)
+      localizer = ParticleLocalizer(sensors, noise_params, themap, particle_count, start_pose, logger = logger)
       pplotter = ParticlePlotter(particles = localizer.p, xsize = themap.x_inches, ysize = themap.y_inches, color = 'red')
 
       guessbot = Robot(start_pose)

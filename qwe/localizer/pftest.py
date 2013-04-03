@@ -18,6 +18,11 @@ import argparse
 import signal
 import sys
 
+import logging
+
+logging.config.fileConfig('logging.conf')  # local version
+logger = logging.getLogger(__name__)
+
 def signal_handler(signal, frame):
   print
   sys.exit(0)
@@ -58,7 +63,7 @@ simbot = robot.SimRobot(pose = start_pose, sensors = std_sensors.default, noise_
 
 # create a localizer using the robot as a model
 # TODO: decide if we shold be using an ideal or noisy movement/sensors
-ploc = particles.ParticleLocalizer(std_sensors.default, noise_params, m, args.num, start_pose)
+ploc = particles.ParticleLocalizer(std_sensors.default, noise_params, m, args.num, start_pose, logger)
 dloc = localizer.DumbLocalizer(start_pose)
 
 print "Start: ", simbot

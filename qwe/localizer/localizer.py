@@ -40,12 +40,17 @@ def run( bot_loc, blocks, map_properties, course_map, waypoints, ipc_channel, bo
     ipc_channel = Fake_IPC(start_pose, themap, delay = 1.0, logger = logger)
 
   #localizer = DumbLocalizer(start_pose)
-  localizer = particles.ParticleLocalizer(std_sensors.offset_str, std_noise.noise_params, themap, 500, start_pose)
+  localizer = particles.ParticleLocalizer(std_sensors.offset_str, std_noise.noise_params, themap, 500, start_pose, logger = logger)
 
   while True:
     msg = ipc_channel.get()
+    logger.debug("From qNav (raw): %s" % msg)
+    if type(msg) == str and msg == 'die':
+      logger.debug("Recieved die signal, exiting...")
+      exit(0)
+    
     turn, move = msg['dTheta'], msg['dXY']
-    logger.debug("From qNav: Turn: %+0.2f, Move: %0.2f" % (turn, move))
+    logger.debug("Turn: %+0.2f, Move: %0.2f" % (turn, move))
 
     sensorData = msg['sensorData']
     logger.debug( "SensorData: %s" % sensorData)

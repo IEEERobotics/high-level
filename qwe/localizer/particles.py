@@ -18,11 +18,14 @@ class ParticleLocalizer(object):
   #
   # public: move(), update(), score()
   #
-  def __init__(self, sensor_list, noise_params, map, pcount, start_pose = None):
-    self.p = Particles(sensor_list, noise_params, map, pcount, start_pose)
+  def __init__(self, sensor_list, noise_params, map, pcount, start_pose = None, logger = None):
+
+    self.p = Particles(sensor_list, noise_params, map, pcount, start_pose, logger = logger)
     self.pcount = pcount
     self.weight = zeros(pcount)    # probability measurement, "weight"
     self.raw_error = zeros(pcount)
+    self.logger = logger
+    logger.debug("ParticleLocalizer (N=%d) initialized, Start pose: %s" % (pcount, start_pose))
 
     self.score_hist = []
     
@@ -33,6 +36,7 @@ class ParticleLocalizer(object):
   # Sense, weigh, and resample
   def update(self, measured):
 
+    self.logger.debug("ParticleLocalizer: update using: %s" % measured)
     old = self.score()
     self.p.particle_sense()
     self.calc_weights(measured)
@@ -45,6 +49,7 @@ class ParticleLocalizer(object):
     #  print "Worse"
 
     self.resample(0.0)
+    self.logger.debug("ParticleLocalizer: update copmlete")
 
   # Sense and Resample
   def score(self):
@@ -144,7 +149,7 @@ class ParticleLocalizer(object):
 class Particles(object):
   """ Essentially a large array of simbots (pose, sensor list, and noise params) """
 
-  def __init__(self, sensors, noise, map, pcount = 100, start_pose = None):
+  def __init__(self, sensors, noise, map, pcount = 100, start_pose = None, logger = None):
     # initialize particle filter
     #  - number of particles
     #  - map
@@ -156,6 +161,7 @@ class Particles(object):
     for s in sensors:
       self.sensed[s] = zeros(self.pcount)  # modeled sensor data
     self.noise = noise
+    self.logger = logger
 
     # Create starting points for the vectors.
 
@@ -203,6 +209,7 @@ class Particles(object):
 
   # called by update
   def particle_sense(self):
+    self.logger.debug("ParticleLocalizer: particle_sense begin")
     x = self.x
     y = self.y
     for name,sensor in self.sensors.items():
@@ -213,6 +220,5 @@ class Particles(object):
     #for i in range(self.pcount):
     #  print "  %0.2f, %0.2f @ %0.2f = " % (x[i], y[i], self.theta[i]),
     #  print ", ".join( [ "%s: %0.2f" % (s.name, self.sensed[s.index,i]) for s in self.robot.sensors ])
+    self.logger.debug("ParticleLocalizer: particle_sense complete")
 
-  # Currently assumes self.sensed and measured have both been updated
-  # called by update to guarantee  sensedkkk
