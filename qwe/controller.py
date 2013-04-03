@@ -125,7 +125,7 @@ if __name__ == "__main__":
   logger.info("Navigator process started")
 
   # Start localizer process, pass it shared data, waypoints, map_properties course_map and queue for talking to nav
-  pLocalizer = Process(target=localizer.run, args=(bot_loc, blocks, map_properties, course_map, qNav_loc, bot_state))
+  pLocalizer = Process(target=localizer.run, args=(bot_loc, blocks, map_properties, course_map, waypoints, qNav_loc, bot_state))
   pLocalizer.start()
   logger.info("Localizer process started")
 
