@@ -16,7 +16,7 @@ import logging.config
 
 # blocks status + map = walls 
 #def run( start_x, start_y, start_theta, ipc_channel = None, shared_data = {}, map_data = None ):
-def run( bot_loc, blocks, map_properties, course_map, ipc_channel, bot_state, logger=None ):
+def run( bot_loc, blocks, map_properties, course_map, waypoints, ipc_channel, bot_state, logger=None ):
 
   if logger is None: 
     if not os.getcwd().endswith('qwe'):
@@ -45,9 +45,15 @@ def run( bot_loc, blocks, map_properties, course_map, ipc_channel, bot_state, lo
   while True:
     msg = ipc_channel.get()
     turn, move = msg['dTheta'], msg['dXY']
-    sensors = msg['sensorData']
     logger.debug("From qNav: Turn: %+0.2f, Move: %0.2f" % (turn, move))
-    logger.debug( "Sensors dict: %s" % sensors)
+
+    sensorData = msg['sensorData']
+    logger.debug( "SensorData: %s" % sensorData)
+    # pull out ultrasonic data
+    sensors = {}
+    for key,val in sensorData['ultrasonic'].items():
+      sensors[key] = val
+    logger.debug( "Sensors-only dict: %s" % sensors)
 
     ideal.move(turn, move)
     localizer.move(turn, move)
@@ -63,6 +69,18 @@ def run( bot_loc, blocks, map_properties, course_map, ipc_channel, bot_state, lo
 
 #################################
 class Fake_IPC(object):
+
+  ''' sensorData: 
+        {'accel': {'x': 0, 'y': 0, 'z': 980},
+         'heading': 0.0,
+         'id': 0,
+         'msg': 'This is fake',
+         'result': True,
+         'ultrasonic': {'back': 1.3385833999999999,
+                        'front': 1.3385833999999999,
+                        'left': 1.3385833999999999,
+                        'right': 1.3385833999999999}}
+  '''
   def __init__(self, start_pose, map_data, delay = 0.0, logger = None):
     self.delay = delay
     self.logger = logger
@@ -78,7 +96,12 @@ class Fake_IPC(object):
     turn = random.random() * pi - pi/2
     move = random.random() * 2
     self.simbot.move(turn,move)
-    sensorDict = self.simbot.sense(self.map)
+    sensorDict ={}
+    sensorDict['id'] = 0
+    sensorDict['msg'] = 'localizer.Fake_IPC'
+    sensorDict['heading'] = self.simbot.theta
+    sensorDict['accel'] = { 'x': 0, 'y': 0, 'z' : 980 }
+    sensorDict['ultrasonic'] = self.simbot.sense(self.map)
 
     # %todo: x, y, theta -> dx, dy, dtheta
     msg = {'dTheta': turn, 'dXY': move, 'sensorData': sensorDict, 'timestamp': None}
@@ -103,12 +126,12 @@ if __name__ == '__main__':
 
   #m = map.Map('maps/test3.map')
   map_obj = mapping.pickler.unpickle_map('../mapping/map.pkl')
+  waypoints = mapping.pickler.unpickle_waypoints('../mapping/waypoints.pkl')
 
   bot_loc = {'x': 6.0, 'y': 2.6, 'theta':pi/2}
   blocks = {}
   map_props = {}
   bot_state = {}
 
-  run(bot_loc, blocks, map_props, map_obj, None, bot_state)
-  #def run( bot_loc, blocks, map_properties, course_map, ipc_channel, bot_state ):
+  run(bot_loc, blocks, map_props, map_obj, waypoints, None, bot_state)
 
