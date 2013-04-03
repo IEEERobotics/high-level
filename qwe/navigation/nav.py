@@ -23,6 +23,7 @@ from time import sleep
 macro_move = namedtuple("macro_move", ["x", "y", "theta", "timestamp"])
 micro_move_XY = namedtuple("micro_move_XY", ["distance", "speed", "timestamp"])
 micro_move_theta = namedtuple("micro_move_theta", ["angle", "timestamp"])
+micro_move_XYTheta = namedtuple("micro_move_XYTheta", ["distance", "speed", "angle", "timestamp"])
 
 # Dict of error codes and their human-readable names
 errors = { 100 : "ERROR_BAD_CWD",  101 : "ERROR_SBPL_BUILD", 102 : "ERROR_SBPL_RUN", 103 : "ERROR_BUILD_ENV", 
@@ -232,6 +233,10 @@ class Nav:
       elif type(move_cmd) == micro_move_theta:
         self.logger.info("Move command is if type micro_move_theta")
         rv = self.microMoveTheta(angle=self.thetaFromMoveQUC(move_cmd.angle))
+      elif type(move_cmd) == micro_move_XYTheta:
+        self.logger.info("Move command is if type micro_move_XYTheta")
+        rv = self.microMoveXYTheta(distance=self.XYFromMoveQUC(move_cmd.distance), speed=self.speedFromMoveQUC(move_cmd.speed), \
+                                  angle=self.thetaFromMoveQUC(move_cmd.angle))
       elif type(move_cmd) == str and move_cmd == "die":
         self.logger.warning("Received die command, nav is exiting.")
         self.bot_state["naving"] = False
@@ -399,14 +404,32 @@ class Nav:
     :param dist: Distance to convert from meters to comm distance units (mm)"""
 
     #self.logger.debug("Translated XY move command from {} to {}".format(dist, float(dist) * 1000 ))
-    self.logger.debug("Translated XY move command from {} to {}".format(dist, float(dist) * 39.3701 * (1633/9.89)))
+    encoder_units = float(dist) * 39.3701 * (1633/9.89)
+    self.logger.debug("Translated XY move command from {} to {}".format(dist, encoder_units))
 
     # Mark location as dirty, since I'm about to issue a move command
     self.bot_loc["dirty"] = True
     self.logger.info("Bot loc is now marked as dirty")
 
     #return float(dist) * 1000 # This is in mm
-    return float(dist) * 39.3701 * (1633/9.89) # This is in encoder units
+    return encoder_units # This is in encoder units
+
+  def speedToCommUC(self, speed):
+    """Convert from internal distance units (meters) to units used by comm for distances. Also, since all move commands go through
+    this function or angleToCommUC, set bot_loc to dirty here.
+
+    :param dist: Distance to convert from meters to comm distance units (mm)"""
+
+    #self.logger.debug("Translated XY move command from {} to {}".format(speed, float(speed) * 1000 ))
+    encoder_units = float(speed) * 39.3701 * (1633/9.89)
+    self.logger.debug("Translated XY move command from {} to {}".format(speed, encoder_units))
+
+    # Mark location as dirty, since I'm about to issue a move command
+    self.bot_loc["dirty"] = True
+    self.logger.info("Bot loc is now marked as dirty")
+
+    #return float(speed) * 1000 # This is in mm
+    return encoder_units # This is in encoder units
 
   def angleToCommUC(self, angle):
     """Convert from internal angle units (radians) to units used by comm for angles (tenths of degrees). Also, since all move 
@@ -582,6 +605,13 @@ class Nav:
     self.qNav_loc.put({"dTheta" : self.angleToLocUC(commResult_rads), "dXY" : 0, "sensorData" : sensor_data, \
                                                                                   "timestamp" : datetime.now()})
 
+  def feedLocalizerXYTheta(self, actual_dist, abs_heading):
+    """Give localizer information about XY and theta results. Also, package up sensor information and a timestamp."""
+
+    sensor_data = self.getSensorData()
+    self.qNav_loc.put({"dTheta" : self.angleToLocUC(abs_heading), "dXY" : self.distToLocUC(actual_dist), \
+                      "sensorData" : sensor_data, "timestamp" : datetime.now()})
+
   def whichXYTheta(self, step_prev, step_cur):
     """Find if movement is to be in the XY plane or the theta dimension.
 
@@ -670,6 +700,31 @@ class Nav:
 
     # Report move result to localizer ASAP
     self.feedLocalizerTheta(commResult_rads)
+
+    return True
+
+  def microMoveXYTheta(self, distance, speed, angle):
+    """Handle simple movements on a small scale. Used for small adjustments by vision or planner when very close to objects.
+
+    :param angle: Theta change desired by micro move"""
+
+    self.logger.debug("Handling micro move XYTheta with distance {}, speed {} and angle {}".format(distance, speed, angle))
+
+    # Mark location as dirty, since I'm about to issue a move command
+    self.bot_loc["dirty"] = True
+    self.logger.info("Bot loc is now marked as dirty")
+
+    # Pass distance to comm and block for response
+    #commResult_rads = self.angleFromCommUC(self.scNav.botMove(self.angleToCommUC(angle)))
+    actual_dist_comm_units, abs_heading_comm_units = self.scNav.botSet(self.distToCommUC(distance), self.speedToCommUC(speed), \
+                                                                      self.angleToCommUC(angle))
+    actual_dist = self.distFromCommUC(actual_dist_comm_units)
+    abs_heading = self.angleFromCommUC(abs_heading_comm_units)
+
+    self.logger.info("Comm returned actual_dist of {} and abs_heading of {}".format(actual_dist, abs_heading))
+
+    # Report move result to localizer ASAP
+    self.feedLocalizerXYTheta(actual_dist, abs_heading)
 
     return True
 
