@@ -13,16 +13,18 @@ except ImportError:
   print "You need OpenCV to use vision modules, sorry."
   sys.exit(1)
 
-from util import KeyCode, isImageFile, log, rotateImage
+from util import KeyCode, isImageFile, log_str, rotateImage
 from base import FrameProcessor, FrameProcessorPipeline
 from colorfilter import ColorFilterProcessor
 from blobdetection import CMYKBlobDetector
 from blobtracking import BlobTracker
 from linedetection import LineDetector
 from linewalking import LineWalker
+import logging.config
 
 camera_frame_width = 640
 camera_frame_height = 480
+do_logging = True
 
 class VisionManager:
   def __init__(self, bot_loc, blobs, blocks, zones, corners, waypoints, sc, bot_state, options=None, standalone=False):
@@ -34,6 +36,13 @@ class VisionManager:
     self.waypoints = waypoints
     self.sc = sc
     self.bot_state = bot_state
+    
+    # * Set up logging
+    if do_logging:
+      logging.config.fileConfig('logging.conf')
+      self.logger = logging.getLogger('vision')
+    else:
+      self.logger = None
     
     # * Get parameters and flags from options dict
     # ** Populate options first, if none given
@@ -252,14 +261,27 @@ class VisionManager:
     self.stop()
   
   def loge(self, func, msg):
-    log(self, func, msg)
+    #log(self, func, msg)
+    outStr = log_str(self, func, msg)
+    print outStr
+    if self.logger is not None:
+      self.logger.error(outStr)
   
   def logi(self, func, msg):
-    log(self, func, msg)
+    #log(self, func, msg)
+    outStr = log_str(self, func, msg)
+    print outStr
+    if self.logger is not None:
+      self.logger.info(outStr)
   
   def logd(self, func, msg):
-    if self.debug:
-      log(self, func, msg)
+    #if self.debug:
+    #  log(self, func, msg)
+    outStr = log_str(self, func, msg)
+    if self.debug:  # only used to filter messages to stdout, all messages are sent to logger if available
+      print outStr
+    if self.logger is not None:
+      self.logger.debug(outStr)
 
 
 def run(bot_loc=None, blobs=None, blocks=None, zones=None, corners=None, waypoints=None, sc=None, bot_state=None, options=None, standalone=False):

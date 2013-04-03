@@ -62,12 +62,17 @@ class KeyCode:
         return desc
 
 
-def log(obj, func, msg):
-    """Log a message to stdout along with an object's class name and (optional) function name."""
+def log_str(obj, func, msg):
+    """Compose a log message with an object's class name and (optional) function name."""
     if func is None:
-        print "{0}: {1}".format(obj.__class__.__name__, msg)
+        return "{0}: {1}".format(obj.__class__.__name__, msg)
     else:
-        print "{0}.{1}(): {2}".format(obj.__class__.__name__, func, msg)
+        return "{0}.{1}(): {2}".format(obj.__class__.__name__, func, msg)
+
+
+def log(obj, func, msg):
+    """Log a message composed using log_str() to stdout."""
+    print log_str(obj, func, msg)
 
 
 def getFileExtension(filename):

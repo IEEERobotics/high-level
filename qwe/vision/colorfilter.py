@@ -118,8 +118,9 @@ class ColorFilterProcessor(FrameProcessor):
       self.state = self.State.TRAIN  # else, switch to TRAIN mode so that filters can be created (only in GUI mode)
       self.active = True
     
+    # Print menu to stdout, only if GUI is available
     if self.gui:
-      self.logi("initialize", "Menu:-")
+      print "ColorFilterProcessor.initialize(): Menu:-"
       print "\ta\tAdd current filter to bank"
       print "\tl\tList filters in bank"
       print "\tw\tWrite bank to file (as JSON)"

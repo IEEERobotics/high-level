@@ -69,7 +69,7 @@ class Blob:
   def draw(self, imageOut, drawDetail=False):
     if drawDetail:
       # Contours
-      cv2.drawContours(imageOut, [self.contour], 0, self.colorGreen if self.active else self.colorDarkGreen, 2)
+      #cv2.drawContours(imageOut, [self.contour], 0, self.colorGreen if self.active else self.colorDarkGreen, 2)
       
       # Motion trace
       if self.active and self.lastCenter is not None:  # if a lastCenter is available
