@@ -81,6 +81,10 @@ class Planner:
   def getCurrentLocation(self):
     return self.bot_loc
 
+  def wait(self, blocking):
+    while blocking != False:
+      continue
+  
   #more to the next block - use this if next block location is
   #handled by nav instead of planner
   def moveToNextBlock(self):
@@ -98,8 +102,9 @@ class Planner:
     self.bot_state["naving"] = True
     macro_m = nav.macro_move(x, y, theta, datetime.now())
     self.qMove_nav.put(macro_m)
-    while self.bot_state["naving"] != False:
-      continue
+    self.wait(self.bot_state["naving"])
+    #while self.bot_state["naving"] != False:
+    #  continue
   
   def getBlobNearCenter(self):
     closest = 0
@@ -123,7 +128,13 @@ class Planner:
   
   def alignWithCenter(self, loc):
     pass
-  
+    
+    #this is supposed to align with the expected white line... 
+    #one possible solution: 
+    # a repeated forward and backward micromoves until we are aligned
+    
+    
+    
     #dist = 320-(x+w/2)
     #direction = 1
     #if dist < 0:
@@ -162,6 +173,12 @@ class Planner:
       #get block from vision, do not track lines
       self.bot_state["cv_blockDetect"] = True
       self.bot_state["cv_lineTrack"] = False
+      
+      self.wait(self.bot_state["cv_blockDetect"])
+      #while self.bot_state["cv_blockDetect"] != False:
+      #  continue
+      if self.blobs == None:
+        continue
       block, direction, distance = self.getBlobNearCenter()
       
       #block = self.storageSim[i]
@@ -245,6 +262,25 @@ class Planner:
       block = self.nextAirBlock[i];
       #print "Processing: [", block.getColor(), block.getSize(), block.getLocation(), "]"
       #self.pickUpBlock(block.getLocation(), i);
+      stID = block[0]
+      self.bot_state["cv_blockDetect"] = False
+      self.bot_state["cv_lineTrack"] = True
+      self.moveToWayPoint(self.getCurrentLocation(), stID)
+      
+      self.bot_state["cv_blockDetect"] = True
+      self.bot_state["cv_lineTrack"] = False
+      
+      self.wait(self.bot_state["cv_blockDetect"])
+      #while self.bot_state["cv_blockDetect"] != False:
+      #  continue
+      if self.blobs == None:
+        continue
+      block, direction, distance = self.getBlobNearCenter()
+      
+      #in order to pick up a block, first check if bot is centered
+      #self.alignWithCenter()
+      self.microMove(distance, direction)
+            
       self.pickUpBlock(block[0], i);
     #end for
     
@@ -256,6 +292,12 @@ class Planner:
 
     print "Scan air drop-off"
     print "Drop Air Blocks"
+    self.goToNextAirDropOff(self.armList[0])
+    self.placeBlock(0)
+          
+    self.goToNextAirDropOff(self.armList[1])
+    self.placeBlock(1)
+    
 
   def getAvailableSeaDropOffs():
     availList = []
@@ -291,6 +333,12 @@ class Planner:
         #get the color at waypoint from vision
         self.bot_state["cv_blockDetect"] = True
         self.bot_state["cv_lineTrack"] = False
+        
+        self.wait(self.bot_state["cv_blockDetect"])
+        #while self.bot_state["cv_blockDetect"] != False:
+        #  continue
+        if self.blobs == None:
+          continue
         
         #color = seaBlockSim[availList[i]]
         zone, direction, distance = self.getBlobNearCenter()
@@ -329,6 +377,12 @@ class Planner:
         self.bot_state["cv_blockDetect"] = True
         self.bot_state["cv_lineTrack"] = False
         
+        self.wait(self.bot_state["cv_blockDetect"])
+        #while self.bot_state["cv_blockDetect"] != False:
+        #  continue
+        if self.blobs == None:
+          continue
+        
         #color = LandBlockSim[availList[i]]
         zone, direction, distance = self.getBlobNearCenter()
         color = zone.color
@@ -346,6 +400,11 @@ class Planner:
     else:
       self.moveToWayPoint(self.getCurrentLocation(), self.scannedLandLocs[blockColor])
 
+  
+  def goToNextAirDropOff(self, block):
+    pass
+  
+      
   # pick up a block given armID
   def pickUpBlock(self, arm):
     armId = self.armID[arm]    
