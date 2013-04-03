@@ -34,7 +34,7 @@ class Planner:
   #nlbl = twd.TwoWayDict()
   
   
-  def __init__(self, bot_loc, blobs, blocks, zones, waypoints, scPlanner, bot_state, qMove_nav):
+  def __init__(self, bot_loc, blobs, blocks, zones, waypoints, scPlanner, bot_state, qMove_nav, logger):
     """Setup navigation class
 
     :param bot_loc: Shared dict updated with best-guess location of bot by localizer
@@ -54,6 +54,7 @@ class Planner:
     self.scPlanner = scPlanner
     self.bot_state = bot_state
     self.qMove_nav = qMove_nav
+    self.logger = logger
     
     self.bot_state["cv_blockDetect"] = True
     self.bot_state["cv_lineTrack"] = False
@@ -85,27 +86,6 @@ class Planner:
     while blocking != False:
       continue
   
-  #more to the next block - use this if next block location is
-  #handled by nav instead of planner
-  def moveToNextBlock(self):
-    pass
-    #print "Moving to Next Block"
-    #self.moveTo(self.getCurrentLocation(), "nextblock loc")
-    #micro or macro???
-  
-  #move from start to end
-  def moveToWayPoint(self, startLoc, endLoc):
-    print "Moving from ", startLoc, " to ", endLoc, "--", self.waypoints[endLoc]
-    x, y = self.waypoints[endLoc][1]
-    theta = self.waypoints[endLoc][2]
-    speed = self.waypoints[endLoc][3]
-    self.bot_state["naving"] = True
-    macro_m = nav.macro_move(x, y, theta, datetime.now())
-    self.qMove_nav.put(macro_m)
-    self.wait(self.bot_state["naving"])
-    #while self.bot_state["naving"] != False:
-    #  continue
-  
   def getBlobNearCenter(self):
     closest = 0
     mindist = 641 #some large number at least as large as width of image
@@ -126,6 +106,44 @@ class Planner:
     mindist = pixelsToInches * mindist
     return self.blobs[closest], mindir, mindist
   
+  #more to the next block - use this if next block location is
+  #handled by nav instead of planner
+  def moveToNextBlock(self):
+    pass
+    #print "Moving to Next Block"
+    #self.moveTo(self.getCurrentLocation(), "nextblock loc")
+    #micro or macro???
+  
+  #move from start to end
+  def moveToWayPoint(self, startLoc, endLoc):
+    #print "Moving from ", startLoc, " to ", endLoc, "--", self.waypoints[endLoc]
+    self.logger("Moving from "+ str(startLoc)+ " to "+str(endLoc)+ "--"+str(self.waypoints[endLoc]))
+    x, y = self.waypoints[endLoc][1]
+    theta = self.waypoints[endLoc][2]
+    speed = self.waypoints[endLoc][3]
+    self.bot_state["naving"] = True
+    macro_m = nav.macro_move(x, y, theta, datetime.now())
+    self.qMove_nav.put(macro_m)
+    self.wait(self.bot_state["naving"])
+    #while self.bot_state["naving"] != False:
+    #  continue
+    
+  def microMove(self, distance, direction):
+    #print "Moving from ", startLoc, " to ", endLoc
+    micro_m = nav.micro_move_XY(distance, comm.default_speed * direction, datetime.now())
+    self.qMove_nav.put(micro_m)
+
+  def moveUpRamp(self, loc1, loc2):
+    self.logger("Moving up the ramp from "+ str(loc1)+ " to "+str(loc2))
+    x1, y1 = self.waypoints[loc1][1]
+    x2, y2 = self.waypoints[loc2][1]
+    distance = math.sqrt((x1-x2)*(x1-x2) + (y1-y2)*(y1-y2))
+    speed = comm.default_speed * 1.2
+    micro_m = nav.micro_move_XY(distance, speed, datetime.now())
+    self.qMove_nav.put(micro_m)
+
+  
+    
   def alignWithCenter(self, loc):
     pass
     
@@ -142,28 +160,23 @@ class Planner:
     #print "Distance to center: ", dist, "pixels -- ", dist*0.0192, "inches --", dist*0.0192*1622/9.89,"revolutions"
     #self.micromove(dist, direction)
 
-  
-  def microMove(self, distance, direction):
-    #print "Moving from ", startLoc, " to ", endLoc
-    micro_m = nav.micro_move_XY(distance, comm.default_speed * direction, datetime.now())
-    self.qMove_nav.put(micro_m)
-
     
   def processSeaLand(self, startTime):
     armCount = 0
     self.armList = []
-    print "+++++ +++++ +++++ +++++ +++++ +++++"
+    self.logger.info("+++++ +++++ Beginning to pick and place sea and land blocks +++++ +++++")
     for i in range(len(self.nextSeaLandBlock)):
     
       elapsedTime = datetime.now() - startTime
       if elapsedTime.seconds > 250:
-        print "Don't you have a flight to catch?" #time to start processing air.
+        self.logger.debug("Don't you have a flight to catch?") #time to start processing air.
         #things to do: if location of both airblocks are known, pick them up, else continue scanning
         # if one of the arms has a block, use the other arm to pick up block, place other block down
         # if both arms have blocks -- this is not good!
       
       stID = self.nextSeaLandBlock[i];
-      print "Processing: [", stID, self.waypoints[stID], "]"
+      #print "Processing: [", stID, self.waypoints[stID], "]"
+      self.logger.info("Processing: ["+ str(stID)+ str(self.waypoints[stID])+ "]")
       
       #movement along the whiteline, close to the blocks
       self.bot_state["cv_blockDetect"] = False
@@ -199,7 +212,7 @@ class Planner:
       armCount = armCount + 1;
 
       if armCount == 2:
-        print "picked up 2 blocks"
+        self.logger.info("picked up 2 blocks")
         
         #when dropping blocks off, offset the center of the bot
         #about 0.5 from the center of the dropoff zone
@@ -251,7 +264,7 @@ class Planner:
                 
         armCount = 0
         self.armList = []
-        print "===== ===== ===== ===== ===== ===== ===== ===== ===== ====="
+        self.logger.info("===== ===== ===== ===== ===== ===== ===== ===== ===== =====")
         self.moveToWayPoint(self.getCurrentLocation(), "storage")
       #end if
     #end for
@@ -284,19 +297,35 @@ class Planner:
       self.pickUpBlock(block[0], i);
     #end for
     
-    print "Move to Ramp, up the ramp, to the drop-off"
-    self.moveToWayPoint(self.getCurrentLocation(), "grnd2ramp") #normal speed
-    self.moveToWayPoint(self.getCurrentLocation(), "lwrPlt") #ramp speed
+    self.logger.info("Move to Ramp, up the ramp, to the drop-off")
+    self.moveUpRamp("grnd2ramp","lwrPlt") #up the ramp
+    self.moveToWayPoint(self.getLocation(), "lwrPlt") #align in the right direction on lower platform
+    self.moveUpRamp("lwrPlt", "air") #up the long ramp
+        
+    #self.moveToWayPoint(self.getCurrentLocation(), "grnd2ramp") #normal speed
+    #self.moveToWayPoint(self.getCurrentLocation(), "lwrPlt") #ramp speed
     #self.moveToWayPint(self.getCurrentLocation(), "uprRamp") #normal speed
-    self.moveToWayPoint(self.getCurrentLocation(), "air") #ramp speed
-
-    print "Scan air drop-off"
-    print "Drop Air Blocks"
-    self.goToNextAirDropOff(self.armList[0])
-    self.placeBlock(0)
-          
-    self.goToNextAirDropOff(self.armList[1])
-    self.placeBlock(1)
+    #self.moveToWayPoint(self.getCurrentLocation(), "air") #ramp speed
+    
+    self.logger.info("Drop Air Blocks")
+    
+    self.logger.info("Placing First Air Block")
+    self.moveToWayPoint(self.getCurrentLocation(), "A01")
+    color, direction, distance = self.getAirDropOffColor()
+    if color == self.armList[0].color:
+      self.placeBlock(0)
+    else:
+      self.placeBlock(1)
+    
+    self.logger.info("Placing Second Air Block")
+    self.moveToWayPoint(self.getCurrentLocation(), "A02")
+    color, direction, distance = self.getAirDropOffColor()
+    if color == self.armList[0].color:
+      self.placeBlock(0)
+    else:
+      self.placeBlock(1)
+    #self.goToNextAirDropOff(self.armList[1])
+    #self.placeBlock(1)
     
 
   def getAvailableSeaDropOffs():
@@ -401,8 +430,21 @@ class Planner:
       self.moveToWayPoint(self.getCurrentLocation(), self.scannedLandLocs[blockColor])
 
   
-  def goToNextAirDropOff(self, block):
-    pass
+  def getAirDropOffColor(self):
+    self.bot_state["cv_blockDetect"] = True
+    self.bot_state["cv_lineTrack"] = False
+        
+    self.wait(self.bot_state["cv_blockDetect"])
+    #while self.bot_state["cv_blockDetect"] != False:
+      #  continue
+    if self.blobs == None:
+      continue
+        
+    #color = LandBlockSim[availList[i]]
+    zone, direction, distance = self.getBlobNearCenter()
+    color = zone.color
+    return color, direction, distance
+    #pass
   
       
   # pick up a block given armID
@@ -431,10 +473,10 @@ class Planner:
 
   #main
   def start(self):
-    self.storageSimulator("storage") ##use when vision is not available
-    self.dropOffSimulator("sea") ##use when vision is not available
-    self.dropOffSimulator("land")
-    print "Move to Storage Start"
+    #self.storageSimulator("storage") ##use when vision is not available
+    #self.dropOffSimulator("sea") ##use when vision is not available
+    #self.dropOffSimulator("land")
+    self.logger.info("Move to Storage Start")
     
     startTime = datetime.now()
     
@@ -531,12 +573,18 @@ class Planner:
   #end scanLandorSeaFirstTime
       
 
-def run(bot_loc, blobs, blocks, zones, waypoints, scPlanner, bot_state, qMove_nav):
-  # TODO Handle shared data, start your process from here
-  plan = Planner(bot_loc, blobs, blocks, zones, waypoints, scPlanner, bot_state, qMove_nav)
+def run(bot_loc, blobs, blocks, zones, waypoints, scPlanner, bot_state, qMove_nav, logger=None,):
+  
+  if logger is None:
+    logging.config.fileConfig("logging.conf") # TODO This will break if not called from qwe. Add check to fix based on cwd?
+    logger = logging.getLogger(__name__)
+    logger.debug("Logger is set up")
+  
+  logger.debug("Executing run function of Planner")
+  plan = Planner(bot_loc, blobs, blocks, zones, waypoints, scPlanner, bot_state, qMove_nav, logger)
   #plan.test()
   plan.start()
-  
+  logger.debug("Completed Planner Execution")
   
 if __name__ == "__main__":
   plan = Planner() #will fail... needs waypoints from map.
