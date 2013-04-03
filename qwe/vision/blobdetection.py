@@ -14,6 +14,7 @@ import util
 from base import FrameProcessor
 from main import main
 from blobtracking import BlobTracker
+from colors import colors, findMatchColorBGR
 
 class SimpleBlob:
   colorBlue = (255, 0, 0)
@@ -343,12 +344,16 @@ class CMYKBlobDetector(FrameProcessor):
       elif h > 100:
         length = "small"
       
+      # ** Identify color (name)
       imageBlob = imgBlocks[y:y+h, x:x+w]
       #imageBlob = np.asarray(cv.GetSubRect(cv.fromarray(imgBlocks),rectList[i][0]))
       color_bgr = cv2.mean(imageBlob)
+      color_obj = findMatchColorBGR(colors, color_bgr)
+      #self.logd("process", "color_obj: {0}".format(color_obj))
+      color = color_obj.name if color_obj is not None else "none"
       
       # ** Create blob object
-      blob = SimpleBlob(area=area, bbox=bbox, rect=rect, length=length, color_bgr=color_bgr, color="none")  # TODO identify color
+      blob = SimpleBlob(area=area, bbox=bbox, rect=rect, length=length, color_bgr=color_bgr, color=color)
       
       # ** Apply additional filter(s) on computed blob properties  # NOTE density is not being calculated in SimpleBlob
       #if blob.density < BlobTracker.minBlobDensity: continue
