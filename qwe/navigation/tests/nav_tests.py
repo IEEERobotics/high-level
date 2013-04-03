@@ -10,6 +10,7 @@ import os
 import pprint as pp
 from datetime import datetime
 from time import sleep
+from math import pi, radians, degrees
 
 # Dict of error codes and their human-readable names
 errors = {100 : "ERROR_BAD_CWD"}
@@ -529,6 +530,150 @@ class TestUC(unittest.TestCase):
     valExUnits = self.Nav.XYTobot_locUC(valNavUnits)
 
     self.assertEqual(valExUnits, testVal_in)
+
+  def test_distToCommUC(self):
+    """Test converting meters to encoder units"""
+
+    testVal_m0 = .5
+    testVal_enc0 = testVal_m0 * 39.3701 * (1633/9.89)
+
+    result0 = self.Nav.distToCommUC(testVal_m0)
+    self.assertEqual(testVal_enc0, result0, "Failed to convert {} meters to {} ECs, result was {} ECs".format( \
+                                                                            testVal_m0, testVal_enc0, result0))
+
+    testVal_m1 = 10
+    testVal_enc1 = testVal_m1 * 39.3701 * (1633/9.89)
+
+    result1 = self.Nav.distToCommUC(testVal_m1)
+    self.assertEqual(testVal_enc1, result1, "Failed to convert {} meters to {} ECs, result was {} ECs".format( \
+                                                                            testVal_m1, testVal_enc1, result1))
+
+    testVal_m2 = .001
+    testVal_enc2 = testVal_m2 * 39.3701 * (1633/9.89)
+
+    result2 = self.Nav.distToCommUC(testVal_m2)
+    self.assertEqual(testVal_enc2, result2, "Failed to convert {} meters to {} ECs, result was {} ECs".format( \
+                                                                            testVal_m2, testVal_enc2, result2))
+
+  def test_distFromCommUC(self):
+    """Test converting encoder units to meters"""
+
+    testVal_m0 = .5
+    testVal_enc0 = testVal_m0 * 39.3701 * (1633/9.89)
+
+    result0 = self.Nav.distFromCommUC(testVal_enc0)
+    self.assertEqual(testVal_m0, result0, "Failed to convert {} ECs to {} meters, result was {} meters".format( \
+                                                                            testVal_enc0, testVal_m0, result0))
+
+    testVal_m1 = 10
+    testVal_enc1 = testVal_m1 * 39.3701 * (1633/9.89)
+
+    result1 = self.Nav.distFromCommUC(testVal_enc1)
+    self.assertEqual(testVal_m1, result1, "Failed to convert {} ECs to {} meters, result was {} meters".format( \
+                                                                            testVal_enc1, testVal_m1, result1))
+
+    testVal_m2 = .001
+    testVal_enc2 = testVal_m2 * 39.3701 * (1633/9.89)
+
+    result2 = self.Nav.distFromCommUC(testVal_enc2)
+    self.assertEqual(testVal_m2, result2, "Failed to convert {} ECs to {} meters, result was {} meters".format( \
+                                                                            testVal_enc2, testVal_m2, result2))
+
+  def test_angleToCommUC(self):
+
+    testVal_rad0 = pi/2
+    testVal_comm0 = 900
+
+    result0 = self.Nav.angleToCommUC(testVal_rad0)
+    self.assertEqual(testVal_comm0, result0, "Failed to convert {} rads to {} signed tenths of degs, result was {}".format( \
+                                                                                       testVal_rad0, testVal_comm0, result0))
+
+    testVal_rad0 = pi
+    testVal_comm0 = 1800
+
+    result0 = self.Nav.angleToCommUC(testVal_rad0)
+    self.assertEqual(testVal_comm0, result0, "Failed to convert {} rads to {} signed tenths of degs, result was {}".format( \
+                                                                                       testVal_rad0, testVal_comm0, result0))
+
+    testVal_rad0 = 3*pi/2
+    testVal_comm0 = -900
+
+    result0 = self.Nav.angleToCommUC(testVal_rad0)
+    self.assertEqual(testVal_comm0, result0, "Failed to convert {} rads to {} signed tenths of degs, result was {}".format( \
+                                                                                       testVal_rad0, testVal_comm0, result0))
+
+    testVal_rad0 = 2*pi
+    testVal_comm0 = 0
+
+    result0 = self.Nav.angleToCommUC(testVal_rad0)
+    self.assertEqual(testVal_comm0, result0, "Failed to convert {} rads to {} signed tenths of degs, result was {}".format( \
+                                                                                       testVal_rad0, testVal_comm0, result0))
+
+    testVal_rad0 = 3*pi
+    testVal_comm0 = 1800
+
+    result0 = self.Nav.angleToCommUC(testVal_rad0)
+    self.assertEqual(testVal_comm0, result0, "Failed to convert {} rads to {} signed tenths of degs, result was {}".format( \
+                                                                                       testVal_rad0, testVal_comm0, result0))
+
+    testVal_rad0 = 100*pi
+    testVal_comm0 = 0
+
+    result0 = self.Nav.angleToCommUC(testVal_rad0)
+    self.assertEqual(testVal_comm0, result0, "Failed to convert {} rads to {} signed tenths of degs, result was {}".format( \
+                                                                                       testVal_rad0, testVal_comm0, result0))
+
+    testVal_rad0 = .001*pi
+    testVal_comm0 = 1.8000000000000002
+
+    result0 = self.Nav.angleToCommUC(testVal_rad0)
+    self.assertEqual(testVal_comm0, result0, "Failed to convert {} rads to {} signed tenths of degs, result was {}".format( \
+                                                                                       testVal_rad0, testVal_comm0, result0))
+
+
+  def test_angleFromCommUC(self):
+
+    testVal_rad0 = pi/2
+    testVal_comm0 = 900
+
+    result0 = self.Nav.angleFromCommUC(testVal_comm0)
+    self.assertEqual(testVal_rad0, result0, "Failed to convert {} signed tenths of degrees to {} rads, result was {}".format( \
+                                                                                       testVal_comm0, testVal_rad0, result0))
+
+    testVal_rad0 = pi
+    testVal_comm0 = 1800
+
+    result0 = self.Nav.angleFromCommUC(testVal_comm0)
+    self.assertEqual(testVal_rad0, result0, "Failed to convert {} signed tenths of degrees to {} rads, result was {}".format( \
+                                                                                       testVal_comm0, testVal_rad0, result0))
+
+    testVal_rad0 = 3*pi/2
+    testVal_comm0 = -900
+
+    result0 = self.Nav.angleFromCommUC(testVal_comm0)
+    self.assertEqual(testVal_rad0, result0, "Failed to convert {} signed tenths of degrees to {} rads, result was {}".format( \
+                                                                                       testVal_comm0, testVal_rad0, result0))
+
+    testVal_rad0 = 0
+    testVal_comm0 = 0
+
+    result0 = self.Nav.angleFromCommUC(testVal_comm0)
+    self.assertEqual(testVal_rad0, result0, "Failed to convert {} signed tenths of degrees to {} rads, result was {}".format( \
+                                                                                       testVal_comm0, testVal_rad0, result0))
+
+    testVal_rad0 = pi
+    testVal_comm0 = 1800
+
+    result0 = self.Nav.angleFromCommUC(testVal_comm0)
+    self.assertEqual(testVal_rad0, result0, "Failed to convert {} signed tenths of degrees to {} rads, result was {}".format( \
+                                                                                       testVal_comm0, testVal_rad0, result0))
+
+    testVal_rad0 = 0
+    testVal_comm0 = 0
+
+    result0 = self.Nav.angleFromCommUC(testVal_comm0)
+    self.assertEqual(testVal_rad0, result0, "Failed to convert {} signed tenths of degrees to {} rads, result was {}".format( \
+                                                                                       testVal_comm0, testVal_rad0, result0))
 
 
 class TestlocsEqual(unittest.TestCase):

@@ -14,7 +14,7 @@ from collections import namedtuple
 from subprocess import call
 from os import chdir, getcwd
 from sys import exit
-from math import sqrt, sin, cos, pi
+from math import sqrt, degrees, radians
 from datetime import datetime
 import pprint as pp
 from time import sleep
@@ -405,8 +405,8 @@ class Nav:
     self.bot_loc["dirty"] = True
     self.logger.info("Bot loc is now marked as dirty")
 
-    #return float(dist) * 1000
-    return float(dist) * 39.3701 * (1633/9.89)
+    #return float(dist) * 1000 # This is in mm
+    return float(dist) * 39.3701 * (1633/9.89) # This is in encoder units
 
   def angleToCommUC(self, angle):
     """Convert from internal angle units (radians) to units used by comm for angles (tenths of degrees). Also, since all move 
@@ -415,31 +415,45 @@ class Nav:
 
     :param angle: Angle to convert from radians to comm angle units"""
 
-    self.logger.debug("Translated theta move command from {} to {}".format(angle, float(angle) * 57.2957795 * 10))
+    degs = degrees(angle) % 360
+    if degs > 180:
+      degs = degs - 360
+    tenths_degs = degs * 10
 
-    # Should feed 1/10 degrees with sign
+    self.logger.debug("Translated theta move command from {} to {}".format(angle, tenths_degs))
 
     # Mark location as dirty, since I'm about to issue a move command
     self.bot_loc["dirty"] = True
     self.logger.info("Bot loc is now marked as dirty")
 
-    return float(angle) * 57.2957795 * 10
+    return tenths_degs
 
   def distFromCommUC(self, commResult):
     """Convert result returned by comm for distance moves to internal units (meters)
 
     :param commResult: Distance result returned by comm (mm) to convert to meters"""
 
-    self.logger.debug("Translated XY commResult from {} to {}".format(commResult, float(commResult) / 1000))
-    return float(commResult) / 1000
+    # Assumes mm
+    #self.logger.debug("translated xy commresult from {} to {}".format(commresult, float(commresult) / 1000))
+    #return float(commResult) / 1000
+
+    # Assumes encoder units
+    commResult_m = commResult / (1633/9.89) / 39.3701
+    self.logger.debug("translated xy commresult from {} to {}".format(commResult, commResult_m))
+    return commResult_m
 
   def angleFromCommUC(self, commResult):
     """Convert result returned by comm for angle moves to internal units (radians)
 
     :param commResult: Angle result returned by comm to convert to radians"""
 
-    self.logger.debug("Translated theta commResult from {} to {}".format(commResult, float(commResult) / 10 / 57.2957795))
-    return float(commResult) / 10 / 57.2957795
+    degs = commResult / 10
+    if degs < 0:
+      degs = 360 + degs
+    rads = radians(degs)
+
+    self.logger.debug("Translated theta commResult from {} to {}".format(commResult, rads))
+    return rads
 
   def distToLocUC(self, dist):
     """Convert from internal distance units (meters) to units used by localizer for distances
