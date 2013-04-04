@@ -121,7 +121,7 @@ class Planner:
   #move from start to end
   def moveToWayPoint(self, startLoc, endLoc):
     #print "Moving from ", startLoc, " to ", endLoc, "--", self.waypoints[endLoc]
-    self.logger("Moving from "+ str(startLoc)+ " to "+str(endLoc)+ "--"+str(self.waypoints[endLoc]))
+    self.logger.info("Moving from "+ str(startLoc)+ " to "+str(endLoc)+ "--"+str(self.waypoints[endLoc]))
     x, y = self.waypoints[endLoc][1]
     theta = self.waypoints[endLoc][2]
     speed = self.waypoints[endLoc][3]
@@ -138,7 +138,7 @@ class Planner:
     self.qMove_nav.put(micro_m)
 
   def moveUpRamp(self, loc1, loc2):
-    self.logger("Moving up the ramp from "+ str(loc1)+ " to "+str(loc2))
+    self.logger.info("Moving up the ramp from "+ str(loc1)+ " to "+str(loc2))
     x1, y1 = self.waypoints[loc1][1]
     x2, y2 = self.waypoints[loc2][1]
     distance = math.sqrt((x1-x2)*(x1-x2) + (y1-y2)*(y1-y2))
