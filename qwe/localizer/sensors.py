@@ -20,6 +20,7 @@ class Ultrasonic(Sensor):
     # TODO: figure out how we convert this precision value to gaussians
     self.resolution = 0.1  # inches, from datasheet (0.3cm)
     self.cone = cone
+    self.gauss_var = 3.0
 
   def sense(self, pose, map, noisy = False):
     if self.cone:  # 15 degree cone
@@ -55,10 +56,18 @@ class Ultrasonic(Sensor):
     return val
 
 class Compass(Sensor):
-  def __init__(self, index, name):
-    Sensor.__init__(self, index, name)
+  def __init__(self, name, noise = 0.0):
+    Sensor.__init__(self, name)
+    self.noise = noise
+    self.gauss_var = 0.1
+
+  def sense(self, pose, map, noisy = False):
+    val = pose.theta
+    if noisy:
+      val += random.normal(0, self.noise)
+    return val
 
 class Accelerometer(Sensor):
-  def __init__(self, index, name):
-    Sensor.__init__(self, index, name)
+  def __init__(self, name):
+    Sensor.__init__(self, name)
   

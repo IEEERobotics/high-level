@@ -76,9 +76,11 @@ class ParticleLocalizer(object):
         #   TODO: refine 1.0 noise parameter to something meaningful
         #         perhaps this should actually just lookup the measurement difference in
         #         a precomputed PDF for the sensor (gaussian around zero diff and a bump at max)
-        prob[i] *= ngaussian(self.p.sensed[name][i], 5.0, measured[name])
+        prob[i] *= ngaussian(self.p.sensed[name][i], sensor.gauss_var, measured[name])
         raw[i] += abs(self.p.sensed[name][i] - measured[name])
+        #print "sensor: %s, sense: %0.2f, meas %0.2f, prob: %0.4f" % (name, self.p.sensed[name][i], measured[name], prob[i])
       #print "  %d : raw_err: %0.2f,  prob: %0.2f" % (i, raw[i], prob[i])
+      #print
 
   def random_particles(self, count):
     x = random.random(count) * self.p.map.x_inches

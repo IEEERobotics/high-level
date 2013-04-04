@@ -132,7 +132,7 @@ class Simulator(HasTraits):
       self.noise_turn = noise_params['turn']
 
       #start_pose = Pose(themap.x_inches/2, themap.y_inches/2, 0.0)
-      start_pose = Pose(6, 2.6, pi/2)
+      start_pose = Pose(6, 2.6, 0.0)
       robot = SimRobot(start_pose, sensors, noise_params = noise_params)
       rplotter = RobotPlotter(robot = robot, xsize = themap.x_inches, ysize = themap.y_inches)
 
