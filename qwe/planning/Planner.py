@@ -9,6 +9,8 @@ from datetime import datetime
 import comm.serial_interface as comm
 import math
 import time
+import logging.config
+
 
 pixelsToInches = 0.0195
 
@@ -56,7 +58,7 @@ class Planner:
     self.qMove_nav = qMove_nav
     self.logger = logger
     
-    self.bot_state["cv_blockDetect"] = True
+    self.bot_state["cv_blockDetect"] = False
     self.bot_state["cv_lineTrack"] = False
     
     self.armID[0] = comm.right_arm 
@@ -126,9 +128,9 @@ class Planner:
     self.bot_state["naving"] = True
     macro_m = nav.macro_move(x, y, theta, datetime.now())
     self.qMove_nav.put(macro_m)
-    self.wait(self.bot_state["naving"])
-    #while self.bot_state["naving"] != False:
-    #  continue
+    #self.wait(self.bot_state["naving"])
+    while self.bot_state["naving"] != False:
+      continue
     
   def microMove(self, distance, direction):
     #print "Moving from ", startLoc, " to ", endLoc
@@ -188,9 +190,9 @@ class Planner:
       self.bot_state["cv_blockDetect"] = True
       self.bot_state["cv_lineTrack"] = False
       
-      self.wait(self.bot_state["cv_blockDetect"])
-      #while self.bot_state["cv_blockDetect"] != False:
-      #  continue
+      #self.wait(self.bot_state["cv_blockDetect"])
+      while self.bot_state["cv_blockDetect"] != False:
+        continue
       if self.blobs == None:
         continue
       block, direction, distance = self.getBlobNearCenter()
@@ -208,7 +210,8 @@ class Planner:
       #in order to pick up a block, first check if bot is centered
       #self.alignWithCenter()
       self.microMove(distance, direction)
-      self.pickUpBlock(armCount) #arm 0 or 1.
+      #self.pickUpBlock(armCount) #arm 0 or 1.
+      self.scPlanner.armPick(self.armID[armCount])
       self.zones[stID] = 0
       self.bot_state["zone_change"] = self.bot_state["zone_change"] + 1
       self.armList.append(block)
@@ -226,10 +229,12 @@ class Planner:
           self.moveToWayPoint(self.getCurrentLocation(), "sea")
           
           self.goToNextSeaDropOff(self.armList[0])
-          self.placeBlock(0)
+          #self.placeBlock(0)
+          self.scPlanner.armDrop(self.armID[0])
           
           self.goToNextSeaDropOff(self.armList[1])
-          self.placeBlock(1)
+          #self.placeBlock(1)
+          self.scPlanner.armDrop(self.armID[1])
 
         #Both arms contain land blocks
         #elif self.armList[0].getSize() == "large" and self.armList[1].getSize() == "large":
@@ -237,21 +242,25 @@ class Planner:
           self.moveToWayPoint(self.getCurrentLocation(), "land")
           
           self.goToNextLandDropOff(self.armList[0])
-          self.placeBlock(0)
+          #self.placeBlock(0)
+          self.scPlanner.armDrop(self.armID[0])
           
           self.goToNextLandDropOff(self.armList[1])
-          self.placeBlock(1)
+          #self.placeBlock(1)
+          self.scPlanner.armDrop(self.armID[1])
               
         #One arm contains sea block and other contains land block
         #elif self.armList[0].getSize() == "medium" and self.armList[1].getSize() == "large":
         elif self.armList[0].length == "medium" and self.armList[1].length == "large":
           self.moveToWayPoint(self.getCurrentLocation(), "sea")
           self.goToNextSeaDropOff(self.armList[0])
-          self.placeBlock(0)
+          #self.placeBlock(0)
+          self.scPlanner.armDrop(self.armID[0])
         
           self.moveToWayPoint(self.getCurrentLocation(), "land")
           self.goToNextLandDropOff(self.armList[1])
-          self.placeBlock(1)
+          #self.placeBlock(1)
+          self.scPlanner.armDrop(self.armID[1])
             
         #One arm contains land block and other contains sea block
         #elif self.armList[0].getSize() == "large" and self.armList[1].getSize() == "medium":
@@ -259,11 +268,13 @@ class Planner:
           # even if the orders are different, first go to sea then land
           self.moveToWayPoint(self.getCurrentLocation(), "sea")
           self.goToNextSeaDropOff(self.armList[1])
-          self.placeBlock(1)
+          #self.placeBlock(1)
+          self.scPlanner.armDrop(self.armID[1])
         
           self.moveToWayPoint(self.getCurrentLocation(), "land")
           self.goToNextLandDropOff(self.armList[0])
-          self.placeBlock(0)
+          #self.placeBlock(0)
+          self.scPlanner.armDrop(self.armID[0])
                 
         armCount = 0
         self.armList = []
@@ -286,9 +297,9 @@ class Planner:
       self.bot_state["cv_blockDetect"] = True
       self.bot_state["cv_lineTrack"] = False
       
-      self.wait(self.bot_state["cv_blockDetect"])
-      #while self.bot_state["cv_blockDetect"] != False:
-      #  continue
+      #self.wait(self.bot_state["cv_blockDetect"])
+      while self.bot_state["cv_blockDetect"] != False:
+        continue
       if self.blobs == None:
         continue
       block, direction, distance = self.getBlobNearCenter()
@@ -315,18 +326,20 @@ class Planner:
     self.logger.info("Placing First Air Block")
     self.moveToWayPoint(self.getCurrentLocation(), "A01")
     color, direction, distance = self.getAirDropOffColor()  # TODO color may be "none" with invalid direction and distance - take care of that
-    if color == self.armList[0].color:
-      self.placeBlock(0)
-    else:
-      self.placeBlock(1)
+    if color is not None:
+      if color == self.armList[0].color:
+        self.placeBlock(0)
+      else:
+        self.placeBlock(1)
     
     self.logger.info("Placing Second Air Block")
     self.moveToWayPoint(self.getCurrentLocation(), "A02")
     color, direction, distance = self.getAirDropOffColor()
-    if color == self.armList[0].color:
-      self.placeBlock(0)
-    else:
-      self.placeBlock(1)
+    if color is not None:
+      if color == self.armList[0].color:
+        self.placeBlock(0)
+      else:
+        self.placeBlock(1)
     #self.goToNextAirDropOff(self.armList[1])
     #self.placeBlock(1)
     
@@ -366,9 +379,9 @@ class Planner:
         self.bot_state["cv_blockDetect"] = True
         self.bot_state["cv_lineTrack"] = False
         
-        self.wait(self.bot_state["cv_blockDetect"])
-        #while self.bot_state["cv_blockDetect"] != False:
-        #  continue
+        #self.wait(self.bot_state["cv_blockDetect"])
+        while self.bot_state["cv_blockDetect"] != False:
+          continue
         if self.blobs == None:
           continue
         
@@ -413,9 +426,9 @@ class Planner:
         self.bot_state["cv_blockDetect"] = True
         self.bot_state["cv_lineTrack"] = False
         
-        self.wait(self.bot_state["cv_blockDetect"])
-        #while self.bot_state["cv_blockDetect"] != False:
-        #  continue
+        #self.wait(self.bot_state["cv_blockDetect"])
+        while self.bot_state["cv_blockDetect"] != False:
+          continue
         if self.blobs == None:
           continue
         
@@ -445,11 +458,11 @@ class Planner:
     self.bot_state["cv_blockDetect"] = True
     self.bot_state["cv_lineTrack"] = False
     
-    self.wait(self.bot_state["cv_blockDetect"])
-    #while self.bot_state["cv_blockDetect"] != False:
-    #  continue
-    #if self.blobs == None:
-    #  continue  # BUG can't continue if not in a loop
+    #self.wait(self.bot_state["cv_blockDetect"])
+    while self.bot_state["cv_blockDetect"] != False:
+      continue
+    if self.blobs == None:
+      return None, direction, distance
     
     #color = LandBlockSim[availList[i]]
     zone, direction, distance = self.getBlobNearCenter()
@@ -584,7 +597,7 @@ class Planner:
   #end scanLandorSeaFirstTime
       
 
-def run(bot_loc, blobs, blocks, zones, waypoints, scPlanner, bot_state, qMove_nav, logger=None,):
+def run(bot_loc, blobs, blocks, zones, waypoints, scPlanner, bot_state, qMove_nav, logger=None):
   
   if logger is None:
     logging.config.fileConfig("logging.conf") # TODO This will break if not called from qwe. Add check to fix based on cwd?
