@@ -89,24 +89,24 @@ class Planner:
       continue
   
   def getBlobNearCenter(self):
-    closest = 0
+    closestBlob = None
     mindist = 641 #some large number at least as large as width of image
     direction = 1
     mindir = direction
-    for i in range(len(self.blobs)):
+    for blob in self.blobs:  # a more pythonic way of iterating
       direction = 1
-      x,y,w,h = self.blobs[i].bbox
-      blockDist = (320 - (x + w / 2))  # TODO use SimpleBlob.center instead
+      x,y,w,h = blob.bbox
+      blockDist = (320 - (x + w / 2))  # TODO use SimpleBlob.center instead?
       if blockDist < 0:
         blockDist = blockDist * -1
         direction = -1
-        
+      
       if blockDist < mindist:
         mindist = blockDist
-        closest = i
+        closestBlob = blob
         mindir = direction
     mindist = pixelsToInches * mindist
-    return self.blobs[closest], mindir, mindist
+    return closestBlob, mindir, mindist
   
   #more to the next block - use this if next block location is
   #handled by nav instead of planner
@@ -143,9 +143,8 @@ class Planner:
     speed = comm.default_speed * 1.2
     micro_m = nav.micro_move_XY(distance, speed, datetime.now())
     self.qMove_nav.put(micro_m)
-
   
-    
+  
   def alignWithCenter(self, loc):
     pass
     
@@ -315,7 +314,7 @@ class Planner:
     
     self.logger.info("Placing First Air Block")
     self.moveToWayPoint(self.getCurrentLocation(), "A01")
-    color, direction, distance = self.getAirDropOffColor()
+    color, direction, distance = self.getAirDropOffColor()  # TODO color may be "none" with invalid direction and distance - take care of that
     if color == self.armList[0].color:
       self.placeBlock(0)
     else:
@@ -440,25 +439,25 @@ class Planner:
       self.moveToWayPoint(self.getCurrentLocation(), self.scannedLandLocs[blockColor])
       self.zones[self.scannedLandLocs[blockColor]] = 1
       self.bot_state["zone_change"] = self.bot_state["zone_change"] + 1
-
+  
   
   def getAirDropOffColor(self):
     self.bot_state["cv_blockDetect"] = True
     self.bot_state["cv_lineTrack"] = False
-        
+    
     self.wait(self.bot_state["cv_blockDetect"])
     #while self.bot_state["cv_blockDetect"] != False:
-      #  continue
-    if self.blobs == None:
-      continue
-        
+    #  continue
+    #if self.blobs == None:
+    #  continue  # BUG can't continue if not in a loop
+    
     #color = LandBlockSim[availList[i]]
     zone, direction, distance = self.getBlobNearCenter()
-    color = zone.color
+    color = zone.color if zone is not None else "none"
     return color, direction, distance
     #pass
   
-      
+  
   # pick up a block given armID
   def pickUpBlock(self, arm):
     armId = self.armID[arm]    
