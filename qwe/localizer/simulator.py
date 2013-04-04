@@ -108,6 +108,7 @@ class Simulator(HasTraits):
       self.move_dist = random() * 10 
       self.move_theta = random() * pi - pi/2
       self._move_fired()
+      self.mapplot.map.map_obj.fillLoc(waypoints, "L01", {'desc':8})
 
     def _move_fired(self):
       print "Move!"
@@ -148,6 +149,7 @@ class Simulator(HasTraits):
       c.add(rplotter.plot)
 
       self.container = c
+      self.mapplot = m
       self.pplotter = pplotter
       self.rplotter = rplotter
       self.guessplotter = guessplotter
@@ -165,15 +167,15 @@ if __name__ == "__main__":
   #map = Map(args.map, args.res)
   map_obj = mapping.pickler.unpickle_map('../mapping/map.pkl')
   waypoints = mapping.pickler.unpickle_waypoints('../mapping/waypoints.pkl')
-  map_obj.fillLoc(waypoints, "St01", {'desc':8})
-  #for i in range(14):
-  #  map_obj.fillLoc(waypoints, "St%02d"%(i+1), {'desc':8})
-  #for i in range(6):
-  #  map_obj.fillLoc(waypoints, "L%02d"%(i+1), {'desc':8})
-  #for i in range(6):
-  #  map_obj.fillLoc(waypoints, "Se%02d"%(i+1), {'desc':8})
-
   themap = map.Map.from_map_class(map_obj, logger = logger)
+
+  for i in range(14):
+    themap.map_obj.fillLoc(waypoints, "St%02d"%(i+1), {'desc':8})
+  #for i in range(6):
+  #  themap.map_obj.fillLoc(waypoints, "L%02d"%(i+1), {'desc':8})
+  #for i in range(6):
+  #  themap.map_obj.fillLoc(waypoints, "Se%02d"%(i+1), {'desc':8})
+  themap.update()
 
   particle_count = args.num
 

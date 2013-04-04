@@ -57,6 +57,7 @@ def run( bot_loc, zones, map_properties, course_map, waypoints, ipc_channel, bot
     if zone_change > last_zone_change:  
       logger.debug("Map zones are behind, updating")
       logger.debug("Current zones dict: %s" % zones)
+      logger.debug("Wall count before update: %d" % len(themap.data[themap.data==1]))
       for zone, state in zones.items():
         if state == True:
           logger.debug("Wall-filling location: %s" % zone)
@@ -66,6 +67,7 @@ def run( bot_loc, zones, map_properties, course_map, waypoints, ipc_channel, bot
           themap.map_obj.fillLoc(waypoints, zone, {'desc':0})
       themap.update()
       last_zone_change = zone_change
+      logger.debug("Wall count after update: %d" % len(themap.data[themap.data==1]))
 
     ideal.move(turn, move)
     localizer.move(turn, move)
@@ -134,12 +136,10 @@ class DumbLocalizer(object):
 
 #################################
 
-if __name__ == '__main__':
-
+def do_run():
   logging.config.fileConfig('logging.conf')  # local version
   logger = logging.getLogger(__name__)
 
-  #m = map.Map('maps/test3.map')
   map_obj = mapping.pickler.unpickle_map('../mapping/map.pkl')
   waypoints = mapping.pickler.unpickle_waypoints('../mapping/waypoints.pkl')
 
@@ -149,4 +149,7 @@ if __name__ == '__main__':
   bot_state = {'zone_change': 1}
 
   run(bot_loc, zones, map_props, map_obj, waypoints, None, bot_state, logger)
+
+if __name__ == '__main__':
+  do_run()
 

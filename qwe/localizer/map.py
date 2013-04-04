@@ -13,7 +13,7 @@ class Map():
       data = list( csv.reader(open(filename, 'r')))
       data = [ [int(x) for x in y] for y in data  ]  # convert string to ints
       data.reverse()
-      self.data = data
+      self.data = array(data)
       self.scale = scale  # inches per element
       self.map_obj = None
 
@@ -41,7 +41,7 @@ class Map():
     self.logger.debug("Map data update!")
     desc_to_walls = zeros(10,dtype=int)
     desc_to_walls[8] = 1
-    self.data = [desc_to_walls[i] for i in self.map_obj.grid[:][:]['desc']]
+    self.data = array([desc_to_walls[i] for i in self.map_obj.grid[:][:]['desc']])
     self.scale = 1.0 / self.map_obj.scale
 
   @property

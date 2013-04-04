@@ -19,6 +19,13 @@ class MapPlot(HasTraits):
   xdim = Property(Int)
   ydim = Property(Int)
 
+  def do_redraw(self):
+    print "TODO: force map redraw"
+    data_xy = self.map.xy()
+    #self.x_ds.set_data(data_xy[:,0] * self.map.scale)
+    #self.y_ds.set_data(data_xy[:,1] * self.map.scale)
+    map
+
   def _get_xdim(self):
     return self.map.xdim
 
@@ -31,6 +38,9 @@ class MapPlot(HasTraits):
 
     x_ds = ArrayDataSource(data_xy[:,0] * self.map.scale)
     y_ds = ArrayDataSource(data_xy[:,1] * self.map.scale)
+    self.x_ds = x_ds
+    self.y_ds = y_ds
+
     x_dr = DataRange1D(x_ds)
     y_dr = DataRange1D(y_ds)
     x_dr.set_bounds(0, self.map.x_inches)  # auto ranging won't work if a side has no walls
