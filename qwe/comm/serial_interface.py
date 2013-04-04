@@ -174,7 +174,7 @@ class SerialInterface(Process):
         #print "[SEND-LOOP] Command :", command  # [debug]
         self.send(id, command)
       except Queue_Empty:
-        print "[SEND-LOOP] Warning: Empty queue (timeout?)"
+        #print "[SEND-LOOP] Warning: Empty queue (timeout?)"
         pass  # if queue is empty (after timeout, e.g.), simply loop back and wait for more commands
     print "SerialInterface.sendLoop(): [SEND-LOOP] Terminated."
   
@@ -236,9 +236,9 @@ class SerialInterface(Process):
     try:
       responseStr = self.device.readline()  # NOTE response must be \n terminated
       responseStr = responseStr.strip()  # strip EOL
-      print "[RECV] {0}".format(responseStr)  # [debug]
+      #print "[RECV] {0}".format(responseStr)  # [debug]
       if len(responseStr) == 0:
-        print "[RECV] Warning: Blank response (timeout?)"
+        #print "[RECV] Warning: Blank response (timeout?)"
         return { }  # return a blank dict
       else:
         response = json.loads(responseStr)
