@@ -107,6 +107,7 @@ if __name__ == "__main__":
 
   # Start planner process, pass it shared data
   scPlanner = comm.SerialCommand(si.commands, si.responses)  # create one SerialCommand wrapper for each client
+  scPlanner.compassReset()
   # NOTE si.commands and si.responses are process-safe shared structures
   pPlanner = Process(target=planner.run, args=(bot_loc, blobs, blocks, zones, waypoints, scPlanner, bot_state, qMove_nav))
   pPlanner.start()
