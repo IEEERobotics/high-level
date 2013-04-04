@@ -7,12 +7,13 @@ import time  # sleep
 
 import std_sensors, std_noise
 
-import sys, os
+import sys, os, signal
+import logging.config
+
 sys.path.append('..')
 import mapping.map_class
 sys.modules['map_class'] = mapping.map_class  # deal with the fact we pickled a module in another dir
 import mapping.pickler
-import logging.config
 
 def run( bot_loc, zones, map_properties, course_map, waypoints, ipc_channel, bot_state, logger=None ):
 
@@ -44,10 +45,11 @@ def run( bot_loc, zones, map_properties, course_map, waypoints, ipc_channel, bot
 
     sensorData = msg['sensorData']
     logger.debug( "SensorData: %s" % sensorData)
-    # pull out ultrasonic data
+    # pull out ultrasonic/heading data
     sensors = {}
     for key,val in sensorData['ultrasonic'].items():
       sensors[key] = val
+    sensors['heading'] = sensorData['heading']
     logger.debug( "Sensors-only dict: %s" % sensors)
 
     # update map if zone status has changed
@@ -135,9 +137,16 @@ class DumbLocalizer(object):
 
 #################################
 
+def signal_handler(signal, frame):
+  print
+  print "Localizer terminated by signal."
+  print
+  sys.exit(0)
+
 def do_run():
   logging.config.fileConfig('logging.conf')  # local version
   logger = logging.getLogger(__name__)
+  signal.signal(signal.SIGINT, signal_handler)
 
   map_obj = mapping.pickler.unpickle_map('../mapping/map.pkl')
   waypoints = mapping.pickler.unpickle_waypoints('../mapping/waypoints.pkl')
