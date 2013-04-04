@@ -15,8 +15,8 @@ def mk_waypoints(res, map_grid_vars):
 	waypoints = {}	#waypoints['key']=((grid_x,grid_y),(real_x,real_y), theta, speed)
 
 	#calculate x and y values for start
-	start_grid_x =  int(map_grid_vars['wall']+map_grid_vars['startW']/2)
-	start_grid_y = int(map_grid_vars['wall']+map_grid_vars['startH']/2)	
+	start_grid_x =  int(map_grid_vars['start_x'])
+	start_grid_y = int(map_grid_vars['start_y'])	
 	start_grid = (start_grid_x, start_grid_y)
 	start_real = (float(start_grid_x)/res, float(start_grid_y)/res)
 	waypoints['start'] = (start_grid,start_real,0,'normal')	#center of start location

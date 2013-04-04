@@ -34,6 +34,8 @@ map_real_vars['landW'] = 18.5
 map_real_vars['bot_width'] = 12		
 map_real_vars['bot_length'] = 12
 map_real_vars['offset'] = 5
+map_real_vars['start_x'] = 4
+map_real_vars['start_y'] = 7.75
 
 #map property variables
 #status vars
