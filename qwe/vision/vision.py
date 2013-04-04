@@ -25,6 +25,7 @@ import logging.config
 camera_frame_width = 640
 camera_frame_height = 480
 do_logging = True
+do_blockDetect_once = True  # when bot_state["cv_blockDetect"] is set to True, set it back to False as soon as one set of blobs is detected?
 
 class VisionManager:
   def __init__(self, bot_loc, blobs, blocks, zones, corners, waypoints, sc, bot_state, options=None, standalone=False):
@@ -118,11 +119,13 @@ class VisionManager:
     
     # * Create pipeline(s) of FrameProcessor objects, initialize supporting variables
     #pipeline = FrameProcessorPipeline(self.options, [ColorFilterProcessor, LineDetector, LineWalker])  # line walking pipeline
-    pipeline = FrameProcessorPipeline(self.options, [CMYKBlobDetector])  # CMYK blob detection pipeline
+    #pipeline = FrameProcessorPipeline(self.options, [CMYKBlobDetector])  # CMYK blob detection
     #pipeline = FrameProcessorPipeline(self.options, [ColorFilterProcessor, BlobTracker])  # blob tracking pipeline
     #pipeline = FrameProcessorPipeline(self.options, [ColorFilterProcessor, LineDetector, LineWalker, BlobTracker])  # combined pipeline
+    pipeline = FrameProcessorPipeline(self.options, [LineDetector, LineWalker, CMYKBlobDetector])  # CMYK blob detection + line walking pipeline
     # ** Get references to specific processors for fast access
     #colorFilter = pipeline.getProcessorByType(ColorFilterProcessor)
+    lineDetector = pipeline.getProcessorByType(LineDetector)
     lineWalker = pipeline.getProcessorByType(LineWalker)
     blobDetector = pipeline.getProcessorByType(CMYKBlobDetector)
     #blobTracker = pipeline.getProcessorByType(BlobTracker)
@@ -173,25 +176,42 @@ class VisionManager:
         pipeline.initialize(frame, timeNow)
         fresh = False
       
-      # TODO check bot_state activate only those processors that should be active
+      # ** Check bot_state activate only those processors that should be active
+      cv_lineTrack = self.bot_state.get("cv_lineTrack", False)
+      #self.logd("start", "[LOOP] cv_lineTrack? {0}".format(cv_lineTrack))  # [debug]
+      #pipeline.activateProcessors([LineDetector, LineWalker], cv_lineTrack)
+      if lineDetector is not None:
+        lineDetector.active = cv_lineTrack
+      if lineWalker is not None:
+        lineWalker.active = cv_lineTrack
       
+      cv_blockDetect = self.bot_state.get("cv_blockDetect", False)
+      #self.logd("start", "[LOOP] cv_blockDetect? {0}".format(cv_blockDetect))  # [debug]
+      #pipeline.activateProcessors([CMYKBlobDetector], cv_blockDetect)
+      if blobDetector is not None:
+        blobDetector.active = cv_blockDetect
+        
       # ** Process frame
       keepRunning, imageOut = pipeline.process(frame, timeNow)
       if not keepRunning:
         self.stop()
       
       # ** Perform post-process functions
-      if blobDetector is not None:  # TODO check bot_state
+      if blobDetector is not None and blobDetector.active:
         del self.blobs[:]
         self.blobs.extend(blobDetector.blobs)
-        self.logd("start", "[LOOP] Got {0} blobs from blob detector".format(len(self.blobs)))
+        self.logd("start", "[LOOP] Got {0} blob(s) from blob detector".format(len(self.blobs)))
+        if self.blobs and do_blockDetect_once:  # if some blobs have been found and we're supposed to do this only once
+          self.bot_state["cv_blockDetect"] = False
+          self.logd("start", "[LOOP] Set cv_blockDetect to {0}".format(self.bot_state["cv_blockDetect"]))
       
-      # [Sim] Compute simulated bot movement from heading error reported by LineWalker
       # TODO Send out actual movement commands to navigator (only in LINE_WALKING state)
-      if self.sim and lineWalker is not None:
+      if cv_lineTrack and lineWalker is not None:
         if lineWalker.state is LineWalker.State.GOOD and lineWalker.headingError != 0.0:
-          #self.logd("start", "[LOOP] headingError: {0:6.2f}".format(lineWalker.headingError))
-          self.heading -= 0.1 * lineWalker.headingError
+          self.logd("start", "[LOOP] headingError: {0:6.2f}".format(lineWalker.headingError))
+        # [Sim] Simulate bot movement from heading error reported by LineWalker
+        if self.sim:
+            self.heading -= 0.1 * lineWalker.headingError
       
       # ** Show output image
       if showOutput and imageOut is not None:
@@ -284,7 +304,7 @@ class VisionManager:
       self.logger.debug(outStr)
 
 
-def run(bot_loc=None, blobs=None, blocks=None, zones=None, corners=None, waypoints=None, sc=None, bot_state=None, options=None, standalone=False):
+def run(bot_loc=dict(), blobs=list(), blocks=dict(), zones=dict(), corners=list(), waypoints=dict(), sc=None, bot_state=dict(cv_lineTrack=True, cv_blockDetect=True), options=None, standalone=False):
   """Entry point for vision process: Create VisionManager to handle shared data and start vision loop."""
   visManager = VisionManager(bot_loc=bot_loc, blobs=blobs, blocks=blocks, zones=zones, corners=corners, waypoints=waypoints, sc=sc, bot_state=bot_state, options=options, standalone=standalone)  # passing in shared data, options dict and stand-alone flag; use named arguments to avoid positional errors
   visManager.start()  # start vision loop
