@@ -381,7 +381,13 @@ class SerialCommand:
     #return response.get('result', False)
     return self.gripperSetAngle(arm.gripper_id, arm.gripper_angles[1])
   
-  # TODO implement armPick() and armDrop()
+  def armPick(self, arm):
+    response = self.runCommand(arm.name + "_pick")
+    return response.get('result', False)
+  
+  def armDrop(self, arm):
+    response = self.runCommand(arm.name + "_drop")
+    return response.get('result', False)
   
   def getAllSensorData(self):
     return self.runCommand("sensors")  # return the entire dict full of sensor data
