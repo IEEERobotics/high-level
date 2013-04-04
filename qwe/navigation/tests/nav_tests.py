@@ -218,9 +218,9 @@ class TestFullInteraction(unittest.TestCase):
     self.logger.debug("Shared data structures created")
 
     # Start fakeLoc process
-    #self.pfakeLoc = Process(target=fakeLoc, args=(self.testQueue, self.bot_loc, self.logger))
-    #self.pfakeLoc.start()
-    #self.logger.info("fakeLoc process started")
+    self.pfakeLoc = Process(target=fakeLoc, args=(self.testQueue, self.bot_loc, self.logger))
+    self.pfakeLoc.start()
+    self.logger.info("fakeLoc process started")
 
     # Start nav process
     self.scNav = comm.SerialCommand(self.si.commands, self.si.responses)
@@ -230,10 +230,10 @@ class TestFullInteraction(unittest.TestCase):
     self.logger.info("Navigator process started")
 
     # Start localizer process, pass it shared data, waypoints, map_properties course_map and queue for talking to nav
-    self.pLocalizer = Process(target=localizer.run, args=(self.bot_loc, self.zones, self.map_properties, self.course_map, \
-      self.waypoints, self.qNav_loc, self.bot_state, self.logger))
-    self.pLocalizer.start()
-    self.logger.info("Localizer process started")
+    #self.pLocalizer = Process(target=localizer.run, args=(self.bot_loc, self.zones, self.map_properties, self.course_map, \
+    #  self.waypoints, self.qNav_loc, self.bot_state, self.logger))
+    #self.pLocalizer.start()
+    #self.logger.info("Localizer process started")
 
   def tearDown(self):
     """Close serial interface threads"""
@@ -247,14 +247,15 @@ class TestFullInteraction(unittest.TestCase):
     self.logger.info("Joined navigation process")
 
     # Pass a die command to loc
-    self.logger.info("Telling loc to die")
-    self.qNav_loc.put("die")
+    #self.logger.info("Telling loc to die")
+    #self.qNav_loc.put("die")
 
-    self.pLocalizer.join()
-    self.logger.info("Joined localizer process")
+    #self.pLocalizer.join()
+    #self.logger.info("Joined localizer process")
 
-    #self.pfakeLoc.join()
-    #self.logger.info("Joined fakeLoc process")
+    # Pass a die command to loc
+    self.pfakeLoc.join()
+    self.logger.info("Joined fakeLoc process")
 
     # Join serial interface process
     self.scNav.quit()
@@ -395,8 +396,6 @@ class TestFullInteraction(unittest.TestCase):
     # Build goal pose
     goal_x = self.waypoints["St01"][1][0]
     goal_y = self.waypoints["St01"][1][1]
-    #goal_x = self.waypoints["St01"][0][0] * float(nav.env_config["cellsize"]) * 39.3701
-    #goal_y = self.waypoints["St01"][0][1] * float(nav.env_config["cellsize"]) * 39.3701
     goal_theta = self.waypoints["St01"][2]
 
     goal_pose = nav.macro_move(goal_x, goal_y, goal_theta, datetime.now())
@@ -434,6 +433,23 @@ class TestFullInteraction(unittest.TestCase):
     # Send goal pose via queue
     self.logger.debug("About to send goal pose to queue with ID {}".format(str(self.qMove_nav)))
     self.qMove_nav.put(goal_pose1)
+    self.logger.debug("Put goal pose into queue")
+
+  def test_move_to_L01(self):
+    """Pass in a goal pose that differes in X, Y and theta from the start pose"""
+    self.logger.debug("Building goal pose")
+
+    # Build goal pose
+    goal_x = self.waypoints["L01"][1][0]
+    goal_y = self.waypoints["L01"][1][1]
+    goal_theta = self.waypoints["L01"][2]
+
+    goal_pose = nav.macro_move(goal_x, goal_y, goal_theta, datetime.now())
+    self.logger.debug("Created goal pose {}".format(pp.pformat(goal_pose)))
+
+    # Send goal pose via queue
+    self.logger.debug("About to send goal pose to queue with ID {}".format(str(self.qMove_nav)))
+    self.qMove_nav.put(goal_pose)
     self.logger.debug("Put goal pose into queue")
 
 class TestUC(unittest.TestCase):
