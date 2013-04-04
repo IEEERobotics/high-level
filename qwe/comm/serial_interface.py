@@ -399,6 +399,10 @@ class SerialCommand:
     else:
       return -1
   
+  def compassReset(self):
+    response = self.runCommand("compass_reset")
+    return response.get('result', False)
+  
   # TODO write specialized sensor value fetchers for non-scalar sensors like the accelerometer (and possibly other sensors for convenience)
 
 
