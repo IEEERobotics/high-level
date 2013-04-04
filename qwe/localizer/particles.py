@@ -71,14 +71,23 @@ class ParticleLocalizer(object):
       # what if we init to 1.0 once, then refine this probability continuously?
       prob[i] = 1.0
       raw[i] = 0
+      #print self.p.x[i], self.p.y[i]
+      # TODO test particle on wall
+      if not ((0 <= self.p.x[i] <= self.p.map.x_inches) and (0 <= self.p.y[i] <= self.p.map.y_inches)):
+        self.logger.warn("Bad ploc: (%0.2f, %0.2f)! Setting weight to 0.0" % (self.p.x[i], self.p.y[i]))
+        prob[i] = 0.0
       for name,sensor in self.p.sensors.items():
-        # compare measured input of sensor versus the particle's value, adjusting prob accordingly
-        #   TODO: refine 1.0 noise parameter to something meaningful
-        #         perhaps this should actually just lookup the measurement difference in
-        #         a precomputed PDF for the sensor (gaussian around zero diff and a bump at max)
-        prob[i] *= ngaussian(self.p.sensed[name][i], sensor.gauss_var, measured[name])
-        raw[i] += abs(self.p.sensed[name][i] - measured[name])
-        #print "sensor: %s, sense: %0.2f, meas %0.2f, prob: %0.4f" % (name, self.p.sensed[name][i], measured[name], prob[i])
+        # only weight valid sensor data
+        if measured[name] >= 0:
+          # compare measured input of sensor versus the particle's value, adjusting prob accordingly
+          #         perhaps this should actually just lookup the measurement difference in
+          #         a precomputed PDF for the sensor (gaussian around zero diff and a bump at max)
+          prob[i] *= ngaussian(self.p.sensed[name][i], sensor.gauss_var, measured[name])
+          raw[i] += abs(self.p.sensed[name][i] - measured[name])
+          #print "sensor: %s, sense: %0.2f, meas %0.2f, prob: %0.4f" % (name, self.p.sensed[name][i], measured[name], prob[i])
+        else:
+          pass
+          #print "sensor: %s, bad reading, skipping" % name
       #print "  %d : raw_err: %0.2f,  prob: %0.2f" % (i, raw[i], prob[i])
       #print
 
@@ -93,6 +102,10 @@ class ParticleLocalizer(object):
     y = self.p.y
     theta = self.p.theta
     weight = self.weight
+    if weight.sum() == 0.0:
+      self.logger.warn("Zero particle weights, skipping resample!")
+      print "Zero particle weights, skipping resample!"
+      return
     # resample (x, y, theta) using wheel resampler
     rand_count = int(self.pcount * (rand_percent/100.0))  # use some% entirely random
     #print "New random: %d" % rand_count
@@ -130,12 +143,17 @@ class ParticleLocalizer(object):
   def guess_wmean(self):
     weight = self.weight
     normalizer = weight.sum()
-    x = (self.p.x * weight).sum() / normalizer
-    y = (self.p.y * weight).sum() / normalizer
-    # average the vector components of theta individually to avoid jump between 0 and 2pi
-    vx = (self.p.v[:,0] * weight).sum() / normalizer
-    vy = (self.p.v[:,1] * weight).sum() / normalizer
-    theta = arctan2(vy,vx) % (2*pi)
+    if normalizer > 0.0:
+      self.logger.debug("particle weight normalizer: %0.4f", normalizer)
+      x = (self.p.x * weight).sum() / normalizer
+      y = (self.p.y * weight).sum() / normalizer
+      # average the vector components of theta individually to avoid jump between 0 and 2pi
+      vx = (self.p.v[:,0] * weight).sum() / normalizer
+      vy = (self.p.v[:,1] * weight).sum() / normalizer
+      theta = arctan2(vy,vx) % (2*pi)
+    else:
+      self.logger.warn('Zero particle weight normalizer!!')
+      return self.guess_mean()
     return Pose(x,y,theta)
 
   def guess_best(self):

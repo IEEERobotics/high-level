@@ -46,11 +46,14 @@ class Ultrasonic(Sensor):
     wx,wy = raycast.find_wall(sense_pose.x, sense_pose.y, sense_pose.theta, self.max, map)
     #print "Wall sense: ", wx, wy
     if wx <0:  # no wall seen
-     val = self.max
+     #val = self.max
+     val = -0.13
     else:
       val = norm( [sense_pose.x-wx, sense_pose.y-wy] )
       if noisy:
         val += random.normal(0, self.noise)
+        if random.random() < 0.2:
+          return -0.14
     # TODO: figure out if particles should use dirty sensors (guess: no?)
     #print "Sense1 val: ", val
     return val

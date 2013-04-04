@@ -16,6 +16,8 @@ class Map():
       self.data = array(data)
       self.scale = scale  # inches per element
       self.map_obj = None
+      self.logger.debug("Map initialized from file: %s" % filename)
+      self.logger.debug("Map dimensions %s" % self)
 
   def xy(self):
     """ Converts from matrix of 0s and 1s to an array of xy pairs.
@@ -29,6 +31,7 @@ class Map():
 
   @classmethod
   def from_map_class(self, map_obj, logger = None):
+    logger.debug("Map initialized from map_class object")
     m = Map(logger = logger)
     m.map_obj = map_obj
     m.update()
@@ -38,11 +41,12 @@ class Map():
     return m
 
   def update(self):
-    self.logger.debug("Map data update!")
+    self.logger.debug("Repopulating map data from class")
     desc_to_walls = zeros(10,dtype=int)
     desc_to_walls[8] = 1
     self.data = array([desc_to_walls[i] for i in self.map_obj.grid[:][:]['desc']])
     self.scale = 1.0 / self.map_obj.scale
+    self.logger.debug("Map dimensions %s" % self)
 
   @property
   def xdim(self):

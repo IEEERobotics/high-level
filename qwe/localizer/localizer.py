@@ -23,7 +23,6 @@ def run( bot_loc, zones, map_properties, course_map, waypoints, ipc_channel, bot
   logger.debug("Initial pose: %s" % start_pose)
 
   themap = map.Map.from_map_class(course_map, logger = logger)
-  logger.debug("Map dimensions: %s" % themap)
   last_zone_change = 0
 
   if not ipc_channel:

@@ -105,7 +105,7 @@ class Simulator(HasTraits):
 
     def _random_fired(self):
       print "Random move!"
-      self.move_dist = random() * 10 
+      self.move_dist = random() * 5
       self.move_theta = random() * pi - pi/2
       self._move_fired()
       self.mapplot.map.map_obj.fillLoc(waypoints, "L01", {'desc':8})
