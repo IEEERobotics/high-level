@@ -1,14 +1,34 @@
 """Image preprocessing tools."""
 
+import cv2
 from time import sleep
 from util import Enum
 from base import FrameProcessor
 from main import main
 import commands
 
+class ColorPaletteDetector(FrameProcessor):
+  """Tries to find a known color palette in camera view."""
+  paletteBBox = (50, 380, 540, 100)  # x, y, w, h
+  def __init__(self, options):
+    FrameProcessor.__init__(self, options)
+  
+  def initialize(self, imageIn, timeNow):
+    self.image = imageIn
+    self.active = True
+  
+  def process(self, imageIn, timeNow):
+    self.image = imageIn
+    if self.gui: self.imageOut = self.image.copy()
+    
+    if self.gui:
+      cv2.rectangle(self.imageOut, (self.paletteBBox[0], self.paletteBBox[1]), (self.paletteBBox[0] + self.paletteBBox[2], self.paletteBBox[1] + self.paletteBBox[3]), (255, 0, 0))
+    
+    return True, self.imageOut
+  
+
 class ExposureNormalizer(FrameProcessor):
   """Obtains a normalized image by averaging two images taken at different exposures."""
-  
   State = Enum(['NONE', 'START', 'SAMPLE_LOW', 'SAMPLE_HIGH', 'DONE'])
   
   sample_time_low = 2.0  # secs; when to sample low-exposure image (rel. to start)
@@ -75,4 +95,5 @@ class ExposureNormalizer(FrameProcessor):
 
 if __name__ == "__main__":
   options = { 'gui': True, 'debug': True }
-  main(ExposureNormalizer(options=options))  # run an ExposureNormalizer instance using main.main()
+  #main(ExposureNormalizer(options=options))  # run an ExposureNormalizer instance using main.main()
+  main(ColorPaletteDetector(options=options))
