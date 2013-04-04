@@ -218,9 +218,9 @@ class TestFullInteraction(unittest.TestCase):
     self.logger.debug("Shared data structures created")
 
     # Start fakeLoc process
-    self.pfakeLoc = Process(target=fakeLoc, args=(self.testQueue, self.bot_loc, self.logger))
-    self.pfakeLoc.start()
-    self.logger.info("fakeLoc process started")
+    #self.pfakeLoc = Process(target=fakeLoc, args=(self.testQueue, self.bot_loc, self.logger))
+    #self.pfakeLoc.start()
+    #self.logger.info("fakeLoc process started")
 
     # Start nav process
     self.scNav = comm.SerialCommand(self.si.commands, self.si.responses)
@@ -230,10 +230,10 @@ class TestFullInteraction(unittest.TestCase):
     self.logger.info("Navigator process started")
 
     # Start localizer process, pass it shared data, waypoints, map_properties course_map and queue for talking to nav
-    #self.pLocalizer = Process(target=localizer.run, args=(self.bot_loc, self.zones, self.map_properties, self.course_map, \
-    #  self.waypoints, self.qNav_loc, self.bot_state, self.logger))
-    #self.pLocalizer.start()
-    #self.logger.info("Localizer process started")
+    self.pLocalizer = Process(target=localizer.run, args=(self.bot_loc, self.zones, self.map_properties, self.course_map, \
+      self.waypoints, self.qNav_loc, self.bot_state, self.logger))
+    self.pLocalizer.start()
+    self.logger.info("Localizer process started")
 
   def tearDown(self):
     """Close serial interface threads"""
@@ -247,15 +247,15 @@ class TestFullInteraction(unittest.TestCase):
     self.logger.info("Joined navigation process")
 
     # Pass a die command to loc
-    #self.logger.info("Telling loc to die")
-    #self.qNav_loc.put("die")
+    self.logger.info("Telling loc to die")
+    self.qNav_loc.put("die")
 
     #self.pLocalizer.join()
-    #self.logger.info("Joined localizer process")
+    self.logger.info("Joined localizer process")
 
     # Pass a die command to loc
-    self.pfakeLoc.join()
-    self.logger.info("Joined fakeLoc process")
+    #self.pfakeLoc.join()
+    #self.logger.info("Joined fakeLoc process")
 
     # Join serial interface process
     self.scNav.quit()
