@@ -7,13 +7,15 @@ import csv
 #   [y][x] are map coordinates
 #   [0][0] is bottom left corner
 class Map():
-  def __init__(self, filename = None, scale = 1):
+  def __init__(self, filename = None, scale = 1, logger = None):
+    self.logger = logger
     if filename:
       data = list( csv.reader(open(filename, 'r')))
       data = [ [int(x) for x in y] for y in data  ]  # convert string to ints
       data.reverse()
       self.data = data
       self.scale = scale  # inches per element
+      self.map_obj = None
 
   def xy(self):
     """ Converts from matrix of 0s and 1s to an array of xy pairs.
@@ -26,16 +28,21 @@ class Map():
     return array(xy)
 
   @classmethod
-  def from_map_class(self, map_obj):
-    m = Map()
+  def from_map_class(self, map_obj, logger = None):
+    m = Map(logger = logger)
+    m.map_obj = map_obj
+    m.update()
     #desc_to_walls = zeros(10,dtype=bool)
     #desc_to_walls[8] = True
-    desc_to_walls = zeros(10,dtype=int)
-    desc_to_walls[8] = 1
-    m.data = [desc_to_walls[i] for i in map_obj.grid[:][:]['desc']]
-    m.scale = 1.0 / map_obj.scale
 
     return m
+
+  def update(self):
+    self.logger.debug("Map data update!")
+    desc_to_walls = zeros(10,dtype=int)
+    desc_to_walls[8] = 1
+    self.data = [desc_to_walls[i] for i in self.map_obj.grid[:][:]['desc']]
+    self.scale = 1.0 / self.map_obj.scale
 
   @property
   def xdim(self):

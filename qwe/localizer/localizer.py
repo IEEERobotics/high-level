@@ -14,39 +14,30 @@ sys.modules['map_class'] = mapping.map_class  # deal with the fact we pickled a 
 import mapping.pickler
 import logging.config
 
-# blocks status + map = walls 
-#def run( start_x, start_y, start_theta, ipc_channel = None, shared_data = {}, map_data = None ):
-def run( bot_loc, blocks, map_properties, course_map, waypoints, ipc_channel, bot_state, logger=None ):
+def run( bot_loc, zones, map_properties, course_map, waypoints, ipc_channel, bot_state, logger=None ):
 
-  if logger is None: 
-    oldcwd = os.getcwd()
-    print "oldcwd is {}".format(oldcwd)
-    while not os.getcwd().endswith('qwe'):
-      os.chdir('..')
-      print "Canged dir to {}".format(os.getcwd())
-    logging.config.fileConfig('logging.conf')
-    logger = logging.getLogger(__name__)
-    os.chdir(oldcwd)
+  logger.debug("Localizer entry point: run()")
 
   start_pose = pose.Pose(bot_loc["x"],bot_loc["y"],bot_loc["theta"])
   ideal = robot.SimRobot(start_pose, std_sensors.offset_str)
+  logger.debug("Initial pose: %s" % start_pose)
 
-  themap = map.Map.from_map_class(course_map)
+  themap = map.Map.from_map_class(course_map, logger = logger)
   logger.debug("Map dimensions: %s" % themap)
+  last_zone_change = 0
 
   if not ipc_channel:
     logging.debug("Using Fake_IPC queue")
     ipc_channel = Fake_IPC(start_pose, themap, delay = 1.0, logger = logger)
 
   #localizer = DumbLocalizer(start_pose)
-  localizer = particles.ParticleLocalizer(std_sensors.offset_str, std_noise.noise_params, themap, 500, start_pose, logger = logger)
+  localizer = particles.ParticleLocalizer(std_sensors.offset_str, std_noise.noise_params, themap, 50, start_pose, logger = logger)
 
   while True:
-    logger.debug("About to get from qNav_loc of object {}".format(str(ipc_channel)))
     msg = ipc_channel.get()
     logger.debug("From qNav (raw): %s" % msg)
     if type(msg) == str and msg == 'die':
-      logger.debug("Recieved die signal, exiting...")
+      logger.debug("Received die signal, exiting...")
       exit(0)
     
     turn, move = msg['dTheta'], msg['dXY']
@@ -59,6 +50,22 @@ def run( bot_loc, blocks, map_properties, course_map, waypoints, ipc_channel, bo
     for key,val in sensorData['ultrasonic'].items():
       sensors[key] = val
     logger.debug( "Sensors-only dict: %s" % sensors)
+
+    # update map if zone status has changed
+    zone_change = bot_state['zone_change']
+    logger.debug("Checking for block zone change (last update: %d, now: %d)" % (last_zone_change, zone_change))
+    if zone_change > last_zone_change:  
+      logger.debug("Map zones are behind, updating")
+      logger.debug("Current zones dict: %s" % zones)
+      for zone, state in zones.items():
+        if state == True:
+          logger.debug("Wall-filling location: %s" % zone)
+          #course_map.fillLoc(waypoints, zone, {'desc':8})
+          themap.map_obj.fillLoc(waypoints, zone, {'desc':8})
+        else:
+          themap.map_obj.fillLoc(waypoints, zone, {'desc':0})
+      themap.update()
+      last_zone_change = zone_change
 
     ideal.move(turn, move)
     localizer.move(turn, move)
@@ -92,9 +99,9 @@ class Fake_IPC(object):
     self.map = map_data
     self.simbot = robot.SimRobot(pose = start_pose, sensors = std_sensors.offset_str, 
                             noise_params = std_noise.noise_params)
+    logger.debug( "Fake_IPC simbot initial pose: %s" % self.simbot)
     sensed = self.simbot.sense(self.map)
-    logger.debug( "Initial pose: %s" % self.simbot)
-    logger.debug( "Initial sense: %s" % sensed)
+    logger.debug( "Simbot initial sense: %s" % sensed)
 
   def get(self):
     self.logger.debug("SimBot pose: %s" % self.simbot.pose)
@@ -129,14 +136,17 @@ class DumbLocalizer(object):
 
 if __name__ == '__main__':
 
+  logging.config.fileConfig('logging.conf')  # local version
+  logger = logging.getLogger(__name__)
+
   #m = map.Map('maps/test3.map')
   map_obj = mapping.pickler.unpickle_map('../mapping/map.pkl')
   waypoints = mapping.pickler.unpickle_waypoints('../mapping/waypoints.pkl')
 
   bot_loc = {'x': 6.0, 'y': 2.6, 'theta':pi/2}
-  blocks = {}
+  zones = { 'St01': True, 'St02': True, 'St03': False}
   map_props = {}
-  bot_state = {}
+  bot_state = {'zone_change': 1}
 
-  run(bot_loc, blocks, map_props, map_obj, waypoints, None, bot_state)
+  run(bot_loc, zones, map_props, map_obj, waypoints, None, bot_state, logger)
 

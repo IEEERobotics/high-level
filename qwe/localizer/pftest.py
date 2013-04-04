@@ -38,7 +38,7 @@ parser.add_argument('-m', '--map', help='Map file', default='maps/test3.map' )
 parser.add_argument('-r', '--res', help='Map res (inchs/block)', type=float, default='3.0' )
 args = parser.parse_args()
 
-m = map.Map(args.map, args.res)
+m = map.Map(args.map, args.res, logger = logger)
 
 start_x = m.x_inches / 2
 start_y = m.y_inches / 2

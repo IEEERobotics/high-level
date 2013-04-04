@@ -122,7 +122,7 @@ class Simulator(HasTraits):
       self.guessplotter.do_redraw()
 
     def __init__(self, sensors = std_sensors.offset_str):
-      m = MapPlot(map = themap)
+      m = MapPlot(map = themap, logger = logger)
       self.map_scale = themap.scale
       self.map_info = "%s" % themap
 
@@ -158,21 +158,22 @@ if __name__ == "__main__":
 
   parser = argparse.ArgumentParser(description='Localization simulator')
   parser.add_argument('-m', '--map', help='Map file', default='maps/test.map' )
-  parser.add_argument('-n', '--num', help='Number of partiles', type=int, default='500' )
+  parser.add_argument('-n', '--num', help='Number of partiles', type=int, default='50' )
   parser.add_argument('-r', '--res', help='Map res (inchs/block)', type=float, default='1.0' )
   args = parser.parse_args()
 
   #map = Map(args.map, args.res)
   map_obj = mapping.pickler.unpickle_map('../mapping/map.pkl')
   waypoints = mapping.pickler.unpickle_waypoints('../mapping/waypoints.pkl')
-  for i in range(14):
-    map_obj.fillLoc(waypoints, "St%02d"%(i+1), {'desc':8})
+  map_obj.fillLoc(waypoints, "St01", {'desc':8})
+  #for i in range(14):
+  #  map_obj.fillLoc(waypoints, "St%02d"%(i+1), {'desc':8})
   #for i in range(6):
   #  map_obj.fillLoc(waypoints, "L%02d"%(i+1), {'desc':8})
   #for i in range(6):
   #  map_obj.fillLoc(waypoints, "Se%02d"%(i+1), {'desc':8})
 
-  themap = map.Map.from_map_class(map_obj)
+  themap = map.Map.from_map_class(map_obj, logger = logger)
 
   particle_count = args.num
 
