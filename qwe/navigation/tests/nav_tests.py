@@ -111,6 +111,7 @@ class TestFileGeneration(unittest.TestCase):
 
     # Build nav object
     self.scNav = comm.SerialCommand(self.si.commands, self.si.responses)
+    self.scNav.compassReset()
     self.Nav = nav.Nav(self.bot_loc, self.qNav_loc, self.scNav, self.bot_state, self.qMove_nav, \
       self.logger)
     self.logger.info("Nav object instantiated")
@@ -216,6 +217,7 @@ class TestFullInteraction(unittest.TestCase):
     self.bot_state = self.manager.dict(nav_type=None, action_type=None, naving=False) #nav_type is "micro" or "macro"
     self.zones = self.manager.dict()
     self.logger.debug("Shared data structures created")
+    self.bot_state["zone_change"] = 1
 
     # Start fakeLoc process
     #self.pfakeLoc = Process(target=fakeLoc, args=(self.testQueue, self.bot_loc, self.logger))
@@ -224,6 +226,8 @@ class TestFullInteraction(unittest.TestCase):
 
     # Start nav process
     self.scNav = comm.SerialCommand(self.si.commands, self.si.responses)
+    self.scNav.compassReset()
+    self.logger.debug("First possible sensor read: {}".format(str(self.scNav.getAllSensorData())))
     self.pNav = Process(target=nav.run, args=(self.bot_loc, self.qNav_loc, self.scNav, \
       self.bot_state, self.qMove_nav, self.logger))
     self.pNav.start()
@@ -452,6 +456,19 @@ class TestFullInteraction(unittest.TestCase):
     self.qMove_nav.put(goal_pose)
     self.logger.debug("Put goal pose into queue")
 
+  def test_turn_90(self):
+    goal_x = self.waypoints["start"][0][0] * float(nav.env_config["cellsize"]) * 39.3701
+    goal_y = self.waypoints["start"][0][1] * float(nav.env_config["cellsize"]) * 39.3701
+    goal_theta = pi/2
+
+    goal_pose = nav.macro_move(goal_x, goal_y, goal_theta, datetime.now())
+    self.logger.debug("Created goal pose {}".format(pp.pformat(goal_pose)))
+
+    # Send goal pose via queue
+    self.logger.debug("About to send goal pose to queue with ID {}".format(str(self.qMove_nav)))
+    self.qMove_nav.put(goal_pose)
+    self.logger.debug("Put goal pose into queue")
+
 class TestUC(unittest.TestCase):
 
   def setUp(self):
@@ -502,6 +519,7 @@ class TestUC(unittest.TestCase):
 
     # Build nav object
     self.scNav = comm.SerialCommand(self.si.commands, self.si.responses)
+    self.scNav.compassReset()
     self.Nav = nav.Nav(self.bot_loc, self.qNav_loc, self.scNav, self.bot_state, self.qMove_nav, \
       self.logger)
     self.logger.info("Nav object instantiated")
@@ -723,6 +741,7 @@ class TestlocsEqual(unittest.TestCase):
 
     # Build nav object
     self.scNav = comm.SerialCommand(self.si.commands, self.si.responses)
+    self.scNav.compassReset()
     self.Nav = nav.Nav(self.bot_loc, self.qNav_loc, self.scNav, self.bot_state, self.qMove_nav, \
       self.logger)
     self.logger.info("Nav object instantiated")
@@ -951,6 +970,7 @@ class TestwhichXYTheta(unittest.TestCase):
 
     # Build nav object
     self.scNav = comm.SerialCommand(self.si.commands, self.si.responses)
+    self.scNav.compassReset()
     self.Nav = nav.Nav(self.bot_loc, self.qNav_loc, self.scNav, self.bot_state, self.qMove_nav, \
       self.logger)
     self.logger.info("Nav object instantiated")
