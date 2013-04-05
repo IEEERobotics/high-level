@@ -10,7 +10,7 @@ import os
 import pprint as pp
 from datetime import datetime
 from time import sleep
-from math import pi, radians, degrees
+from math import pi, radians, degrees, sqrt
 
 # Dict of error codes and their human-readable names
 errors = {100 : "ERROR_BAD_CWD"}
@@ -103,14 +103,17 @@ class TestFileGeneration(unittest.TestCase):
 
     # Build shared data structures
     self.manager = Manager()
-    start_x = self.waypoints["start"][0][0] * float(nav.env_config["cellsize"]) * 39.3701
-    start_y = self.waypoints["start"][0][1] * float(nav.env_config["cellsize"]) * 39.3701
-    self.bot_loc = self.manager.dict(x=start_x, y=start_y, theta=0, dirty=False)
+    self.start_x = self.waypoints["start"][1][0]
+    self.start_y = self.waypoints["start"][1][1]
+    self.start_theta = self.waypoints["start"][2]
+    self.logger.debug("Start waypoint is {}, {}, {}".format(self.start_x, self.start_y, self.start_theta))
+    self.bot_loc = self.manager.dict(x=self.start_x, y=self.start_y, theta=self.start_theta, dirty=False)
     self.bot_state = self.manager.dict(nav_type=None, action_type=None)
     self.logger.debug("Shared data structures created")
 
     # Build nav object
     self.scNav = comm.SerialCommand(self.si.commands, self.si.responses)
+    self.scNav.compassReset()
     self.Nav = nav.Nav(self.bot_loc, self.qNav_loc, self.scNav, self.bot_state, self.qMove_nav, \
       self.logger)
     self.logger.info("Nav object instantiated")
@@ -206,9 +209,10 @@ class TestFullInteraction(unittest.TestCase):
     self.logger.debug("Map properties unpickled")
 
     # Find start location
-    self.start_x = self.waypoints["start"][0][0] * float(nav.env_config["cellsize"]) * 39.3701
-    self.start_y = self.waypoints["start"][0][1] * float(nav.env_config["cellsize"]) * 39.3701
-    self.start_theta = 0
+    self.start_x = self.waypoints["start"][1][0]
+    self.start_y = self.waypoints["start"][1][1]
+    self.start_theta = self.waypoints["start"][2]
+    self.logger.debug("Start waypoint is {}, {}, {}".format(self.start_x, self.start_y, self.start_theta))
 
     # Build shared data structures
     self.manager = Manager()
@@ -218,22 +222,25 @@ class TestFullInteraction(unittest.TestCase):
     self.logger.debug("Shared data structures created")
 
     # Start fakeLoc process
-    #self.pfakeLoc = Process(target=fakeLoc, args=(self.testQueue, self.bot_loc, self.logger))
-    #self.pfakeLoc.start()
-    #self.logger.info("fakeLoc process started")
+    self.pfakeLoc = Process(target=fakeLoc, args=(self.testQueue, self.bot_loc, self.logger))
+    self.pfakeLoc.start()
+    self.logger.info("fakeLoc process started")
 
     # Start nav process
     self.scNav = comm.SerialCommand(self.si.commands, self.si.responses)
+    self.scNav.compassReset()
+    #self.pNav = Process(target=nav.run, args=(self.bot_loc, self.qNav_loc, self.scNav, \
+    #  self.bot_state, self.qMove_nav, self.logger))
     self.pNav = Process(target=nav.run, args=(self.bot_loc, self.qNav_loc, self.scNav, \
-      self.bot_state, self.qMove_nav, self.logger))
+      self.bot_state, self.qMove_nav, self.logger, self.testQueue))
     self.pNav.start()
     self.logger.info("Navigator process started")
 
     # Start localizer process, pass it shared data, waypoints, map_properties course_map and queue for talking to nav
-    self.pLocalizer = Process(target=localizer.run, args=(self.bot_loc, self.zones, self.map_properties, self.course_map, \
-      self.waypoints, self.qNav_loc, self.bot_state, self.logger))
-    self.pLocalizer.start()
-    self.logger.info("Localizer process started")
+    #self.pLocalizer = Process(target=localizer.run, args=(self.bot_loc, self.zones, self.map_properties, self.course_map, \
+    #  self.waypoints, self.qNav_loc, self.bot_state, self.logger))
+    #self.pLocalizer.start()
+    #self.logger.info("Localizer process started")
 
   def tearDown(self):
     """Close serial interface threads"""
@@ -251,11 +258,11 @@ class TestFullInteraction(unittest.TestCase):
     self.qNav_loc.put("die")
 
     #self.pLocalizer.join()
-    self.logger.info("Joined localizer process")
+    #self.logger.info("Joined localizer process")
 
     # Pass a die command to loc
-    #self.pfakeLoc.join()
-    #self.logger.info("Joined fakeLoc process")
+    self.pfakeLoc.join()
+    self.logger.info("Joined fakeLoc process")
 
     # Join serial interface process
     self.scNav.quit()
@@ -435,7 +442,7 @@ class TestFullInteraction(unittest.TestCase):
     self.qMove_nav.put(goal_pose1)
     self.logger.debug("Put goal pose into queue")
 
-  def test_move_to_L01(self):
+  def test_start_to_L01(self):
     """Pass in a goal pose that differes in X, Y and theta from the start pose"""
     self.logger.debug("Building goal pose")
 
@@ -451,6 +458,165 @@ class TestFullInteraction(unittest.TestCase):
     self.logger.debug("About to send goal pose to queue with ID {}".format(str(self.qMove_nav)))
     self.qMove_nav.put(goal_pose)
     self.logger.debug("Put goal pose into queue")
+
+
+class TestCleanSol(unittest.TestCase):
+
+  def setUp(self):
+    """Create nav object and feed it appropriate data"""
+
+    # Create file and stream handlers
+    self.file_handler = logging.handlers.RotatingFileHandler(path_to_qwe + "logs/unittests.log", maxBytes=512000, backupCount=50)
+    self.file_handler.setLevel(logging.DEBUG)
+    self.stream_handler = logging.StreamHandler()
+    self.stream_handler.setLevel(logging.WARN)
+
+    # Create formatter and add to handlers
+    formatter = logging.Formatter('%(asctime)s | %(levelname)s | %(filename)s | %(funcName)s | %(lineno)d | %(message)s')
+    self.file_handler.setFormatter(formatter)
+    self.stream_handler.setFormatter(formatter)
+
+    # Create logger and add handlers
+    self.logger = logging.getLogger("unittest")
+    self.logger.setLevel(logging.DEBUG)
+    self.logger.addHandler(self.file_handler)
+    self.logger.addHandler(self.stream_handler)
+    self.logger.debug("Logger is set up")
+     
+    # Start serial communication to low-level board
+    self.si = comm.SerialInterface(timeout=config["si_timeout"])
+    self.si.start() # Displays an error if port not found (not running on Pandaboard)
+    self.logger.info("Serial interface set up")
+
+    # Build Queue objects for IPC. Name shows producer_consumer.
+    self.qNav_loc = Queue()
+    self.qMove_nav = Queue()
+    self.logger.debug("Queue objects created")
+
+    # Get map, waypoints
+    self.waypoints = mapper.unpickle_waypoints(path_to_qwe + "mapping/waypoints.pkl")
+    self.logger.info("Waypoints unpickled")
+
+    # Build shared data structures
+    self.manager = Manager()
+    self.start_x = self.waypoints["start"][1][0]
+    self.start_y = self.waypoints["start"][1][1]
+    self.start_theta = self.waypoints["start"][2]
+    self.logger.debug("Start waypoint is {}, {}, {}".format(self.start_x, self.start_y, self.start_theta))
+    self.bot_loc = self.manager.dict(x=self.start_x, y=self.start_y, theta=self.start_theta, dirty=False)
+    self.bot_state = self.manager.dict(nav_type=None, action_type=None)
+    self.logger.debug("Shared data structures created")
+
+    # Build nav object
+    self.scNav = comm.SerialCommand(self.si.commands, self.si.responses)
+    self.scNav.compassReset()
+    self.Nav = nav.Nav(self.bot_loc, self.qNav_loc, self.scNav, self.bot_state, self.qMove_nav, \
+      self.logger)
+    self.logger.info("Nav object instantiated")
+
+    self.Nav.start(doLoop=False)
+    self.logger.info("Started nav object")
+
+  def tearDown(self):
+    """Close serial interface threads"""
+
+    self.logger.removeHandler(self.file_handler)
+    self.logger.removeHandler(self.stream_handler)
+
+    self.scNav.quit()
+    self.si.join()
+
+  @unittest.expectedFailure
+  def test_start_to_L01(self):
+    """Create a solution from start to L01 and clean its XY moves to be of a given size."""
+
+    # Build goal pose
+    goal_x = self.Nav.XYFromMoveQUC(self.waypoints["L01"][1][0])
+    goal_y = self.Nav.XYFromMoveQUC(self.waypoints["L01"][1][1])
+    goal_theta = self.Nav.thetaFromMoveQUC(self.waypoints["L01"][2])
+    self.logger.info("Goal pose is {} {} {}".format(goal_x, goal_y, goal_theta))
+
+    # Generate solution using SBPL
+
+    #self.logger.debug("Need solution from {} {} {} to {} {} {}
+    sol = self.Nav.genSol(goal_x, goal_y, goal_theta)
+    self.logger.info("Built solution: {}".format(pp.pformat(sol)))
+
+    # Convert XY translations to be of desired length
+    clean_sol = self.Nav.cleanSol(sol)
+    self.logger.info("Cleaned solution: {}".format(pp.pformat(clean_sol)))
+
+    # Setup some initial vars
+    total_dx, total_dy, total_dTheta, total_disp, disp, last_disp, last_dyn_dem = 0, 0, 0, 0, 0, None, None
+
+    for i in range(1, len(clean_sol)):
+      # Find which dimension changed between these steps
+      dyn_dem = self.Nav.whichXYTheta(clean_sol[i-1], clean_sol[i])
+      self.logger.debug("Dynamic dimension was {}".format(dyn_dem))
+
+      # Confirm that change was in XY or theta, not both
+      self.assertNotEqual(dyn_dem, nav.errors["ERROR_ARCS_DISALLOWED"], "Arc encountered!")
+
+      if dyn_dem == "xy":
+        # Find dx and dy between last step and this step
+        dx = clean_sol[i]["cont_x"] - clean_sol[i-1]["cont_x"]
+        dy = clean_sol[i]["cont_y"] - clean_sol[i-1]["cont_y"]
+        self.logger.debug("(dx, dy) was ({}, {})".format(dx, dy))
+
+        # Find XY plane displacement between last step and this step
+        disp = sqrt(dx**2 + dy**2)
+        self.logger.debug("XY displacement was {}".format(disp))
+
+        # Confirm that the displacement was less than or equal to the user-defined ideal displacement
+        self.assertLessEqual(disp, nav.config["XY_mv_len"], "Change XY ({}) is larger than expected ({})".format(disp, \
+                                                              nav.config["XY_mv_len"]))
+
+        # If this is a series of XY moves, check that the previous one was of correct len
+        if last_dyn_dem == "xy":
+          self.assertEqual(last_disp, nav.config["XY_mv_len"], "Non-last in XY move series ({}) wasn't full len ({})".format( \
+                                                                last_disp, nav.config["XY_mv_len"]))
+
+        # Update dx and dy sums
+        total_dx += dx
+        total_dy += dy
+        total_disp += disp
+        self.logger.debug("(total_dx, total_dy, total_disp) is ({}, {}, {})".format(total_dx, total_dy, total_disp))
+      elif dyn_dem == "theta":
+        # Calculate dTheta
+        dTheta = clean_sol[i]["cont_theta"] - clean_sol[i-1]["cont_theta"]
+        self.logger.debug("dTheta is {}".format(dTheta))
+
+        # Update dTheta sum
+        total_dTheta += dTheta
+        self.logger.debug("total_dTheta is {}".format(total_dTheta))
+      else:
+        # This would indicate an error in whichXYTheta
+        self.fail("Unknown dynamic dimension {}, check whichXYTheta".format(dyn_dem))
+
+      # Update past-state vars for displacement and dynamic dimension
+      last_disp = disp
+      last_dyn_dem = dyn_dem
+
+    exptd_total_disp = sqrt((sol[-1]["cont_x"] - sol[0]["cont_x"])**2 + (sol[-1]["cont_y"] - sol[0]["cont_y"])**2)
+    exptd_total_dx = sol[-1]["cont_x"] - sol[0]["cont_x"]
+    exptd_total_dy = sol[-1]["cont_y"] - sol[0]["cont_y"]
+
+    self.logger.info("Expected totals (disp, dx, dy) are ({}, {}, {})".format(exptd_total_disp, exptd_total_dx, \
+                                                                              exptd_total_dy))
+
+    self.assertAlmostEqual(total_disp, exptd_total_disp, places=4, msg="Total disp {} not close enough to expected {}".format( \
+                                                                      total_disp, exptd_total_disp))
+    self.assertAlmostEqual(total_dx, exptd_total_dx, places=4, msg="Total dx {} not close enough to expected {}".format( \
+                                                                      total_dx, exptd_total_dx))
+    self.assertAlmostEqual(total_dy, exptd_total_dy, places=4, msg="Total dt {} not close enough to expected {}".format( \
+                                                                      total_dy, exptd_total_dy))
+
+    self.assertAlmostEqual(sol[0]["cont_x"], clean_sol[0]["cont_x"], "Start X of sol ({}) != clean sol ({})".format( \
+                                                                      sol[0]["cont_x"], clean_sol[0]["cont_x"]))
+    self.assertAlmostEqual(sol[0]["cont_y"], clean_sol[0]["cont_y"], "Start Y of sol ({}) != clean sol ({})".format( \
+                                                                      sol[0]["cont_y"], clean_sol[0]["cont_y"]))
+    self.assertAlmostEqual(sol[0]["cont_theta"], clean_sol[0]["cont_theta"], "Start theta of sol ({}) != clean sol({}) ".format( \
+                                                                      sol[0]["cont_theta"], clean_sol[0]["cont_theta"]))
 
 class TestUC(unittest.TestCase):
 
@@ -486,22 +652,22 @@ class TestUC(unittest.TestCase):
     self.logger.debug("Queue objects created")
 
     # Get map, waypoints
-    self.course_map = mapper.unpickle_map(path_to_qwe + "mapping/map.pkl")
-    self.logger.info("Map unpickled")
     self.waypoints = mapper.unpickle_waypoints(path_to_qwe + "mapping/waypoints.pkl")
     self.logger.info("Waypoints unpickled")
 
     # Build shared data structures
     self.manager = Manager()
-    self.start_x = self.waypoints["start"][0][0] * float(nav.env_config["cellsize"]) * 39.3701
-    self.start_y = self.waypoints["start"][0][1] * float(nav.env_config["cellsize"]) * 39.3701
-    self.start_theta = 0
+    self.start_x = self.waypoints["start"][1][0]
+    self.start_y = self.waypoints["start"][1][1]
+    self.start_theta = self.waypoints["start"][2]
+    self.logger.debug("Start waypoint is {}, {}, {}".format(self.start_x, self.start_y, self.start_theta))
     self.bot_loc = self.manager.dict(x=self.start_x, y=self.start_y, theta=self.start_theta, dirty=False)
     self.bot_state = self.manager.dict(nav_type=None, action_type=None)
     self.logger.debug("Shared data structures created")
 
     # Build nav object
     self.scNav = comm.SerialCommand(self.si.commands, self.si.responses)
+    self.scNav.compassReset()
     self.Nav = nav.Nav(self.bot_loc, self.qNav_loc, self.scNav, self.bot_state, self.qMove_nav, \
       self.logger)
     self.logger.info("Nav object instantiated")
@@ -514,6 +680,17 @@ class TestUC(unittest.TestCase):
 
     self.scNav.quit()
     self.si.join()
+
+  def test_debug0(self):
+    """Testing translation from comm units to radians for debuging"""
+
+    commResult = -113.48034456
+    actual_result = 6.08512474229
+    desired_result = -0.1980605648869636
+
+    result0 = self.Nav.angleFromCommUC(commResult)
+    self.assertEqual(result0, desired_result, "Failed to convert {} signed tenths of degrees to {} rads, result was {}".format( \
+                                                                                  commResult, desired_result, actual_result))
 
   def test_XY_bot_loc_UC(self):
 
@@ -532,21 +709,21 @@ class TestUC(unittest.TestCase):
     """Test converting meters to encoder units"""
 
     testVal_m0 = .5
-    testVal_enc0 = testVal_m0 * 39.3701 * (1633/9.89)
+    testVal_enc0 = int(round(testVal_m0 * 39.3701 * (1633/9.89)))
 
     result0 = self.Nav.distToCommUC(testVal_m0)
     self.assertEqual(testVal_enc0, result0, "Failed to convert {} meters to {} ECs, result was {} ECs".format( \
                                                                             testVal_m0, testVal_enc0, result0))
 
     testVal_m1 = 10
-    testVal_enc1 = testVal_m1 * 39.3701 * (1633/9.89)
+    testVal_enc1 = int(round(testVal_m1 * 39.3701 * (1633/9.89)))
 
     result1 = self.Nav.distToCommUC(testVal_m1)
     self.assertEqual(testVal_enc1, result1, "Failed to convert {} meters to {} ECs, result was {} ECs".format( \
                                                                             testVal_m1, testVal_enc1, result1))
 
     testVal_m2 = .001
-    testVal_enc2 = testVal_m2 * 39.3701 * (1633/9.89)
+    testVal_enc2 = int(round(testVal_m2 * 39.3701 * (1633/9.89)))
 
     result2 = self.Nav.distToCommUC(testVal_m2)
     self.assertEqual(testVal_enc2, result2, "Failed to convert {} meters to {} ECs, result was {} ECs".format( \
@@ -620,8 +797,22 @@ class TestUC(unittest.TestCase):
     self.assertEqual(testVal_comm0, result0, "Failed to convert {} rads to {} signed tenths of degs, result was {}".format( \
                                                                                        testVal_rad0, testVal_comm0, result0))
 
+    testVal_rad0 = -pi/2
+    testVal_comm0 = -900
+
+    result0 = self.Nav.angleToCommUC(testVal_rad0)
+    self.assertEqual(testVal_comm0, result0, "Failed to convert {} rads to {} signed tenths of degs, result was {}".format( \
+                                                                                       testVal_rad0, testVal_comm0, result0))
+
+    testVal_rad0 = -3*pi/2
+    testVal_comm0 = 900
+
+    result0 = self.Nav.angleToCommUC(testVal_rad0)
+    self.assertEqual(testVal_comm0, result0, "Failed to convert {} rads to {} signed tenths of degs, result was {}".format( \
+                                                                                       testVal_rad0, testVal_comm0, result0))
+
     testVal_rad0 = .001*pi
-    testVal_comm0 = 1.8000000000000002
+    testVal_comm0 = int(round(1.8000000000000002))
 
     result0 = self.Nav.angleToCommUC(testVal_rad0)
     self.assertEqual(testVal_comm0, result0, "Failed to convert {} rads to {} signed tenths of degs, result was {}".format( \
@@ -644,11 +835,11 @@ class TestUC(unittest.TestCase):
     self.assertEqual(testVal_rad0, result0, "Failed to convert {} signed tenths of degrees to {} rads, result was {}".format( \
                                                                                        testVal_comm0, testVal_rad0, result0))
 
-    testVal_rad0 = 3*pi/2
+    testVal_rad0 = round(-1.570796326793, 5)
     testVal_comm0 = -900
 
-    result0 = self.Nav.angleFromCommUC(testVal_comm0)
-    self.assertEqual(testVal_rad0, result0, "Failed to convert {} signed tenths of degrees to {} rads, result was {}".format( \
+    result0 = round(self.Nav.angleFromCommUC(testVal_comm0), 5)
+    self.assertEqual(testVal_rad0, result0, "Failed to convert {} signed tenths of deg to {} rads, rst was {}".format( \
                                                                                        testVal_comm0, testVal_rad0, result0))
 
     testVal_rad0 = 0
@@ -714,15 +905,17 @@ class TestlocsEqual(unittest.TestCase):
 
     # Build shared data structures
     self.manager = Manager()
-    self.start_x = self.waypoints["start"][0][0] * float(nav.env_config["cellsize"]) * 39.3701
-    self.start_y = self.waypoints["start"][0][1] * float(nav.env_config["cellsize"]) * 39.3701
-    self.start_theta = 0
+    self.start_x = self.waypoints["start"][1][0]
+    self.start_y = self.waypoints["start"][1][1]
+    self.start_theta = self.waypoints["start"][2]
+    self.logger.debug("Start waypoint is {}, {}, {}".format(self.start_x, self.start_y, self.start_theta))
     self.bot_loc = self.manager.dict(x=self.start_x, y=self.start_y, theta=self.start_theta, dirty=False)
     self.bot_state = self.manager.dict(nav_type=None, action_type=None)
     self.logger.debug("Shared data structures created")
 
     # Build nav object
     self.scNav = comm.SerialCommand(self.si.commands, self.si.responses)
+    self.scNav.compassReset()
     self.Nav = nav.Nav(self.bot_loc, self.qNav_loc, self.scNav, self.bot_state, self.qMove_nav, \
       self.logger)
     self.logger.info("Nav object instantiated")
@@ -951,6 +1144,7 @@ class TestwhichXYTheta(unittest.TestCase):
 
     # Build nav object
     self.scNav = comm.SerialCommand(self.si.commands, self.si.responses)
+    self.scNav.compassReset()
     self.Nav = nav.Nav(self.bot_loc, self.qNav_loc, self.scNav, self.bot_state, self.qMove_nav, \
       self.logger)
     self.logger.info("Nav object instantiated")
