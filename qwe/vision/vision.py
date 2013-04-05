@@ -15,6 +15,7 @@ except ImportError:
 
 from util import KeyCode, isImageFile, log_str, rotateImage
 from base import FrameProcessor, FrameProcessorPipeline
+from preprocessing import ColorPaletteDetector
 from colorfilter import ColorFilterProcessor
 from blobdetection import CMYKBlobDetector
 from blobtracking import BlobTracker
@@ -65,6 +66,9 @@ class VisionManager:
     # * [Sim] If standalone or navigator is not available otherwise, make self a simulator (to be passed along to processors)
     self.sim = False  # TODO get a reference to navigator to do line-walking
     self.heading = 0.0
+    
+    # * Initialize shared memory items
+    self.bot_state["camera_offset"] = (0, 0)
   
   def start(self):
     """Create FrameProcessor objects and start vision loop (works on a static image, video or camera input)."""
@@ -122,9 +126,10 @@ class VisionManager:
     #pipeline = FrameProcessorPipeline(self.options, [CMYKBlobDetector])  # CMYK blob detection
     #pipeline = FrameProcessorPipeline(self.options, [ColorFilterProcessor, BlobTracker])  # blob tracking pipeline
     #pipeline = FrameProcessorPipeline(self.options, [ColorFilterProcessor, LineDetector, LineWalker, BlobTracker])  # combined pipeline
-    pipeline = FrameProcessorPipeline(self.options, [LineDetector, LineWalker, CMYKBlobDetector])  # CMYK blob detection + line walking pipeline
+    pipeline = FrameProcessorPipeline(self.options, [ColorPaletteDetector, LineDetector, LineWalker, CMYKBlobDetector])  # CMYK blob detection + line walking pipeline
     # ** Get references to specific processors for fast access
     #colorFilter = pipeline.getProcessorByType(ColorFilterProcessor)
+    colorPaletteDetector = pipeline.getProcessorByType(ColorPaletteDetector)
     lineDetector = pipeline.getProcessorByType(LineDetector)
     lineWalker = pipeline.getProcessorByType(LineWalker)
     blobDetector = pipeline.getProcessorByType(CMYKBlobDetector)
@@ -177,6 +182,11 @@ class VisionManager:
         fresh = False
       
       # ** Check bot_state activate only those processors that should be active
+      cv_offsetDetect = self.bot_state.get("cv_offsetDetect", True)  # default True
+      #self.logd("start", "[LOOP] cv_offsetDetect? {0}".format(cv_offsetDetect))  # [debug]
+      if colorPaletteDetector is not None:
+        colorPaletteDetector.active = cv_offsetDetect
+      
       cv_lineTrack = self.bot_state.get("cv_lineTrack", False)
       #self.logd("start", "[LOOP] cv_lineTrack? {0}".format(cv_lineTrack))  # [debug]
       #pipeline.activateProcessors([LineDetector, LineWalker], cv_lineTrack)
@@ -197,6 +207,14 @@ class VisionManager:
         self.stop()
       
       # ** Perform post-process functions
+      if colorPaletteDetector is not None and colorPaletteDetector.active:
+        if colorPaletteDetector.cameraOffset is not None:
+          if self.bot_state["camera_offset"][0] != colorPaletteDetector.cameraOffset[0] or self.bot_state["camera_offset"][1] != colorPaletteDetector.cameraOffset[1]:
+            self.bot_state["camera_offset"] = colorPaletteDetector.cameraOffset
+            self.logd("start", "[LOOP] camera_offset (changed): {0}".format(self.bot_state["camera_offset"]))
+        else:
+          self.loge("start", "[LOOP] camera_offset not available!")
+      
       if blobDetector is not None and blobDetector.active:
         del self.blobs[:]
         self.blobs.extend(blobDetector.blobs)
@@ -208,7 +226,7 @@ class VisionManager:
       # TODO Send out actual movement commands to navigator (only in LINE_WALKING state)
       if cv_lineTrack and lineWalker is not None:
         if lineWalker.state is LineWalker.State.GOOD and lineWalker.headingError != 0.0:
-          self.logd("start", "[LOOP] headingError: {0:6.2f}".format(lineWalker.headingError))
+          self.logd("start", "[LOOP] heading_error: {0:.2f}".format(lineWalker.headingError))
         # [Sim] Simulate bot movement from heading error reported by LineWalker
         if self.sim:
             self.heading -= 0.1 * lineWalker.headingError
@@ -304,7 +322,7 @@ class VisionManager:
       self.logger.debug(outStr)
 
 
-def run(bot_loc=dict(), blobs=list(), blocks=dict(), zones=dict(), corners=list(), waypoints=dict(), sc=None, bot_state=dict(cv_lineTrack=True, cv_blockDetect=True), options=None, standalone=False):
+def run(bot_loc=dict(), blobs=list(), blocks=dict(), zones=dict(), corners=list(), waypoints=dict(), sc=None, bot_state=dict(cv_lineTrack=False, cv_blockDetect=False), options=None, standalone=False):
   """Entry point for vision process: Create VisionManager to handle shared data and start vision loop."""
   visManager = VisionManager(bot_loc=bot_loc, blobs=blobs, blocks=blocks, zones=zones, corners=corners, waypoints=waypoints, sc=sc, bot_state=bot_state, options=options, standalone=standalone)  # passing in shared data, options dict and stand-alone flag; use named arguments to avoid positional errors
   visManager.start()  # start vision loop

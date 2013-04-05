@@ -144,7 +144,7 @@ class ParticleLocalizer(object):
     weight = self.weight
     normalizer = weight.sum()
     if normalizer > 0.0:
-      self.logger.debug("particle weight normalizer: %0.4f", normalizer)
+      self.logger.debug("Sum of particle weights (normalizer): %0.6f", normalizer)
       x = (self.p.x * weight).sum() / normalizer
       y = (self.p.y * weight).sum() / normalizer
       # average the vector components of theta individually to avoid jump between 0 and 2pi
@@ -215,7 +215,7 @@ class Particles(object):
     theta = self.theta
     for i in range(self.pcount):
       theta[i] = (theta[i] + dtheta) % (2*pi)
-      theta[i] = gauss(theta[i], dtheta * self.noise['turn'])
+      theta[i] = gauss(theta[i], self.noise['turn'])  # turn error is not proportional
       dx = forward * cos(theta[i])
       dy = forward * sin(theta[i])
       x[i] = gauss(x[i] + dx, dx * self.noise['move'])
