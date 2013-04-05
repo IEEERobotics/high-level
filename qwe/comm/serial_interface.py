@@ -154,7 +154,6 @@ class SerialInterface(Process):
   def quit(self):
     self.commands.put((-1, "quit"))
   
-  # TODO debug this
   def handleSignal(self, signum, frame):
     if signum == signal.SIGTERM or signum == signal.SIGINT:
       print "SerialInterface.handleSignal(): Termination signal ({0}); stopping comm loop...".format(signum)
@@ -275,7 +274,7 @@ class SerialInterface(Process):
       ctr = ctr + 1
     
     if self.fake_id == -1:
-      print "[FAKE-RECV] Warning: Blank response (timeout?)"
+      #print "[FAKE-RECV] Warning: Blank response (timeout?)"
       return { }
     
     sleep(fake_delay)
