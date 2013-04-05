@@ -19,7 +19,7 @@ default_baudrate = 19200
 default_timeout = 10  # seconds; float allowed
 default_queue_maxsize = 10
 
-default_speed = 400  # TODO set correct default speed when units are established
+default_speed = 200  # TODO set correct default speed when units are established
 default_arm_ramp = 10  # 0-63; 10 is a good number
 default_gripper_ramp = 5  # 0-63; 5 is a good number
 
