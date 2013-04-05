@@ -36,7 +36,7 @@ errors.update(dict((v,k) for k,v in errors.iteritems())) # Converts errors to a 
 env_config = { "obsthresh" : "1", "cost_ins" : "1", "cost_cir" : "0", "cellsize" : "0.00635", "nominalvel" : "1000.0", 
   "timetoturn45" : "2", "max_sensor_tries" : 10 }
 
-config = { "steps_between_locs" : 5, "XYErr" : (float(env_config["cellsize"]) * 50), "thetaErr" : (0.39269908169 * 1.5),
+config = { "steps_between_locs" : 5, "XYErr" : (float(env_config["cellsize"]) * 7), "thetaErr" : (0.39269908169 * 1.01),
 "loc_wait" : .01, "default_left_US" : 100, "default_right_US" : 100, "default_front_US" : 100, "default_back_US" : 100, 
 "default_accel_x" : 0, "default_accel_y" : 0, "default_accel_z" : 980, "default_heading" : 0, "XY_mv_len" : .15 }
 
