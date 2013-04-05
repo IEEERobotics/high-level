@@ -12,19 +12,21 @@ CONTROLLER_CMD=${@:-python controller.py}
 #PWD=`pwd`
 
 # Remove Kernel module that might eat up GPIO pins
-echo "qwe-go: Removing Kernel module..."
+echo "qwe-go: Removing kernel module..."
 rmmod gpio_keys  # TODO check if it is even loaded?
 
 # TODO check if gpio.o exists in the right place, if not make it
 
 # Wait for GPIO button press
-echo "qwe-go: Waiting for GPIO button press..."
+echo "qwe-go: Command to run on button press: ${CONTROLLER_CMD}"
+echo "qwe-go: WARNING: If this is not what you intend to run, Ctrl+C out now!"
+echo "qwe-go: Waiting for GPIO button press (ignore first interrupt message)..."
 eval $GPIO_WAIT_CMD
 
 # Launch controller (assume we are in qwe)
 #echo "qwe-go: Changing to ${QWE_DIR}..."
 #cd $QWE_DIR
-echo "qwe-go: Launching ${CONTROLLER_CMD}..."
+echo "qwe-go: Launching: ${CONTROLLER_CMD}..."
 eval $CONTROLLER_CMD
 
 echo "qwe-go: Done!"
