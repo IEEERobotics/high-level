@@ -322,6 +322,90 @@ class TestSBPL(unittest.TestCase):
 
     self.assertEqual(sol, nav.errors["NO_SOL"], "SBPL found a solution between poses where it failed in the past")
 
+  def test_debug0_offset(self):
+
+    offset = .0001
+
+    # Set start location
+    cur_x = 0.684678374009 + offset
+    cur_y = 0.31290085154 + offset
+    cur_theta = 6.26825975093 + offset
+    self.logger.debug("Current pose in meters is {}, {}, {}".format(cur_x, cur_y, cur_theta))
+
+    # Convert current location to inches and set it in bot_loc
+    self.bot_loc["x"] = self.Nav.XYTobot_locUC(cur_x)
+    self.bot_loc["y"] = self.Nav.XYTobot_locUC(cur_y)
+    self.bot_loc["theta"] = self.Nav.thetaTobot_locUC(cur_theta)
+    self.logger.debug("Current pose in inches is {} {} {}".format(self.bot_loc["x"], self.bot_loc["y"], self.bot_loc["theta"]))
+
+    # Set goal pose
+    goal_x = 1.20015
+    goal_y = 0.28575
+    goal_theta = 0.0
+
+    # Convert current location to inches and set it in bot_loc
+    self.bot_loc["x"] = self.Nav.XYTobot_locUC(cur_x)
+    self.bot_loc["y"] = self.Nav.XYTobot_locUC(cur_y)
+    self.bot_loc["theta"] = self.Nav.thetaTobot_locUC(cur_theta)
+    self.logger.debug("Current pose in inches is {} {} {}".format(self.bot_loc["x"], self.bot_loc["y"], self.bot_loc["theta"]))
+
+    # Generate solution
+    sol = self.Nav.genSol(goal_x, goal_y, goal_theta)
+
+    self.assertNotEqual(sol, nav.errors["NO_SOL"], "Offset of {} didn't fix SBPL fail")
+
+  def test_debug0_offset(self):
+
+    offset = .0001
+
+    # Set current location
+    cur_x = 0.652150850914 + offset
+    cur_y = 0.30267696651 + offset
+    cur_theta = 0.401430134 + offset
+    self.logger.debug("Current pose in meters is {}, {}, {}".format(cur_x, cur_y, cur_theta))
+
+    # Set goal pose
+    goal_x = 1.20015
+    goal_y = 0.28575
+    goal_theta = 0.0
+
+    # Convert current location to inches and set it in bot_loc
+    self.bot_loc["x"] = self.Nav.XYTobot_locUC(cur_x)
+    self.bot_loc["y"] = self.Nav.XYTobot_locUC(cur_y)
+    self.bot_loc["theta"] = self.Nav.thetaTobot_locUC(cur_theta)
+    self.logger.debug("Current pose in inches is {} {} {}".format(self.bot_loc["x"], self.bot_loc["y"], self.bot_loc["theta"]))
+
+    # Generate solution
+    sol = self.Nav.genSol(goal_x, goal_y, goal_theta)
+
+    self.assertNotEqual(sol, nav.errors["NO_SOL"], "Offset of {} didn't fix SBPL fail")
+
+  def test_debug2_offset(self):
+
+    offset = .0001
+
+    # Set current location
+    cur_x = 0.652150850914 + offset
+    cur_y = 0.30267696651 + offset
+    cur_theta = 0.401430134 + offset
+    self.logger.debug("Current pose in meters is {}, {}, {}".format(cur_x, cur_y, cur_theta))
+
+    # Set goal pose
+    goal_x = 1.20015
+    goal_y = 0.28575
+    goal_theta = 0.0
+
+    # Convert current location to inches and set it in bot_loc
+    self.bot_loc["x"] = self.Nav.XYTobot_locUC(cur_x)
+    self.bot_loc["y"] = self.Nav.XYTobot_locUC(cur_y)
+    self.bot_loc["theta"] = self.Nav.thetaTobot_locUC(cur_theta)
+    self.logger.debug("Current pose in inches is {} {} {}".format(self.bot_loc["x"], self.bot_loc["y"], self.bot_loc["theta"]))
+
+    # Generate solution
+    sol = self.Nav.genSol(goal_x, goal_y, goal_theta)
+
+    self.assertNotEqual(sol, nav.errors["NO_SOL"], "Offset of {} didn't fix SBPL fail")
+
 class TestFullInteraction(unittest.TestCase):
 
   def setUp(self):
