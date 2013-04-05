@@ -39,7 +39,7 @@ env_config = { "obsthresh" : "1", "cost_ins" : "1", "cost_cir" : "0", "cellsize"
 config = { "steps_between_locs" : 5, "XYErr" : (float(env_config["cellsize"]) * 7), "thetaErr" : (0.39269908169 * 1.01),
 "loc_wait" : .01, "default_left_US" : 100, "default_right_US" : 100, "default_front_US" : 100, "default_back_US" : 100, 
 "default_accel_x" : 0, "default_accel_y" : 0, "default_accel_z" : 980, "default_heading" : 0, "XY_mv_len" : .15,
-"max_sensor_tries" : 10, "SBPL_retries" : 10, "SBPL_recover_offset" : .2, "map_height_in" : 73, "map_width_in" : 97 }
+"max_sensor_tries" : 10, "SBPL_retries" : 10, "SBPL_recover_offset" : .03, "map_height_in" : 73, "map_width_in" : 97 }
 
 class Nav:
 
@@ -193,22 +193,14 @@ class Nav:
         return errors["ERROR_SBPL_RUN"]
       if sbpl_rv == 1:
         # No solution found
-        self.logger.warning("SBPL failed to find a solution")
-
         # Attempt to recover by offsetting bot_loc, hopefully avoiding pathological cases
-        if self.bot_loc["x"] <= config["map_width_in"]/2.:
-          # If bot is closer to start along the long part of the course, move away from start
-          self.bot_loc["x"] += self.XYTobot_locUC(config["SBPL_recover_offset"])
-        else:
-          self.bot_loc["x"] -= self.XYTobot_locUC(config["SBPL_recover_offset"])
-
-        if self.bot_loc["x"] <= config["map_width_in"]/2.:
-          # If bot is closer to start along the long part of the course, move away from start
-          self.bot_loc["y"] += self.XYTobot_locUC(config["SBPL_recover_offset"])
-        else:
-          self.bot_loc["y"] -= self.XYTobot_locUC(config["SBPL_recover_offset"])
-
+        self.logger.info("Attempting to recover from SBPL failure, changing goal pose ({} {} {}) by {}".format(goal_x, goal_y, \
+                                                          goal_theta, config["SBPL_recover_offset"]))
+        goal_x += config["SBPL_recover_offset"]
+        goal_y += config["SBPL_recover_offset"]
+        self.logger.info("New goal pose is ({} {} {})".format(goal_x, goal_y, goal_theta))
         continue
+
       else:
         self.logger.info("Successfully ran SBPL. Return value was: " + str(sbpl_rv))
         break
