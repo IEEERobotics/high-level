@@ -14,6 +14,7 @@ map_real_vars['loPltW'] = 24	#lower platform width
 map_real_vars['loPltH'] = 24	#lower platform height
 map_real_vars['loRmpW'] = 24	#lower ramp width
 map_real_vars['loRmpH'] = 24	#lower ramp height
+map_real_vars['RampWall'] = 14	#how far the wall extends into ramp
 map_real_vars['wall'] = 0.75 	#wall thickness
 map_real_vars['whiteLine'] = 0.5	#thickness of white lines
 map_real_vars['startW'] = 12	#start square width

@@ -67,7 +67,7 @@ def mk_map(res, map_grid_vars, map_prop_vars):
 		for x in xrange(0, map_grid_vars['wall']):
 			myMap.grid[y][x]['desc'] = map_prop_vars['wall']
 	#short wall along height of course (east side)
-	for y in xrange(map_grid_vars['loPltH'] + map_grid_vars['loRmpH'], map_grid_vars['height']):
+	for y in xrange(map_grid_vars['loPltH'] + map_grid_vars['loRmpH'] - map_grid_vars['RampWall'], map_grid_vars['height']):
 		for x in xrange(map_grid_vars['width'] - map_grid_vars['wall'], map_grid_vars['width']):
 			myMap.grid[y][x]['desc'] = map_prop_vars['wall']
 
