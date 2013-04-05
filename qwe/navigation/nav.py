@@ -143,7 +143,7 @@ class Nav:
 
       # Build environment file for input into SBPL
       # TODO Upgrade this to call SBPL directly, as described above
-      self.logger.debug("env_config: {}".format(pp.pformat(env_config)))
+      self.logger.debug("env_config: {}".format(str(env_config)))
       self.logger.debug("Current pose: {} {} {}".format(curX, curY, curTheta))
       self.logger.debug("Goal pose: {} {} {}".format(goal_x, goal_y, goal_theta))
       self.logger.debug("Map file: " + str(self.map_file))
