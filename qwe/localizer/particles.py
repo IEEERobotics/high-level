@@ -144,7 +144,7 @@ class ParticleLocalizer(object):
     weight = self.weight
     normalizer = weight.sum()
     if normalizer > 0.0:
-      self.logger.debug("particle weight normalizer: %0.4f", normalizer)
+      self.logger.debug("Sum of particle weights (normalizer): %0.6f", normalizer)
       x = (self.p.x * weight).sum() / normalizer
       y = (self.p.y * weight).sum() / normalizer
       # average the vector components of theta individually to avoid jump between 0 and 2pi
