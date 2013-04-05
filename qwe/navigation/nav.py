@@ -39,7 +39,7 @@ env_config = { "obsthresh" : "1", "cost_ins" : "1", "cost_cir" : "0", "cellsize"
 config = { "steps_between_locs" : 5, "XYErr" : (float(env_config["cellsize"]) * 7), "thetaErr" : (0.39269908169 * 1.01),
 "loc_wait" : .01, "default_left_US" : 100, "default_right_US" : 100, "default_front_US" : 100, "default_back_US" : 100, 
 "default_accel_x" : 0, "default_accel_y" : 0, "default_accel_z" : 980, "default_heading" : 0, "XY_mv_len" : .15,
-"max_sensor_tries" : 10, "SBPL_retries" : 10 }
+"max_sensor_tries" : 10, "SBPL_retries" : 10, "SBPL_recover_offset" : .2, "map_height_in" : 73, "map_width_in" : 97 }
 
 class Nav:
 
@@ -196,9 +196,17 @@ class Nav:
         self.logger.warning("SBPL failed to find a solution")
 
         # Attempt to recover by offsetting bot_loc, hopefully avoiding pathological cases
-        bot_loc["x"] += config["SBPL_recover_offset"]
-        bot_loc["y"] += config["SBPL_recover_offset"]
-        bot_loc["theta"] += config["SBPL_recover_offset"]
+        if bot_loc["x"] <= config["map_width_in"]/2.:
+          # If bot is closer to start along the long part of the course, move away from start
+          bot_loc["x"] += config["SBPL_recover_offset"]
+        else:
+          bot_loc["x"] -= config["SBPL_recover_offset"]
+
+        if bot_loc["x"] <= config["map_width_in"]/2.:
+          # If bot is closer to start along the long part of the course, move away from start
+          bot_loc["y"] += config["SBPL_recover_offset"]
+        else:
+          bot_loc["y"] -= config["SBPL_recover_offset"]
 
         continue
       else:
