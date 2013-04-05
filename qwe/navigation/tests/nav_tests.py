@@ -165,6 +165,162 @@ class TestFileGeneration(unittest.TestCase):
     # Confirm that env file was generated
     self.assertTrue(os.path.isfile(path_to_env), "Env file not found at " + path_to_env)
 
+class TestSBPL(unittest.TestCase):
+
+  def setUp(self):
+    """Create nav object and feed it appropriate data"""
+    
+    # Create file and stream handlers
+    self.file_handler = logging.handlers.RotatingFileHandler(path_to_qwe + "logs/unittests.log", maxBytes=512000, backupCount=50)
+    self.file_handler.setLevel(logging.DEBUG)
+    self.stream_handler = logging.StreamHandler()
+    self.stream_handler.setLevel(logging.WARN)
+
+    # Create formatter and add to handlers
+    formatter = logging.Formatter('%(asctime)s | %(levelname)s | %(filename)s | %(funcName)s | %(lineno)d | %(message)s')
+    self.file_handler.setFormatter(formatter)
+    self.stream_handler.setFormatter(formatter)
+
+    # Create logger and add handlers
+    self.logger = logging.getLogger("unittest")
+    self.logger.setLevel(logging.DEBUG)
+    self.logger.addHandler(self.file_handler)
+    self.logger.addHandler(self.stream_handler)
+    self.logger.debug("Logger is set up")
+     
+    # Start serial communication to low-level board
+    self.si = comm.SerialInterface(timeout=config["si_timeout"])
+    self.si.start() # Displays an error if port not found (not running on Pandaboard)
+    self.logger.info("Serial interface set up")
+
+    # Build Queue objects for IPC. Name shows producer_consumer.
+    self.qNav_loc = Queue()
+    self.qMove_nav = Queue()
+    self.logger.debug("Queue objects created")
+
+    # Get map, waypoints and map properties
+    self.course_map = mapper.unpickle_map(path_to_qwe + "mapping/map.pkl")
+    self.logger.info("Map unpickled")
+    self.waypoints = mapper.unpickle_waypoints(path_to_qwe + "mapping/waypoints.pkl")
+    self.logger.info("Waypoints unpickled")
+    self.map_properties = mapper.unpickle_map_prop_vars(path_to_qwe + "mapping/map_prop_vars.pkl")
+    self.logger.debug("Map properties unpickled")
+
+    # Find start location
+    self.start_x = self.waypoints["start"][1][0]
+    self.start_y = self.waypoints["start"][1][1]
+    self.start_theta = self.waypoints["start"][2]
+    self.logger.debug("Start waypoint is {}, {}, {}".format(self.start_x, self.start_y, self.start_theta))
+
+    # Build shared data structures
+    self.manager = Manager()
+    self.bot_loc = self.manager.dict(x=self.start_x, y=self.start_y, theta=self.start_theta, dirty=False)
+    self.bot_state = self.manager.dict(nav_type=None, action_type=None, naving=False) #nav_type is "micro" or "macro"
+    self.zones = self.manager.dict()
+    self.logger.debug("Shared data structures created")
+    self.bot_state["zone_change"] = 1
+
+    # Build nav object
+    self.scNav = comm.SerialCommand(self.si.commands, self.si.responses)
+    self.scNav.compassReset()
+    self.Nav = nav.Nav(self.bot_loc, self.qNav_loc, self.scNav, self.bot_state, self.qMove_nav, self.logger)
+    self.logger.info("Nav object instantiated")
+
+    self.Nav.start(doLoop=False)
+    self.logger.info("Started nav object")
+
+  def tearDown(self):
+    """Close serial interface threads"""
+
+    # Join serial interface process
+    self.scNav.quit()
+    self.si.join()
+    self.logger.info("Joined serial interface process")
+
+    # Remove loggers. Not doing this results in the same log entry being written many times.
+    self.logger.removeHandler(self.file_handler)
+    self.logger.removeHandler(self.stream_handler)
+
+  @unittest.expectedFailure
+  def test_debug0(self):
+
+    # Set start location
+    cur_x = 0.684678374009
+    cur_y = 0.31290085154
+    cur_theta = 6.26825975093
+    self.logger.debug("Current pose in meters is {}, {}, {}".format(cur_x, cur_y, cur_theta))
+
+    # Convert current location to inches and set it in bot_loc
+    self.bot_loc["x"] = self.Nav.XYTobot_locUC(cur_x)
+    self.bot_loc["y"] = self.Nav.XYTobot_locUC(cur_y)
+    self.bot_loc["theta"] = self.Nav.thetaTobot_locUC(cur_theta)
+    self.logger.debug("Current pose in inches is {} {} {}".format(self.bot_loc["x"], self.bot_loc["y"], self.bot_loc["theta"]))
+
+    # Set goal pose
+    goal_x = 1.20015
+    goal_y = 0.28575
+    goal_theta = 0.0
+
+    # Convert current location to inches and set it in bot_loc
+    self.bot_loc["x"] = self.Nav.XYTobot_locUC(cur_x)
+    self.bot_loc["y"] = self.Nav.XYTobot_locUC(cur_y)
+    self.bot_loc["theta"] = self.Nav.thetaTobot_locUC(cur_theta)
+    self.logger.debug("Current pose in inches is {} {} {}".format(self.bot_loc["x"], self.bot_loc["y"], self.bot_loc["theta"]))
+
+    # Generate solution
+    sol = self.Nav.genSol(goal_x, goal_y, goal_theta)
+
+    self.assertEqual(sol, nav.errors["NO_SOL"], "SBPL found a solution between poses where it failed in the past")
+
+  @unittest.expectedFailure
+  def test_debug1(self):
+
+    # Set current location
+    cur_x = 0.652150850914
+    cur_y = 0.30267696651
+    cur_theta = 0.401430134
+    self.logger.debug("Current pose in meters is {}, {}, {}".format(cur_x, cur_y, cur_theta))
+
+    # Set goal pose
+    goal_x = 1.20015
+    goal_y = 0.28575
+    goal_theta = 0.0
+
+    # Convert current location to inches and set it in bot_loc
+    self.bot_loc["x"] = self.Nav.XYTobot_locUC(cur_x)
+    self.bot_loc["y"] = self.Nav.XYTobot_locUC(cur_y)
+    self.bot_loc["theta"] = self.Nav.thetaTobot_locUC(cur_theta)
+    self.logger.debug("Current pose in inches is {} {} {}".format(self.bot_loc["x"], self.bot_loc["y"], self.bot_loc["theta"]))
+
+    # Generate solution
+    sol = self.Nav.genSol(goal_x, goal_y, goal_theta)
+
+    self.assertEqual(sol, nav.errors["NO_SOL"], "SBPL found a solution between poses where it failed in the past")
+
+  @unittest.expectedFailure
+  def test_debug2(self):
+
+    # Set current location
+    cur_x = 0.652150850914
+    cur_y = 0.30267696651
+    cur_theta = 0.401430134
+    self.logger.debug("Current pose in meters is {}, {}, {}".format(cur_x, cur_y, cur_theta))
+
+    # Set goal pose
+    goal_x = 1.20015
+    goal_y = 0.28575
+    goal_theta = 0.0
+
+    # Convert current location to inches and set it in bot_loc
+    self.bot_loc["x"] = self.Nav.XYTobot_locUC(cur_x)
+    self.bot_loc["y"] = self.Nav.XYTobot_locUC(cur_y)
+    self.bot_loc["theta"] = self.Nav.thetaTobot_locUC(cur_theta)
+    self.logger.debug("Current pose in inches is {} {} {}".format(self.bot_loc["x"], self.bot_loc["y"], self.bot_loc["theta"]))
+
+    # Generate solution
+    sol = self.Nav.genSol(goal_x, goal_y, goal_theta)
+
+    self.assertEqual(sol, nav.errors["NO_SOL"], "SBPL found a solution between poses where it failed in the past")
 
 class TestFullInteraction(unittest.TestCase):
 
