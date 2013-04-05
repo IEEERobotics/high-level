@@ -632,7 +632,6 @@ class TestCleanSol(unittest.TestCase):
                                                                       sol[0]["cont_y"], clean_sol[0]["cont_y"]))
     self.assertAlmostEqual(sol[0]["cont_theta"], clean_sol[0]["cont_theta"], "Start theta of sol ({}) != clean sol({}) ".format( \
                                                                       sol[0]["cont_theta"], clean_sol[0]["cont_theta"]))
->>>>>>> tmp_branch
 class TestUC(unittest.TestCase):
 
   def setUp(self):
