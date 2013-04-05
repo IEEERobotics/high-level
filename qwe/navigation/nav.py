@@ -196,22 +196,27 @@ class Nav:
         self.logger.warning("SBPL failed to find a solution")
 
         # Attempt to recover by offsetting bot_loc, hopefully avoiding pathological cases
-        if bot_loc["x"] <= config["map_width_in"]/2.:
+        if self.bot_loc["x"] <= config["map_width_in"]/2.:
           # If bot is closer to start along the long part of the course, move away from start
-          bot_loc["x"] += config["SBPL_recover_offset"]
+          self.bot_loc["x"] += self.XYTobot_locUC(config["SBPL_recover_offset"])
         else:
-          bot_loc["x"] -= config["SBPL_recover_offset"]
+          self.bot_loc["x"] -= self.XYTobot_locUC(config["SBPL_recover_offset"])
 
-        if bot_loc["x"] <= config["map_width_in"]/2.:
+        if self.bot_loc["x"] <= config["map_width_in"]/2.:
           # If bot is closer to start along the long part of the course, move away from start
-          bot_loc["y"] += config["SBPL_recover_offset"]
+          self.bot_loc["y"] += self.XYTobot_locUC(config["SBPL_recover_offset"])
         else:
-          bot_loc["y"] -= config["SBPL_recover_offset"]
+          self.bot_loc["y"] -= self.XYTobot_locUC(config["SBPL_recover_offset"])
 
         continue
       else:
         self.logger.info("Successfully ran SBPL. Return value was: " + str(sbpl_rv))
         break
+
+    if sbpl_rv == 1:
+      # No solution found
+      self.logger.warning("SBPL failed to find a solution after {} attempts".format(config["SBPL_retries"]))
+      return errors["NO_SOL"]
 
     # Read solution file into memory and return it
     sol = []
