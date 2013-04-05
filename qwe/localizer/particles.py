@@ -215,7 +215,7 @@ class Particles(object):
     theta = self.theta
     for i in range(self.pcount):
       theta[i] = (theta[i] + dtheta) % (2*pi)
-      theta[i] = gauss(theta[i], dtheta * self.noise['turn'])
+      theta[i] = gauss(theta[i], self.noise['turn'])  # turn error is not proportional
       dx = forward * cos(theta[i])
       dy = forward * sin(theta[i])
       x[i] = gauss(x[i] + dx, dx * self.noise['move'])
