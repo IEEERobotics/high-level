@@ -220,27 +220,29 @@ class TestFullInteraction(unittest.TestCase):
     self.bot_state = self.manager.dict(nav_type=None, action_type=None, naving=False) #nav_type is "micro" or "macro"
     self.zones = self.manager.dict()
     self.logger.debug("Shared data structures created")
+    self.bot_state["zone_change"] = 1
 
     # Start fakeLoc process
-    self.pfakeLoc = Process(target=fakeLoc, args=(self.testQueue, self.bot_loc, self.logger))
-    self.pfakeLoc.start()
-    self.logger.info("fakeLoc process started")
+    #self.pfakeLoc = Process(target=fakeLoc, args=(self.testQueue, self.bot_loc, self.logger))
+    #self.pfakeLoc.start()
+    #self.logger.info("fakeLoc process started")
 
     # Start nav process
     self.scNav = comm.SerialCommand(self.si.commands, self.si.responses)
     self.scNav.compassReset()
-    #self.pNav = Process(target=nav.run, args=(self.bot_loc, self.qNav_loc, self.scNav, \
-    #  self.bot_state, self.qMove_nav, self.logger))
     self.pNav = Process(target=nav.run, args=(self.bot_loc, self.qNav_loc, self.scNav, \
-      self.bot_state, self.qMove_nav, self.logger, self.testQueue))
+      self.bot_state, self.qMove_nav, self.logger))
+    self.logger.debug("First possible sensor read: {}".format(str(self.scNav.getAllSensorData())))
+    #self.pNav = Process(target=nav.run, args=(self.bot_loc, self.qNav_loc, self.scNav, \
+    #  self.bot_state, self.qMove_nav, self.logger, self.testQueue))
     self.pNav.start()
     self.logger.info("Navigator process started")
 
     # Start localizer process, pass it shared data, waypoints, map_properties course_map and queue for talking to nav
-    #self.pLocalizer = Process(target=localizer.run, args=(self.bot_loc, self.zones, self.map_properties, self.course_map, \
-    #  self.waypoints, self.qNav_loc, self.bot_state, self.logger))
-    #self.pLocalizer.start()
-    #self.logger.info("Localizer process started")
+    self.pLocalizer = Process(target=localizer.run, args=(self.bot_loc, self.zones, self.map_properties, self.course_map, \
+      self.waypoints, self.qNav_loc, self.bot_state, self.logger))
+    self.pLocalizer.start()
+    self.logger.info("Localizer process started")
 
   def tearDown(self):
     """Close serial interface threads"""
@@ -257,12 +259,12 @@ class TestFullInteraction(unittest.TestCase):
     self.logger.info("Telling loc to die")
     self.qNav_loc.put("die")
 
-    #self.pLocalizer.join()
-    #self.logger.info("Joined localizer process")
+    self.pLocalizer.join()
+    self.logger.info("Joined localizer process")
 
     # Pass a die command to loc
-    self.pfakeLoc.join()
-    self.logger.info("Joined fakeLoc process")
+    #self.pfakeLoc.join()
+    #self.logger.info("Joined fakeLoc process")
 
     # Join serial interface process
     self.scNav.quit()
@@ -459,6 +461,18 @@ class TestFullInteraction(unittest.TestCase):
     self.qMove_nav.put(goal_pose)
     self.logger.debug("Put goal pose into queue")
 
+  def test_turn_90(self):
+    goal_x = self.waypoints["start"][0][0] * float(nav.env_config["cellsize"]) * 39.3701
+    goal_y = self.waypoints["start"][0][1] * float(nav.env_config["cellsize"]) * 39.3701
+    goal_theta = pi/2
+
+    goal_pose = nav.macro_move(goal_x, goal_y, goal_theta, datetime.now())
+    self.logger.debug("Created goal pose {}".format(pp.pformat(goal_pose)))
+
+    # Send goal pose via queue
+    self.logger.debug("About to send goal pose to queue with ID {}".format(str(self.qMove_nav)))
+    self.qMove_nav.put(goal_pose)
+    self.logger.debug("Put goal pose into queue")
 
 class TestCleanSol(unittest.TestCase):
 
@@ -617,7 +631,6 @@ class TestCleanSol(unittest.TestCase):
                                                                       sol[0]["cont_y"], clean_sol[0]["cont_y"]))
     self.assertAlmostEqual(sol[0]["cont_theta"], clean_sol[0]["cont_theta"], "Start theta of sol ({}) != clean sol({}) ".format( \
                                                                       sol[0]["cont_theta"], clean_sol[0]["cont_theta"]))
-
 class TestUC(unittest.TestCase):
 
   def setUp(self):
