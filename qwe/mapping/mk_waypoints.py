@@ -66,7 +66,7 @@ def mk_waypoints(res, map_grid_vars):
 	waypoints['St14'] = ((xstor_grid[0][13],St_grid_y),(xstor_real[0][13],St_real_y),math.pi, 'normal')	
 	
 	#center of air locations
-	air_grid_x = int(map_grid_vars['air_long'] - map_grid_vars['whiteLine'] - map_grid_vars['offset'])
+	air_grid_x = int(map_grid_vars['air_long'] + map_grid_vars['whiteLine'] + map_grid_vars['offset'])
 	air_real_x = float(air_grid_x)/res
 	A01_grid_y = int(map_grid_vars['height']-map_grid_vars['upPlt_2_Air']-map_grid_vars['whiteLine']-map_grid_vars['zone_short']/2)
 	A02_grid_y = int(map_grid_vars['height']-map_grid_vars['upPlt_2_Air']-2*map_grid_vars['whiteLine']-1.5*map_grid_vars['zone_short'])
