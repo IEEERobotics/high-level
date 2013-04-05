@@ -39,7 +39,7 @@ env_config = { "obsthresh" : "1", "cost_ins" : "1", "cost_cir" : "0", "cellsize"
 config = { "steps_between_locs" : 5, "XYErr" : (float(env_config["cellsize"]) * 7), "thetaErr" : (0.39269908169 * 1.01),
 "loc_wait" : .01, "default_left_US" : 100, "default_right_US" : 100, "default_front_US" : 100, "default_back_US" : 100, 
 "default_accel_x" : 0, "default_accel_y" : 0, "default_accel_z" : 980, "default_heading" : 0, "XY_mv_len" : .15,
-"max_sensor_tries" : 10 }
+"max_sensor_tries" : 10, "SBPL_retries" : 10 }
 
 class Nav:
 
@@ -135,68 +135,75 @@ class Nav:
 
     self.logger.debug("Generating plan")
 
-    # Translate bot_loc into internal units
-    curX = self.XYFrombot_locUC(self.bot_loc["x"])
-    curY = self.XYFrombot_locUC(self.bot_loc["y"])
-    curTheta = self.thetaFrombot_locUC(self.bot_loc["theta"])
+    for i in range(config["SBPL_retries"]):
+      # Translate bot_loc into internal units
+      curX = self.XYFrombot_locUC(self.bot_loc["x"])
+      curY = self.XYFrombot_locUC(self.bot_loc["y"])
+      curTheta = self.thetaFrombot_locUC(self.bot_loc["theta"])
 
-    # Build environment file for input into SBPL
-    # TODO Upgrade this to call SBPL directly, as described above
-    # "Usage: ./build_env_file.sh <obsthresh> <cost_inscribed_thresh> <cost_possibly_circumscribed_thresh> <cellsize> <nominalvel>
-    # <timetoturn45degsinplace> <start_x> <start_y> <start_theta> <end_x> <end_y> <end_theta> [<env_file> <map_file>]"
-    self.logger.debug("env_config: {}".format(str(env_config)))
-    self.logger.debug("Current pose: {} {} {}".format(curX, curY, curTheta))
-    self.logger.debug("Goal pose: {} {} {}".format(goal_x, goal_y, goal_theta))
-    self.logger.debug("Map file: " + str(self.map_file))
-    self.logger.debug("Environment file to write: " + str(self.env_file))
-    self.logger.debug("Environment script to use {}".format(self.build_env_script))
-    self.logger.debug("CWD: {}".format(getcwd()))
+      # Build environment file for input into SBPL
+      # TODO Upgrade this to call SBPL directly, as described above
+      self.logger.debug("env_config: {}".format(pp.pformat(env_config)))
+      self.logger.debug("Current pose: {} {} {}".format(curX, curY, curTheta))
+      self.logger.debug("Goal pose: {} {} {}".format(goal_x, goal_y, goal_theta))
+      self.logger.debug("Map file: " + str(self.map_file))
+      self.logger.debug("Environment file to write: " + str(self.env_file))
+      self.logger.debug("Environment script to use {}".format(self.build_env_script))
+      self.logger.debug("CWD: {}".format(getcwd()))
 
-    build_env_rv = call([self.build_env_script, env_config["obsthresh"],
-                                                env_config["cost_ins"],
-                                                env_config["cost_cir"],
-                                                env_config["cellsize"],
-                                                env_config["nominalvel"],
-                                                env_config["timetoturn45"],
-                                                str(curX),
-                                                str(curY),
-                                                str(curTheta),
-                                                str(goal_x),
-                                                str(goal_y),
-                                                str(goal_theta),
-                                                str(self.env_file),
-                                                str(self.map_file)],
-                                                cwd=str(getcwd()))
+      build_env_rv = call([self.build_env_script, env_config["obsthresh"],
+                                                  env_config["cost_ins"],
+                                                  env_config["cost_cir"],
+                                                  env_config["cellsize"],
+                                                  env_config["nominalvel"],
+                                                  env_config["timetoturn45"],
+                                                  str(curX),
+                                                  str(curY),
+                                                  str(curTheta),
+                                                  str(goal_x),
+                                                  str(goal_y),
+                                                  str(goal_theta),
+                                                  str(self.env_file),
+                                                  str(self.map_file)],
+                                                  cwd=str(getcwd()))
 
-    # Check results of build_env_script call
-    if build_env_rv != 0:
-      self.logger.critical("Failed to build env file. Script return value was: " + str(build_env_rv))
-      return errors["ERROR_BUILD_ENV"]
-    self.logger.info("Successfully built env file. Return value was: " + str(build_env_rv))
+      # Check results of build_env_script call
+      if build_env_rv != 0:
+        self.logger.critical("Failed to build env file. Script return value was: " + str(build_env_rv))
+        return errors["ERROR_BUILD_ENV"]
+      self.logger.info("Successfully built env file. Return value was: " + str(build_env_rv))
 
-    # Run SBPL
-    origCWD = getcwd()
-    self.logger.debug("Changing dir from {}".format(origCWD))
-    chdir(self.sol_dir)
-    self.logger.debug("Running SBPL CWD {}".format(getcwd()))
-    self.logger.debug("Running SBPL with executable {}".format(self.sbpl_exec_from_sol_dir))
-    self.logger.debug("Running SBPL with env_file {}".format(self.env_file_from_sol_dir))
-    self.logger.debug("Running SBPL with mprim_file {}".format(self.mprim_file_from_sol_dir))
-    sbpl_rv = call([self.sbpl_exec_from_sol_dir, self.env_file_from_sol_dir, self.mprim_file_from_sol_dir])
-    chdir(origCWD)
+      # Run SBPL
+      origCWD = getcwd()
+      self.logger.debug("Changing dir from {}".format(origCWD))
+      chdir(self.sol_dir)
+      self.logger.debug("Running SBPL CWD {}".format(getcwd()))
+      self.logger.debug("Running SBPL with executable {}".format(self.sbpl_exec_from_sol_dir))
+      self.logger.debug("Running SBPL with env_file {}".format(self.env_file_from_sol_dir))
+      self.logger.debug("Running SBPL with mprim_file {}".format(self.mprim_file_from_sol_dir))
+      sbpl_rv = call([self.sbpl_exec_from_sol_dir, self.env_file_from_sol_dir, self.mprim_file_from_sol_dir])
+      chdir(origCWD)
 
-    # Check results of SBPL run
-    if sbpl_rv == -6:
-      self.logger.critical("Failed to run SBPL. SBPL return value was: " + str(sbpl_rv))
-      return errors["ERROR_BAD_RESOLUTION"]
-    if sbpl_rv < 0:
-      self.logger.critical("Failed to run SBPL. SBPL return value was: " + str(sbpl_rv))
-      return errors["ERROR_SBPL_RUN"]
-    if sbpl_rv == 1:
-      # No solution found
-      self.logger.warning("SBPL failed to find a solution")
-      return errors["NO_SOL"]
-    self.logger.info("Successfully ran SBPL. Return value was: " + str(sbpl_rv))
+      # Check results of SBPL run
+      if sbpl_rv == -6:
+        self.logger.critical("Failed to run SBPL. SBPL return value was: " + str(sbpl_rv))
+        return errors["ERROR_BAD_RESOLUTION"]
+      if sbpl_rv < 0:
+        self.logger.critical("Failed to run SBPL. SBPL return value was: " + str(sbpl_rv))
+        return errors["ERROR_SBPL_RUN"]
+      if sbpl_rv == 1:
+        # No solution found
+        self.logger.warning("SBPL failed to find a solution")
+
+        # Attempt to recover by offsetting bot_loc, hopefully avoiding pathological cases
+        bot_loc["x"] += config["SBPL_recover_offset"]
+        bot_loc["y"] += config["SBPL_recover_offset"]
+        bot_loc["theta"] += config["SBPL_recover_offset"]
+
+        continue
+      else:
+        self.logger.info("Successfully ran SBPL. Return value was: " + str(sbpl_rv))
+        break
 
     # Read solution file into memory and return it
     sol = []
