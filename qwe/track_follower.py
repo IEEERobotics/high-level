@@ -197,7 +197,7 @@ class TrackFollower:
     
     # * Update bot heading
     #self.bot.heading = radians(actual_heading / 10.0)  # absolute angle
-    self.bot.heading = self.bot.heading + radians(actual_heading_rel / 10.0)  # relative angle
+    self.bot.heading = (self.bot.heading + radians(actual_heading_rel / 10.0)) % (2 * pi)  # relative angle
     #self.logd("move", "Bot: {}".format(self.bot))
     self.logd("move", self.bot.dump())  # dump current state
     
