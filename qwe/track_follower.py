@@ -100,11 +100,38 @@ class TrackFollower:
     self.graph.nodes['alpha'] = Node('alpha', Point(15, 12), 0)  # first point to go to
     self.graph.nodes['land'] = Node('land', Point(39.5, 12), 0)  # point near beginning of land
     self.graph.nodes['beta'] = Node('beta', Point(64, 12), pi/2)  # point near one end of land and beginning of ramp
+    self.graph.nodes['east_off'] = Node('east_off', Point(64, 20), pi/2)  # point beside start of ramp when we should switch off east sensor
+    self.graph.nodes['celta'] = Node('celta', Point(64, 34), pi)  # point beside ramp
+    self.graph.nodes['pickup'] = Node('pickup', Point(58, 34), pi)  # point near start of pickup
+    self.graph.nodes['delta'] = Node('delta', Point(12, 34), pi)  # point past end of pickup
+    self.graph.nodes['sea'] = Node('sea', Point(12, 34), 3*pi/2)  # point near start of sea
+    self.graph.nodes['eps'] = Node('eps', Point(12, 12), 0)  # point past end of sea
     
     self.graph.edges[('start', 'alpha')] = Edge(self.graph.nodes['start'], self.graph.nodes['alpha'])
     self.graph.edges[('alpha', 'land')] = Edge(self.graph.nodes['alpha'], self.graph.nodes['land'])
     self.graph.edges[('land', 'beta')] = Edge(self.graph.nodes['land'], self.graph.nodes['beta'])
-    self.path = [self.graph.edges[('start', 'alpha')], self.graph.edges[('alpha', 'land')], self.graph.edges[('land', 'beta')]]
+    self.graph.edges[('beta', 'east_off')] = Edge(self.graph.nodes['beta'], self.graph.nodes['east_off'])
+    self.graph.edges[('east_off', 'celta')] = Edge(self.graph.nodes['east_off'], self.graph.nodes['celta'])
+    self.graph.edges[('celta', 'pickup')] = Edge(self.graph.nodes['celta'], self.graph.nodes['pickup'])
+    self.graph.edges[('pickup', 'delta')] = Edge(self.graph.nodes['pickup'], self.graph.nodes['delta'])
+    self.graph.edges[('delta', 'sea')] = Edge(self.graph.nodes['delta'], self.graph.nodes['sea'])
+    self.graph.edges[('sea', 'eps')] = Edge(self.graph.nodes['sea'], self.graph.nodes['eps'])
+    self.graph.edges[('eps', 'alpha')] = Edge(self.graph.nodes['eps'], self.graph.nodes['alpha'])
+    
+    
+    self.init_path = [self.graph.edges[('start', 'alpha')]]
+    
+    self.path = [
+      self.graph.edges[('alpha', 'land')],
+      self.graph.edges[('land', 'beta')],
+      self.graph.edges[('beta', 'east_off')],
+      self.graph.edges[('east_off', 'celta')],
+      self.graph.edges[('celta', 'pickup')],
+      self.graph.edges[('pickup', 'delta')],
+      self.graph.edges[('delta', 'sea')],
+      self.graph.edges[('sea', 'eps')],
+      self.graph.edges[('eps', 'alpha')]
+      ]
     
     # Report entire path
     self.logd("__init__()", "Path:")
@@ -119,6 +146,10 @@ class TrackFollower:
   
   def run(self):
     # Units:- angle: 10ths of degree, distance: encoder counts (1000 ~= 6 in.), speed: PID value (200-1000)
+    
+    # * Traverse through the list of nodes in initial path to get to alpha
+    for edge in self.init_path:
+      self.traverse(edge)
     
     # * Traverse through the list of nodes in path
     for edge in self.path:
