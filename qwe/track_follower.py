@@ -163,8 +163,8 @@ class TrackFollower:
   
   def traverse(self, edge):
     # TODO move from edge.fromNode to edge.toNode, ensuring bot sensors indicate expected values
+    self.logd("traverse", "Moving from {from} to {to}...".format(from=edge.fromNode.name, to=edge.toNode.name))
     self.move(edge.fromNode.loc, edge.toNode.loc)
-    pass
   
   def move(self, fromPoint, toPoint, speed=default_speed):
     self.logd("move", "Bot: {}".format(self.bot))  # report current state
