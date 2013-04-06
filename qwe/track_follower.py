@@ -178,6 +178,10 @@ class TrackFollower:
     distance_inches = hypot(delta.x, delta.y)
     #angle_radians = atan2(delta.y, delta.x) % (2 * pi)  # absolute angle
     angle_radians = atan2(delta.y, delta.x) % (2 * pi) - self.bot.heading  # relative angle
+    if angle_radians > pi:
+      angle_radians = angle_radians - (2 * pi)
+    elif angle_radians < -pi:
+      angle_radians = angle_radians + (2 * pi)
     self.logd("move", "fromPoint: {}, toPoint: {}, distance_inches: {}, angle_radians: {}".format(fromPoint, toPoint, distance_inches, angle_radians))
     
     distance = int(distance_inches * (1633 / 9.89))
@@ -225,15 +229,49 @@ class TrackFollower:
   
   def turn(self, angle_radians):
     # * Compute angle
+    angle_radians = angle_radians - self.bot.heading  # relative angle
     angle = int(degrees(angle_radians)) * 10
     
     # * Turn in the desired direction (absolute)
+    # ** Option 1: Absolute
+    '''
     self.logd("turn", "Command: botTurnAbs({angle})".format(angle=angle))
     actual_heading = self.sc.botTurnAbs(angle)
     self.logd("turn", "Response: heading = {heading}".format(heading=actual_heading))
+    '''
+    # ** Option 2: Relative
+    # * Turn in the desired direction (absolute)
+    self.logd("move", "Command: botTurnRel({angle})".format(angle=angle))
+    actual_heading_rel = self.sc.botTurnRel(angle)
+    self.logd("move", "Response: heading = {heading}".format(heading=actual_heading_rel))
     
     # * Update bot heading
-    self.bot.heading = radians(actual_heading / 10.0)
+    #self.bot.heading = radians(actual_heading / 10.0)  # absolute angle
+    self.bot.heading = (self.bot.heading + radians(actual_heading_rel / 10.0)) % (2 * pi)  # relative angle
+    #self.logd("move", "Bot: {}".format(self.bot))
+    self.logd("move", self.bot.dump())  # dump current state
+  
+  def turn(self, angle_radians):
+    # * Compute angle
+    angle_radians = angle_radians - self.bot.heading  # relative angle
+    angle = int(degrees(angle_radians)) * 10
+    
+    # * Turn in the desired direction (absolute)
+    # ** Option 1: Absolute
+    '''
+    self.logd("turn", "Command: botTurnAbs({angle})".format(angle=angle))
+    actual_heading = self.sc.botTurnAbs(angle)
+    self.logd("turn", "Response: heading = {heading}".format(heading=actual_heading))
+    '''
+    # ** Option 2: Relative
+    # * Turn in the desired direction (absolute)
+    self.logd("move", "Command: botTurnRel({angle})".format(angle=angle))
+    actual_heading_rel = self.sc.botTurnRel(angle)
+    self.logd("move", "Response: heading = {heading}".format(heading=actual_heading_rel))
+    
+    # * Update bot heading
+    #self.bot.heading = radians(actual_heading / 10.0)  # absolute angle
+    self.bot.heading = (self.bot.heading + radians(actual_heading_rel / 10.0)) % (2 * pi)  # relative angle
     #self.logd("move", "Bot: {}".format(self.bot))
     self.logd("move", self.bot.dump())  # dump current state
     
