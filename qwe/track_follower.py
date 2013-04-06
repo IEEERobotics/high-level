@@ -236,12 +236,13 @@ class TrackFollower:
     follow = edge.props.get('follow', None)
     #self.move(edge.fromNode.loc, edge.toNode.loc)
     self.moveThread = threading.Thread(target=self.move, name="MOVE", args=(edge.fromNode.loc, edge.toNode.loc, follow))
+    self.bot_state['naving'] = True
     self.moveThread.start()
     sleep(0.05)  # let move thread execute some
     traversalComplete = True  # assume the move will complete
     #sleep(5)  # HACK remove this
     
-    while self.moveThread.is_alive():
+    while self.bot_state['naving']:
       # * Pickup/drop-off logic
       isPickup = edge.props.get('isPickup', False)
       isDropoff = edge.props.get('isDropoff', False)
@@ -343,6 +344,8 @@ class TrackFollower:
     #self.bot.heading = radians(actual_heading / 10.0)  # only needed if botSet() was used
     #self.logd("move", "Bot: {}".format(self.bot))
     #self.logd("move", self.bot.dump())  # dump current state
+    
+    self.bot_state['naving'] = False
   
   def turn(self, angle_radians):
     # * Compute angle
