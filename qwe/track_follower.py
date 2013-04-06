@@ -98,7 +98,7 @@ class TrackFollower:
     self.graph = Graph()
     self.graph.nodes['start'] = Node('start', Point(self.waypoints['start'][1][0], self.waypoints['start'][1][1]), self.waypoints['start'][2])
     self.graph.nodes['alpha'] = Node('alpha', Point(15, 12), 0)  # first point to go to
-    self.graph.nodes['land'] = Node('land', Point(39.5, 12), 0)  # first point to go to
+    self.graph.nodes['land'] = Node('land', Point(39.5, 12), 0)  # point near beginning of land
     self.graph.nodes['beta'] = Node('beta', Point(64, 12), pi/2)  # point near one end of land and beginning of ramp
     
     self.graph.edges[('start', 'alpha')] = Edge(self.graph.nodes['start'], self.graph.nodes['alpha'])
@@ -141,18 +141,28 @@ class TrackFollower:
     # * Compute angle and distance
     delta = Offset(toPoint.x - fromPoint.x, toPoint.y - fromPoint.y)
     distance_inches = hypot(delta.x, delta.y)
-    angle_radians = atan2(delta.y, delta.x)
+    #angle_radians = atan2(delta.y, delta.x) % (2 * pi)  # absolute angle
+    angle_radians = (atan2(delta.y, delta.x) - self.bot.heading) % (2 * pi)  # relative angle
     
     distance = int(distance_inches * (1633 / 9.89))
     angle = int(degrees(angle_radians)) * 10
     
-    # * Turn in the desired direction (absolute)
+    # * Turn in the desired direction
+    # ** Option 1: Absolute
+    '''
     self.logd("move", "Command: botTurnAbs({angle})".format(angle=angle))
     actual_heading = self.sc.botTurnAbs(angle)
     self.logd("move", "Response: heading = {heading}".format(heading=actual_heading))
+    '''
+    # ** Option 2: Relative
+    # * Turn in the desired direction (absolute)
+    self.logd("move", "Command: botTurnRel({angle})".format(angle=angle))
+    actual_heading_rel = self.sc.botTurnRel(angle)
+    self.logd("move", "Response: heading = {heading}".format(heading=actual_heading_rel))
     
     # * Update bot heading
-    self.bot.heading = radians(actual_heading / 10.0)
+    #self.bot.heading = radians(actual_heading / 10.0)  # absolute angle
+    self.bot.heading = self.bot.heading + radians(actual_heading_rel / 10.0)  # relative angle
     self.logd("move", "Bot: {}".format(self.bot))
     
     # * Move in a straight line while maintaining known heading (absolute)
