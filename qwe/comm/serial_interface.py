@@ -338,6 +338,10 @@ class SerialCommand:
     response = self.runCommand("move {speed} {distance}".format(speed=speed, distance=distance))
     return int(response.get('distance', distance))
   
+  def botFollow(self, distance, speed=default_speed, which=0):  # distance: mm (?), speed: encoder units (200-1000, default: 400), which = 1 (left), 2 (right)
+    response = self.runCommand("follow {speed} {distance} {which}".format(speed=speed, distance=distance, which=which))
+    return int(response.get('distance', distance))
+  
   def botTurnAbs(self, angle):  # angle: 10ths of a degree
     response = self.runCommand("turn_abs {angle}".format(angle=int(angle)))
     return response.get('absHeading', angle)

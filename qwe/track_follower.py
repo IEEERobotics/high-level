@@ -12,6 +12,7 @@ import pprint as pp
 from collections import namedtuple
 from math import sqrt, hypot, atan2, degrees, radians, sin, cos, pi
 from multiprocessing import Process, Manager, Queue
+import threading
 
 default_speed = 200
 waypoints_file = "mapping/waypoints.pkl"
@@ -54,9 +55,10 @@ class Node:
 
 class Edge:
   """A directed edge from one node to another."""
-  def __init__(self, fromNode, toNode):
+  def __init__(self, fromNode, toNode, props=dict()):
     self.fromNode = fromNode
     self.toNode = toNode
+    self.props = props
     # TODO add strategy to navigate between these two nodes
 
 
@@ -72,6 +74,9 @@ class Bot:
   def __init__(self, loc, heading=0.0):
     self.loc = loc  # (x, y), location on map, inches
     self.heading = heading  # current orientation, radians
+    
+    self.isEmptyLeft = True
+    self.isEmptyRight = True
   
   def __str__(self):
     return "<Bot loc: {self.loc}, heading: {self.heading}>".format(self=self)
@@ -82,8 +87,8 @@ class Bot:
 
 class TrackFollower:
   """A bot control that makes it move along a pre-specified track."""
-  def __init__(self, sc, logger=None):
-    self.sc = sc
+  def __init__(self, logger=None):
+    # Set logger
     self.logger = None
     if logger is not None:
       self.logger = logger
@@ -91,6 +96,26 @@ class TrackFollower:
       logging.config.fileConfig('logging.conf')
       self.logger = logging.getLogger('track_follower')
     self.debug = True
+    
+    # Build shared data structures
+    self.logd("__init__()", "Creating shared data structures...")
+    self.manager = Manager()
+    self.bot_loc = self.manager.dict(x=-1, y=-1, theta=0.0, dirty=False)  # manage bot loc in track follower
+    self.blobs = self.manager.list()  # for communication between vision and planner
+    self.blocks = self.manager.dict()
+    self.zones = self.manager.dict()
+    self.corners = self.manager.list()
+    self.bot_state = self.manager.dict(nav_type=None, action_type=None, naving=False) #nav_type is "micro" or "macro"
+    
+    # Set shared parameters and flags
+    self.bot_state['cv_offsetDetect'] = False
+    self.bot_state['cv_lineTrack'] = True
+    
+    # Serial interface and command
+    self.logd("__init__()", "Creating SerialInterface process...")
+    self.si = comm.SerialInterface(timeout=1.0)
+    self.si.start()
+    self.sc = comm.SerialCommand(self.si.commands, self.si.responses)
     
     # Read waypoints from file
     self.waypoints = pickler.unpickle_waypoints(waypoints_file)
@@ -111,17 +136,17 @@ class TrackFollower:
     self.graph.nodes['eps'] = Node('eps', Point(12, 12), 0)  # point past end of sea
     
     self.graph.edges[('start', 'alpha')] = Edge(self.graph.nodes['start'], self.graph.nodes['alpha'])
-    self.graph.edges[('alpha', 'land')] = Edge(self.graph.nodes['alpha'], self.graph.nodes['land'])
-    self.graph.edges[('land', 'beta')] = Edge(self.graph.nodes['land'], self.graph.nodes['beta'])
-    self.graph.edges[('beta', 'east_off')] = Edge(self.graph.nodes['beta'], self.graph.nodes['east_off'])
-    self.graph.edges[('east_off', 'celta')] = Edge(self.graph.nodes['east_off'], self.graph.nodes['celta'])
-    self.graph.edges[('celta', 'pickup')] = Edge(self.graph.nodes['celta'], self.graph.nodes['pickup'])
-    self.graph.edges[('pickup', 'delta')] = Edge(self.graph.nodes['pickup'], self.graph.nodes['delta'])
-    self.graph.edges[('delta', 'sea')] = Edge(self.graph.nodes['delta'], self.graph.nodes['sea'])
-    self.graph.edges[('sea', 'eps')] = Edge(self.graph.nodes['sea'], self.graph.nodes['eps'])
-    self.graph.edges[('eps', 'alpha')] = Edge(self.graph.nodes['eps'], self.graph.nodes['alpha'])
+    self.graph.edges[('alpha', 'land')] = Edge(self.graph.nodes['alpha'], self.graph.nodes['land'], props=dict(follow=1))
+    self.graph.edges[('land', 'beta')] = Edge(self.graph.nodes['land'], self.graph.nodes['beta'], props=dict(follow=1, isDropoff=True, isLand=True))
+    self.graph.edges[('beta', 'east_off')] = Edge(self.graph.nodes['beta'], self.graph.nodes['east_off'], props=dict(follow=1))
+    self.graph.edges[('east_off', 'celta')] = Edge(self.graph.nodes['east_off'], self.graph.nodes['celta'], props=dict(follow=1))
+    self.graph.edges[('celta', 'pickup')] = Edge(self.graph.nodes['celta'], self.graph.nodes['pickup'], props=dict(follow=1))
+    self.graph.edges[('pickup', 'delta')] = Edge(self.graph.nodes['pickup'], self.graph.nodes['delta'], props=dict(follow=1, isPickup=True))
+    self.graph.edges[('delta', 'sea')] = Edge(self.graph.nodes['delta'], self.graph.nodes['sea'], props=dict(follow=1))
+    self.graph.edges[('sea', 'eps')] = Edge(self.graph.nodes['sea'], self.graph.nodes['eps'], props=dict(follow=1, isDropoff=True, isSea=True))
+    self.graph.edges[('eps', 'alpha')] = Edge(self.graph.nodes['eps'], self.graph.nodes['alpha'], props=dict(follow=1))
     
-    
+    # Create a path (track) to follow
     self.init_path = [self.graph.edges[('start', 'alpha')]]
     
     self.path = [
@@ -150,6 +175,28 @@ class TrackFollower:
   def run(self):
     # Units:- angle: 10ths of degree, distance: encoder counts (1000 ~= 6 in.), speed: PID value (200-1000)
     
+    # Start vision process, pass it shared data
+    scVision = comm.SerialCommand(self.si.commands, self.si.responses)
+    options = dict(filename=None, gui=False, debug=True)
+    pVision = Process(target=vision.run, args=(self.bot_loc, self.blobs, self.blocks, self.zones, self.corners, self.waypoints, scVision, self.bot_state, options))
+    pVision.start()
+    
+    # Zero compass heading
+    self.sc.compassReset()
+    
+    # Set signal handlers
+    live = True
+    def handleSignal(signum, frame):
+      if signum == signal.SIGTERM or signum == signal.SIGINT:
+        self.logd("run.handleSignal", "Termination signal ({0}); stopping comm loop...".format(signum))
+      else:
+        self.logd("run.handleSignal", "Unknown signal ({0}); stopping comm loop anyways...".format(signum))
+      #self.si.quit()
+      live = False
+    
+    signal.signal(signal.SIGTERM, handleSignal)
+    signal.signal(signal.SIGINT, handleSignal)
+    
     # * Traverse through the list of nodes in initial path to get to alpha
     for edge in self.init_path:
       self.traverse(edge)
@@ -163,13 +210,45 @@ class TrackFollower:
       self.turn(edge.toNode.theta)
     
     self.stop()
-  
+    
+    # Reset signal handlers to default behavior
+    signal.signal(signal.SIGTERM, signal.SIG_DFL)
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
+    
+    # Wait for child processes to join
+    self.bot_state['die'] = True
+    pVision.join()
+    
+    self.sc.quit()
+    self.si.join()
+    self.logd("run", "Done.")
+    
   def traverse(self, edge):
     # TODO move from edge.fromNode to edge.toNode, ensuring bot sensors indicate expected values
     self.logd("traverse", "Moving from {fromNode} to {toNode} ...".format(fromNode=edge.fromNode, toNode=edge.toNode))
-    self.move(edge.fromNode.loc, edge.toNode.loc)
+    
+    # TODO spin up a separate thread for moving and implement pickup/dropoff strategy
+    follow = edge.props.get('follow', None)
+    #self.move(edge.fromNode.loc, edge.toNode.loc)
+    self.moveThread = threading.Thread(target=self.move, name="MOVE", args=(edge.fromNode.loc, edge.toNode.loc, follow))
+    self.moveThread.start()
+    
+    # * Pickup/drop-off logic
+    isPickup = edge.props.get('isPickup', False)
+    # ** Pickup
+    if isPickup and (self.bot.isEmptyLeft or self.bot.isEmptyRight):
+      # Which arm should I use?
+      arm = comm.left_arm if self.bot.isEmptyLeft else self.bot.isEmptyRight
+      # Do I see a block?
+      # TODO
+    
+    # ** Drop-off
+    # TODO
+    
+    self.moveThread.join()
+    
   
-  def move(self, fromPoint, toPoint, speed=default_speed):
+  def move(self, fromPoint, toPoint, follow=None, speed=default_speed):
     #self.logd("move", "Bot: {}".format(self.bot))  # report current state
     self.logd("move", self.bot.dump())  # dump current state
     
@@ -214,9 +293,14 @@ class TrackFollower:
     self.logd("move", "Response: distance = {distance}, heading = {heading}".format(distance=actual_distance, heading=actual_heading))
     '''
     # ** Option 2: Use botMove()
-    self.logd("move", "Command: botMove({distance}, {speed})".format(distance=distance, speed=speed))
-    actual_distance = self.sc.botMove(distance, speed)
-    self.logd("move", "Response: distance = {distance}".format(distance=actual_distance))
+    if follow is not None:
+      self.logd("move", "Command: botFollow({distance}, {speed}, {follow})".format(distance=distance, speed=speed, follow=follow))
+      actual_distance = self.sc.botFollow(distance, speed, follow)
+      self.logd("move", "Response: distance = {distance}".format(distance=actual_distance))
+    else:
+      self.logd("move", "Command: botMove({distance}, {speed})".format(distance=distance, speed=speed))
+      actual_distance = self.sc.botMove(distance, speed)
+      self.logd("move", "Response: distance = {distance}".format(distance=actual_distance))
     
     #TODO correct heading to closest multiple of pi/2?
     
@@ -304,69 +388,12 @@ class TrackFollower:
 
 
 def main():
-  # Build shared data structures
-  print "main(): Creating shared data structures..."
-  manager = Manager()
-  bot_loc = manager.dict(x=-1, y=-1, theta=0.0, dirty=False)  # manage bot loc in track follower
-  blobs = manager.list()  # for communication between vision and planner
-  blocks = manager.dict()
-  zones = manager.dict()
-  corners = manager.list()
-  bot_state = manager.dict(nav_type=None, action_type=None, naving=False) #nav_type is "micro" or "macro"
-  
-  # Set shared parameters and flags
-  bot_state['cv_offsetDetect'] = False
-  bot_state['cv_lineTrack'] = True
-  
-  # Serial interface and command
-  print "main(): Creating SerialInterface process..."
-  si = comm.SerialInterface(timeout=1.0)
-  si.start()
-  sc = comm.SerialCommand(si.commands, si.responses)
-  
-  # Instantiate track follower
-  trackFollower = TrackFollower(sc)
-  waypoints = trackFollower.waypoints  # TODO this is a hack; fold main() into TrackFollower.run()
-  
-  # Start vision process, pass it shared data
-  scVision = comm.SerialCommand(si.commands, si.responses)
-  options = dict(filename=None, gui=False, debug=True)
-  pVision = Process(target=vision.run, args=(bot_loc, blobs, blocks, zones, corners, waypoints, scVision, bot_state, options))
-  pVision.start()
-  
-  # Zero compass heading
-  sc.compassReset()
-  
-  # Set signal handlers
-  live = True
-  def handleSignal(signum, frame):
-    if signum == signal.SIGTERM or signum == signal.SIGINT:
-      print "main.handleSignal(): Termination signal ({0}); stopping comm loop...".format(signum)
-    else:
-      print "main.handleSignal(): Unknown signal ({0}); stopping comm loop anyways...".format(signum)
-    #si.quit()
-    live = False
-  
-  signal.signal(signal.SIGTERM, handleSignal)
-  signal.signal(signal.SIGINT, handleSignal)
-  
-  # Start track follower
+  # Instantiate and start track follower
+  trackFollower = TrackFollower()
   print "Ready..."
   sleep(1)  # delay to let button presser move back hand
   print "Go!"
   trackFollower.run()
-  
-  # Reset signal handlers to default behavior
-  signal.signal(signal.SIGTERM, signal.SIG_DFL)
-  signal.signal(signal.SIGINT, signal.SIG_DFL)
-  
-  # Wait for child processes to join
-  bot_state['die'] = True
-  pVision.join()
-  
-  sc.quit()
-  si.join()
-  print "main(): Done."
 
 
 if __name__ == "__main__":
