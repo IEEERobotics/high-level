@@ -233,7 +233,8 @@ class TrackFollower:
     
     # * Update bot heading
     self.bot.heading = radians(actual_heading / 10.0)
-    self.logd("move", "Bot: {}".format(self.bot))
+    #self.logd("move", "Bot: {}".format(self.bot))
+    self.logd("move", self.bot.dump())  # dump current state
     
   def stop(self):
       self.logd("stop", "Command: botStop()")
