@@ -110,6 +110,7 @@ class TrackFollower:
     # Set shared parameters and flags
     self.bot_state['cv_offsetDetect'] = False
     self.bot_state['cv_lineTrack'] = True
+    self.bot_state['cv_blobTrack'] = False
     
     # Serial interface and command
     self.logd("__init__()", "Creating SerialInterface process...")
@@ -177,7 +178,7 @@ class TrackFollower:
     
     # Start vision process, pass it shared data
     scVision = comm.SerialCommand(self.si.commands, self.si.responses)
-    options = dict(filename=None, gui=False, debug=True)
+    options = dict(filename=None, gui=False, debug=True)  # HACK gui needs to be false for running on the bot
     self.pVision = Process(target=vision.run, args=(self.bot_loc, self.blobs, self.blocks, self.zones, self.corners, self.waypoints, scVision, self.bot_state, options))
     self.pVision.start()
     
@@ -199,11 +200,15 @@ class TrackFollower:
     
     # * Traverse through the list of nodes in initial path to get to alpha
     for edge in self.init_path:
-      self.traverse(edge)
+      self.logd("run", "About to traverse edge {fromName} to {toName} ...".format(fromName=edge.fromNode.name, toName=edge.toNode.name))
+      while not self.traverse(edge):
+        self.logd("run", "Trying again...")
     
     # * Traverse through the list of nodes in path
     for edge in self.path:
-      self.traverse(edge)
+      self.logd("run", "About to traverse edge {fromName} to {toName} ...".format(fromName=edge.fromNode.name, toName=edge.toNode.name))
+      while not self.traverse(edge):
+        self.logd("run", "Trying again...")
     
     # * Turn to the orientation of the last edge's toNode
     if edge is not None:
@@ -224,29 +229,56 @@ class TrackFollower:
     self.logd("run", "Done.")
     
   def traverse(self, edge):
-    # TODO move from edge.fromNode to edge.toNode, ensuring bot sensors indicate expected values
+    # Move from edge.fromNode to edge.toNode; TODO ensuring bot sensors indicate expected values
     self.logd("traverse", "Moving from {fromNode} to {toNode} ...".format(fromNode=edge.fromNode, toNode=edge.toNode))
     
-    # TODO spin up a separate thread for moving and implement pickup/dropoff strategy
+    # * Spin up a separate thread for moving and implement pickup/dropoff strategy
     follow = edge.props.get('follow', None)
     #self.move(edge.fromNode.loc, edge.toNode.loc)
     self.moveThread = threading.Thread(target=self.move, name="MOVE", args=(edge.fromNode.loc, edge.toNode.loc, follow))
     self.moveThread.start()
+    sleep(0.05)  # let move thread execute some
+    traversalComplete = True  # assume the move will complete
+    #sleep(5)  # HACK remove this
     
-    # * Pickup/drop-off logic
-    isPickup = edge.props.get('isPickup', False)
-    # ** Pickup
-    if isPickup and (self.bot.isEmptyLeft or self.bot.isEmptyRight):
-      # Which arm should I use?
-      arm = comm.left_arm if self.bot.isEmptyLeft else self.bot.isEmptyRight
-      # Do I see a block?
-      if self.blobs is not None:
-        self.logd("run", "Vision reported {} blobs".format(len(self.blobs)))
+    while self.moveThread.is_alive():
+      # * Pickup/drop-off logic
+      isPickup = edge.props.get('isPickup', False)
+      isDropoff = edge.props.get('isDropoff', False)
+      self.logd("traverse", "isPickup? {}, isDropoff? {}".format(isPickup, isDropoff))
+      if isPickup and (self.bot.isEmptyLeft or self.bot.isEmptyRight):
+        # ** Pickup
+        self.logd("traverse", "Requesting vision for blobs...")
+        self.bot_state['cv_blobTrack'] = True
+        # Which arm should I use?
+        arm = comm.left_arm if self.bot.isEmptyLeft else self.bot.isEmptyRight
+        # Do I see a block?
+        if self.blobs is not None and len(self.blobs) > 0:
+          # If yes, stop the bot
+          self.logd("traverse", "Vision reported {} blobs".format(len(self.blobs)))
+          self.stop()
+          traversalComplete = False
+        
+          # TODO pickup the block
+          self.logd("traverse", "Picking up block with {name} arm...".format(name=arm.name))
+          #self.sc.armPick(arm)
+        
+          break
+      elif isDropoff and (not self.bot.isEmptyLeft or not self.bot.isEmptyRight):
+        # ** Drop-off
+        self.bot_state['cv_blobTrack'] = True
+        self.logd("traverse", "Requesting vision for blobs")
+        # TODO drop block
+        break
+      else:
+        self.bot_state['cv_blobTrack'] = False
+      
+      sleep(0.1)  # let move thread execute some
     
-    # ** Drop-off
-    # TODO
-    
+    # * Wait for move thread to complete
     self.moveThread.join()
+    
+    return traversalComplete
     
   
   def move(self, fromPoint, toPoint, follow=None, speed=default_speed):
