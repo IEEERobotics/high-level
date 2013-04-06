@@ -11,6 +11,7 @@ import pprint as pp
 from datetime import datetime
 from time import sleep
 from math import pi, radians, degrees, sqrt
+from random import randint
 
 # Dict of error codes and their human-readable names
 errors = {100 : "ERROR_BAD_CWD"}
@@ -439,6 +440,685 @@ class TestDirs(unittest.TestCase):
 
     self.assertEqual(dir_out, result, "Failed to convert {} radians to {}, got {}".format(degs_in, dir_out, result))
 
+  def test_addDirsToSensors_heading0(self):
+
+    heading = radians(0)
+    front_dir = "east"
+    left_dir = "north"
+    back_dir = "west"
+    right_dir = "south"
+    left_us = randint(0, 100)
+    right_us = randint(0, 100)
+    front_us = randint(0, 100)
+    back_us = randint(0, 100)
+
+    sensor_data = { "result" : True, "msg" : "This is fake", "id" : 0, "heading" : heading, 
+                    "accel" : {"x" : nav.config["default_accel_x"], "y" : nav.config["default_accel_y"], 
+                               "z" : nav.config["default_accel_z"]},
+                    "ultrasonic" : {"left" : left_us, "right" : right_us, 
+                                    "front" : front_us, "back" : back_us}}
+
+    self.logger.info("Input sensor data: {}".format(str(sensor_data)))
+
+    result = self.Nav.addDirsToSensors(sensor_data)
+
+    self.logger.info("Result sensor data: {}".format(str(result)))
+
+    self.assertTrue("us_dir" in result, "Ultrasonic direction dict wasn't in result dict")
+    self.assertEqual(result["us_dir"][front_dir], front_us, "Front dir wrong, expected {} to be {} but was {}".format( \
+                                                            front_dir, front_us, result["us_dir"][front_dir]))
+    self.assertEqual(result["us_dir"][left_dir], left_us, "Left dir wrong, expected {} to be {} but was {}".format( \
+                                                            left_dir, left_us, result["us_dir"][left_dir]))
+    self.assertEqual(result["us_dir"][back_dir], back_us, "Back dir wrong, expected {} to be {} but was {}".format( \
+                                                            back_dir, back_us, result["us_dir"][back_dir]))
+    self.assertEqual(result["us_dir"][right_dir], right_us, "Right dir wrong, expected {} to be {} but was {}".format( \
+                                                            right_dir, right_us, result["us_dir"][right_dir]))
+
+  def test_addDirsToSensors_heading45(self):
+
+    heading = radians(45)
+    front_dir = "east"
+    left_dir = "north"
+    back_dir = "west"
+    right_dir = "south"
+    left_us = randint(0, 100)
+    right_us = randint(0, 100)
+    front_us = randint(0, 100)
+    back_us = randint(0, 100)
+
+    sensor_data = { "result" : True, "msg" : "This is fake", "id" : 0, "heading" : heading, 
+                    "accel" : {"x" : nav.config["default_accel_x"], "y" : nav.config["default_accel_y"], 
+                               "z" : nav.config["default_accel_z"]},
+                    "ultrasonic" : {"left" : left_us, "right" : right_us, 
+                                    "front" : front_us, "back" : back_us}}
+
+    self.logger.info("Input sensor data: {}".format(str(sensor_data)))
+
+    result = self.Nav.addDirsToSensors(sensor_data)
+
+    self.logger.info("Result sensor data: {}".format(str(result)))
+
+    self.assertTrue("us_dir" in result, "Ultrasonic direction dict wasn't in result dict")
+    self.assertEqual(result["us_dir"][front_dir], front_us, "Front dir wrong, expected {} to be {} but was {}".format( \
+                                                            front_dir, front_us, result["us_dir"][front_dir]))
+    self.assertEqual(result["us_dir"][left_dir], left_us, "Left dir wrong, expected {} to be {} but was {}".format( \
+                                                            left_dir, left_us, result["us_dir"][left_dir]))
+    self.assertEqual(result["us_dir"][back_dir], back_us, "Back dir wrong, expected {} to be {} but was {}".format( \
+                                                            back_dir, back_us, result["us_dir"][back_dir]))
+    self.assertEqual(result["us_dir"][right_dir], right_us, "Right dir wrong, expected {} to be {} but was {}".format( \
+                                                            right_dir, right_us, result["us_dir"][right_dir]))
+
+  def test_addDirsToSensors_heading315(self):
+
+    heading = radians(315)
+    front_dir = "east"
+    left_dir = "north"
+    back_dir = "west"
+    right_dir = "south"
+    left_us = randint(0, 100)
+    right_us = randint(0, 100)
+    front_us = randint(0, 100)
+    back_us = randint(0, 100)
+
+    sensor_data = { "result" : True, "msg" : "This is fake", "id" : 0, "heading" : heading, 
+                    "accel" : {"x" : nav.config["default_accel_x"], "y" : nav.config["default_accel_y"], 
+                               "z" : nav.config["default_accel_z"]},
+                    "ultrasonic" : {"left" : left_us, "right" : right_us, 
+                                    "front" : front_us, "back" : back_us}}
+
+    self.logger.info("Input sensor data: {}".format(str(sensor_data)))
+
+    result = self.Nav.addDirsToSensors(sensor_data)
+
+    self.logger.info("Result sensor data: {}".format(str(result)))
+
+    self.assertTrue("us_dir" in result, "Ultrasonic direction dict wasn't in result dict")
+    self.assertEqual(result["us_dir"][front_dir], front_us, "Front dir wrong, expected {} to be {} but was {}".format( \
+                                                            front_dir, front_us, result["us_dir"][front_dir]))
+    self.assertEqual(result["us_dir"][left_dir], left_us, "Left dir wrong, expected {} to be {} but was {}".format( \
+                                                            left_dir, left_us, result["us_dir"][left_dir]))
+    self.assertEqual(result["us_dir"][back_dir], back_us, "Back dir wrong, expected {} to be {} but was {}".format( \
+                                                            back_dir, back_us, result["us_dir"][back_dir]))
+    self.assertEqual(result["us_dir"][right_dir], right_us, "Right dir wrong, expected {} to be {} but was {}".format( \
+                                                            right_dir, right_us, result["us_dir"][right_dir]))
+
+  def test_addDirsToSensors_heading30(self):
+
+    heading = radians(30)
+    front_dir = "east"
+    left_dir = "north"
+    back_dir = "west"
+    right_dir = "south"
+    left_us = randint(0, 100)
+    right_us = randint(0, 100)
+    front_us = randint(0, 100)
+    back_us = randint(0, 100)
+
+    sensor_data = { "result" : True, "msg" : "This is fake", "id" : 0, "heading" : heading, 
+                    "accel" : {"x" : nav.config["default_accel_x"], "y" : nav.config["default_accel_y"], 
+                               "z" : nav.config["default_accel_z"]},
+                    "ultrasonic" : {"left" : left_us, "right" : right_us, 
+                                    "front" : front_us, "back" : back_us}}
+
+    self.logger.info("Input sensor data: {}".format(str(sensor_data)))
+
+    result = self.Nav.addDirsToSensors(sensor_data)
+
+    self.logger.info("Result sensor data: {}".format(str(result)))
+
+    self.assertTrue("us_dir" in result, "Ultrasonic direction dict wasn't in result dict")
+    self.assertEqual(result["us_dir"][front_dir], front_us, "Front dir wrong, expected {} to be {} but was {}".format( \
+                                                            front_dir, front_us, result["us_dir"][front_dir]))
+    self.assertEqual(result["us_dir"][left_dir], left_us, "Left dir wrong, expected {} to be {} but was {}".format( \
+                                                            left_dir, left_us, result["us_dir"][left_dir]))
+    self.assertEqual(result["us_dir"][back_dir], back_us, "Back dir wrong, expected {} to be {} but was {}".format( \
+                                                            back_dir, back_us, result["us_dir"][back_dir]))
+    self.assertEqual(result["us_dir"][right_dir], right_us, "Right dir wrong, expected {} to be {} but was {}".format( \
+                                                            right_dir, right_us, result["us_dir"][right_dir]))
+
+  def test_addDirsToSensors_heading340(self):
+
+    heading = radians(340)
+    front_dir = "east"
+    left_dir = "north"
+    back_dir = "west"
+    right_dir = "south"
+    left_us = randint(0, 100)
+    right_us = randint(0, 100)
+    front_us = randint(0, 100)
+    back_us = randint(0, 100)
+
+    sensor_data = { "result" : True, "msg" : "This is fake", "id" : 0, "heading" : heading, 
+                    "accel" : {"x" : nav.config["default_accel_x"], "y" : nav.config["default_accel_y"], 
+                               "z" : nav.config["default_accel_z"]},
+                    "ultrasonic" : {"left" : left_us, "right" : right_us, 
+                                    "front" : front_us, "back" : back_us}}
+
+    self.logger.info("Input sensor data: {}".format(str(sensor_data)))
+
+    result = self.Nav.addDirsToSensors(sensor_data)
+
+    self.logger.info("Result sensor data: {}".format(str(result)))
+
+    self.assertTrue("us_dir" in result, "Ultrasonic direction dict wasn't in result dict")
+    self.assertEqual(result["us_dir"][front_dir], front_us, "Front dir wrong, expected {} to be {} but was {}".format( \
+                                                            front_dir, front_us, result["us_dir"][front_dir]))
+    self.assertEqual(result["us_dir"][left_dir], left_us, "Left dir wrong, expected {} to be {} but was {}".format( \
+                                                            left_dir, left_us, result["us_dir"][left_dir]))
+    self.assertEqual(result["us_dir"][back_dir], back_us, "Back dir wrong, expected {} to be {} but was {}".format( \
+                                                            back_dir, back_us, result["us_dir"][back_dir]))
+    self.assertEqual(result["us_dir"][right_dir], right_us, "Right dir wrong, expected {} to be {} but was {}".format( \
+                                                            right_dir, right_us, result["us_dir"][right_dir]))
+
+  def test_addDirsToSensors_heading270(self):
+
+    heading = radians(270)
+    front_dir = "north"
+    left_dir = "west"
+    back_dir = "south"
+    right_dir = "east"
+    left_us = randint(0, 100)
+    right_us = randint(0, 100)
+    front_us = randint(0, 100)
+    back_us = randint(0, 100)
+
+    sensor_data = { "result" : True, "msg" : "This is fake", "id" : 0, "heading" : heading, 
+                    "accel" : {"x" : nav.config["default_accel_x"], "y" : nav.config["default_accel_y"], 
+                               "z" : nav.config["default_accel_z"]},
+                    "ultrasonic" : {"left" : left_us, "right" : right_us, 
+                                    "front" : front_us, "back" : back_us}}
+
+    self.logger.info("Input sensor data: {}".format(str(sensor_data)))
+
+    result = self.Nav.addDirsToSensors(sensor_data)
+
+    self.logger.info("Result sensor data: {}".format(str(result)))
+
+    self.assertTrue("us_dir" in result, "Ultrasonic direction dict wasn't in result dict")
+    self.assertEqual(result["us_dir"][front_dir], front_us, "Front dir wrong, expected {} to be {} but was {}".format( \
+                                                            front_dir, front_us, result["us_dir"][front_dir]))
+    self.assertEqual(result["us_dir"][left_dir], left_us, "Left dir wrong, expected {} to be {} but was {}".format( \
+                                                            left_dir, left_us, result["us_dir"][left_dir]))
+    self.assertEqual(result["us_dir"][back_dir], back_us, "Back dir wrong, expected {} to be {} but was {}".format( \
+                                                            back_dir, back_us, result["us_dir"][back_dir]))
+    self.assertEqual(result["us_dir"][right_dir], right_us, "Right dir wrong, expected {} to be {} but was {}".format( \
+                                                            right_dir, right_us, result["us_dir"][right_dir]))
+
+  def test_addDirsToSensors_heading225(self):
+
+    heading = radians(225)
+    front_dir = "north"
+    left_dir = "west"
+    back_dir = "south"
+    right_dir = "east"
+    left_us = randint(0, 100)
+    right_us = randint(0, 100)
+    front_us = randint(0, 100)
+    back_us = randint(0, 100)
+
+    sensor_data = { "result" : True, "msg" : "This is fake", "id" : 0, "heading" : heading, 
+                    "accel" : {"x" : nav.config["default_accel_x"], "y" : nav.config["default_accel_y"], 
+                               "z" : nav.config["default_accel_z"]},
+                    "ultrasonic" : {"left" : left_us, "right" : right_us, 
+                                    "front" : front_us, "back" : back_us}}
+
+    self.logger.info("Input sensor data: {}".format(str(sensor_data)))
+
+    result = self.Nav.addDirsToSensors(sensor_data)
+
+    self.logger.info("Result sensor data: {}".format(str(result)))
+
+    self.assertTrue("us_dir" in result, "Ultrasonic direction dict wasn't in result dict")
+    self.assertEqual(result["us_dir"][front_dir], front_us, "Front dir wrong, expected {} to be {} but was {}".format( \
+                                                            front_dir, front_us, result["us_dir"][front_dir]))
+    self.assertEqual(result["us_dir"][left_dir], left_us, "Left dir wrong, expected {} to be {} but was {}".format( \
+                                                            left_dir, left_us, result["us_dir"][left_dir]))
+    self.assertEqual(result["us_dir"][back_dir], back_us, "Back dir wrong, expected {} to be {} but was {}".format( \
+                                                            back_dir, back_us, result["us_dir"][back_dir]))
+    self.assertEqual(result["us_dir"][right_dir], right_us, "Right dir wrong, expected {} to be {} but was {}".format( \
+                                                            right_dir, right_us, result["us_dir"][right_dir]))
+
+  def test_addDirsToSensors_headingi314dot9(self):
+
+    heading = radians(314.9)
+    front_dir = "north"
+    left_dir = "west"
+    back_dir = "south"
+    right_dir = "east"
+    left_us = randint(0, 100)
+    right_us = randint(0, 100)
+    front_us = randint(0, 100)
+    back_us = randint(0, 100)
+
+    sensor_data = { "result" : True, "msg" : "This is fake", "id" : 0, "heading" : heading, 
+                    "accel" : {"x" : nav.config["default_accel_x"], "y" : nav.config["default_accel_y"], 
+                               "z" : nav.config["default_accel_z"]},
+                    "ultrasonic" : {"left" : left_us, "right" : right_us, 
+                                    "front" : front_us, "back" : back_us}}
+
+    self.logger.info("Input sensor data: {}".format(str(sensor_data)))
+
+    result = self.Nav.addDirsToSensors(sensor_data)
+
+    self.logger.info("Result sensor data: {}".format(str(result)))
+
+    self.assertTrue("us_dir" in result, "Ultrasonic direction dict wasn't in result dict")
+    self.assertEqual(result["us_dir"][front_dir], front_us, "Front dir wrong, expected {} to be {} but was {}".format( \
+                                                            front_dir, front_us, result["us_dir"][front_dir]))
+    self.assertEqual(result["us_dir"][left_dir], left_us, "Left dir wrong, expected {} to be {} but was {}".format( \
+                                                            left_dir, left_us, result["us_dir"][left_dir]))
+    self.assertEqual(result["us_dir"][back_dir], back_us, "Back dir wrong, expected {} to be {} but was {}".format( \
+                                                            back_dir, back_us, result["us_dir"][back_dir]))
+    self.assertEqual(result["us_dir"][right_dir], right_us, "Right dir wrong, expected {} to be {} but was {}".format( \
+                                                            right_dir, right_us, result["us_dir"][right_dir]))
+
+  def test_addDirsToSensors_heading300(self):
+
+    heading = radians(300)
+    front_dir = "north"
+    left_dir = "west"
+    back_dir = "south"
+    right_dir = "east"
+    left_us = randint(0, 100)
+    right_us = randint(0, 100)
+    front_us = randint(0, 100)
+    back_us = randint(0, 100)
+
+    sensor_data = { "result" : True, "msg" : "This is fake", "id" : 0, "heading" : heading, 
+                    "accel" : {"x" : nav.config["default_accel_x"], "y" : nav.config["default_accel_y"], 
+                               "z" : nav.config["default_accel_z"]},
+                    "ultrasonic" : {"left" : left_us, "right" : right_us, 
+                                    "front" : front_us, "back" : back_us}}
+
+    self.logger.info("Input sensor data: {}".format(str(sensor_data)))
+
+    result = self.Nav.addDirsToSensors(sensor_data)
+
+    self.logger.info("Result sensor data: {}".format(str(result)))
+
+    self.assertTrue("us_dir" in result, "Ultrasonic direction dict wasn't in result dict")
+    self.assertEqual(result["us_dir"][front_dir], front_us, "Front dir wrong, expected {} to be {} but was {}".format( \
+                                                            front_dir, front_us, result["us_dir"][front_dir]))
+    self.assertEqual(result["us_dir"][left_dir], left_us, "Left dir wrong, expected {} to be {} but was {}".format( \
+                                                            left_dir, left_us, result["us_dir"][left_dir]))
+    self.assertEqual(result["us_dir"][back_dir], back_us, "Back dir wrong, expected {} to be {} but was {}".format( \
+                                                            back_dir, back_us, result["us_dir"][back_dir]))
+    self.assertEqual(result["us_dir"][right_dir], right_us, "Right dir wrong, expected {} to be {} but was {}".format( \
+                                                            right_dir, right_us, result["us_dir"][right_dir]))
+
+  def test_addDirsToSensors_heading250(self):
+
+    heading = radians(250)
+    front_dir = "north"
+    left_dir = "west"
+    back_dir = "south"
+    right_dir = "east"
+    left_us = randint(0, 100)
+    right_us = randint(0, 100)
+    front_us = randint(0, 100)
+    back_us = randint(0, 100)
+
+    sensor_data = { "result" : True, "msg" : "This is fake", "id" : 0, "heading" : heading, 
+                    "accel" : {"x" : nav.config["default_accel_x"], "y" : nav.config["default_accel_y"], 
+                               "z" : nav.config["default_accel_z"]},
+                    "ultrasonic" : {"left" : left_us, "right" : right_us, 
+                                    "front" : front_us, "back" : back_us}}
+
+    self.logger.info("Input sensor data: {}".format(str(sensor_data)))
+
+    result = self.Nav.addDirsToSensors(sensor_data)
+
+    self.logger.info("Result sensor data: {}".format(str(result)))
+
+    self.assertTrue("us_dir" in result, "Ultrasonic direction dict wasn't in result dict")
+    self.assertEqual(result["us_dir"][front_dir], front_us, "Front dir wrong, expected {} to be {} but was {}".format( \
+                                                            front_dir, front_us, result["us_dir"][front_dir]))
+    self.assertEqual(result["us_dir"][left_dir], left_us, "Left dir wrong, expected {} to be {} but was {}".format( \
+                                                            left_dir, left_us, result["us_dir"][left_dir]))
+    self.assertEqual(result["us_dir"][back_dir], back_us, "Back dir wrong, expected {} to be {} but was {}".format( \
+                                                            back_dir, back_us, result["us_dir"][back_dir]))
+    self.assertEqual(result["us_dir"][right_dir], right_us, "Right dir wrong, expected {} to be {} but was {}".format( \
+                                                            right_dir, right_us, result["us_dir"][right_dir]))
+
+  def test_addDirsToSensors_heading180(self):
+
+    heading = radians(180)
+    front_dir = "west"
+    left_dir = "south"
+    back_dir = "east"
+    right_dir = "north"
+    left_us = randint(0, 100)
+    right_us = randint(0, 100)
+    front_us = randint(0, 100)
+    back_us = randint(0, 100)
+
+    sensor_data = { "result" : True, "msg" : "This is fake", "id" : 0, "heading" : heading, 
+                    "accel" : {"x" : nav.config["default_accel_x"], "y" : nav.config["default_accel_y"], 
+                               "z" : nav.config["default_accel_z"]},
+                    "ultrasonic" : {"left" : left_us, "right" : right_us, 
+                                    "front" : front_us, "back" : back_us}}
+
+    self.logger.info("Input sensor data: {}".format(str(sensor_data)))
+
+    result = self.Nav.addDirsToSensors(sensor_data)
+
+    self.logger.info("Result sensor data: {}".format(str(result)))
+
+    self.assertTrue("us_dir" in result, "Ultrasonic direction dict wasn't in result dict")
+    self.assertEqual(result["us_dir"][front_dir], front_us, "Front dir wrong, expected {} to be {} but was {}".format( \
+                                                            front_dir, front_us, result["us_dir"][front_dir]))
+    self.assertEqual(result["us_dir"][left_dir], left_us, "Left dir wrong, expected {} to be {} but was {}".format( \
+                                                            left_dir, left_us, result["us_dir"][left_dir]))
+    self.assertEqual(result["us_dir"][back_dir], back_us, "Back dir wrong, expected {} to be {} but was {}".format( \
+                                                            back_dir, back_us, result["us_dir"][back_dir]))
+    self.assertEqual(result["us_dir"][right_dir], right_us, "Right dir wrong, expected {} to be {} but was {}".format( \
+                                                            right_dir, right_us, result["us_dir"][right_dir]))
+
+  def test_addDirsToSensors_heading135(self):
+
+    heading = radians(135)
+    front_dir = "west"
+    left_dir = "south"
+    back_dir = "east"
+    right_dir = "north"
+    left_us = randint(0, 100)
+    right_us = randint(0, 100)
+    front_us = randint(0, 100)
+    back_us = randint(0, 100)
+
+    sensor_data = { "result" : True, "msg" : "This is fake", "id" : 0, "heading" : heading, 
+                    "accel" : {"x" : nav.config["default_accel_x"], "y" : nav.config["default_accel_y"], 
+                               "z" : nav.config["default_accel_z"]},
+                    "ultrasonic" : {"left" : left_us, "right" : right_us, 
+                                    "front" : front_us, "back" : back_us}}
+
+    self.logger.info("Input sensor data: {}".format(str(sensor_data)))
+
+    result = self.Nav.addDirsToSensors(sensor_data)
+
+    self.logger.info("Result sensor data: {}".format(str(result)))
+
+    self.assertTrue("us_dir" in result, "Ultrasonic direction dict wasn't in result dict")
+    self.assertEqual(result["us_dir"][front_dir], front_us, "Front dir wrong, expected {} to be {} but was {}".format( \
+                                                            front_dir, front_us, result["us_dir"][front_dir]))
+    self.assertEqual(result["us_dir"][left_dir], left_us, "Left dir wrong, expected {} to be {} but was {}".format( \
+                                                            left_dir, left_us, result["us_dir"][left_dir]))
+    self.assertEqual(result["us_dir"][back_dir], back_us, "Back dir wrong, expected {} to be {} but was {}".format( \
+                                                            back_dir, back_us, result["us_dir"][back_dir]))
+    self.assertEqual(result["us_dir"][right_dir], right_us, "Right dir wrong, expected {} to be {} but was {}".format( \
+                                                            right_dir, right_us, result["us_dir"][right_dir]))
+
+  def test_addDirsToSensors_heading224dot9(self):
+
+    heading = radians(224.9)
+    front_dir = "west"
+    left_dir = "south"
+    back_dir = "east"
+    right_dir = "north"
+    left_us = randint(0, 100)
+    right_us = randint(0, 100)
+    front_us = randint(0, 100)
+    back_us = randint(0, 100)
+
+    sensor_data = { "result" : True, "msg" : "This is fake", "id" : 0, "heading" : heading, 
+                    "accel" : {"x" : nav.config["default_accel_x"], "y" : nav.config["default_accel_y"], 
+                               "z" : nav.config["default_accel_z"]},
+                    "ultrasonic" : {"left" : left_us, "right" : right_us, 
+                                    "front" : front_us, "back" : back_us}}
+
+    self.logger.info("Input sensor data: {}".format(str(sensor_data)))
+
+    result = self.Nav.addDirsToSensors(sensor_data)
+
+    self.logger.info("Result sensor data: {}".format(str(result)))
+
+    self.assertTrue("us_dir" in result, "Ultrasonic direction dict wasn't in result dict")
+    self.assertEqual(result["us_dir"][front_dir], front_us, "Front dir wrong, expected {} to be {} but was {}".format( \
+                                                            front_dir, front_us, result["us_dir"][front_dir]))
+    self.assertEqual(result["us_dir"][left_dir], left_us, "Left dir wrong, expected {} to be {} but was {}".format( \
+                                                            left_dir, left_us, result["us_dir"][left_dir]))
+    self.assertEqual(result["us_dir"][back_dir], back_us, "Back dir wrong, expected {} to be {} but was {}".format( \
+                                                            back_dir, back_us, result["us_dir"][back_dir]))
+    self.assertEqual(result["us_dir"][right_dir], right_us, "Right dir wrong, expected {} to be {} but was {}".format( \
+                                                            right_dir, right_us, result["us_dir"][right_dir]))
+
+  def test_addDirsToSensors_heading170(self):
+
+    heading = radians(170)
+    front_dir = "west"
+    left_dir = "south"
+    back_dir = "east"
+    right_dir = "north"
+    left_us = randint(0, 100)
+    right_us = randint(0, 100)
+    front_us = randint(0, 100)
+    back_us = randint(0, 100)
+
+    sensor_data = { "result" : True, "msg" : "This is fake", "id" : 0, "heading" : heading, 
+                    "accel" : {"x" : nav.config["default_accel_x"], "y" : nav.config["default_accel_y"], 
+                               "z" : nav.config["default_accel_z"]},
+                    "ultrasonic" : {"left" : left_us, "right" : right_us, 
+                                    "front" : front_us, "back" : back_us}}
+
+    self.logger.info("Input sensor data: {}".format(str(sensor_data)))
+
+    result = self.Nav.addDirsToSensors(sensor_data)
+
+    self.logger.info("Result sensor data: {}".format(str(result)))
+
+    self.assertTrue("us_dir" in result, "Ultrasonic direction dict wasn't in result dict")
+    self.assertEqual(result["us_dir"][front_dir], front_us, "Front dir wrong, expected {} to be {} but was {}".format( \
+                                                            front_dir, front_us, result["us_dir"][front_dir]))
+    self.assertEqual(result["us_dir"][left_dir], left_us, "Left dir wrong, expected {} to be {} but was {}".format( \
+                                                            left_dir, left_us, result["us_dir"][left_dir]))
+    self.assertEqual(result["us_dir"][back_dir], back_us, "Back dir wrong, expected {} to be {} but was {}".format( \
+                                                            back_dir, back_us, result["us_dir"][back_dir]))
+    self.assertEqual(result["us_dir"][right_dir], right_us, "Right dir wrong, expected {} to be {} but was {}".format( \
+                                                            right_dir, right_us, result["us_dir"][right_dir]))
+
+  def test_addDirsToSensors_heading200(self):
+
+    heading = radians(200)
+    front_dir = "west"
+    left_dir = "south"
+    back_dir = "east"
+    right_dir = "north"
+    left_us = randint(0, 100)
+    right_us = randint(0, 100)
+    front_us = randint(0, 100)
+    back_us = randint(0, 100)
+
+    sensor_data = { "result" : True, "msg" : "This is fake", "id" : 0, "heading" : heading, 
+                    "accel" : {"x" : nav.config["default_accel_x"], "y" : nav.config["default_accel_y"], 
+                               "z" : nav.config["default_accel_z"]},
+                    "ultrasonic" : {"left" : left_us, "right" : right_us, 
+                                    "front" : front_us, "back" : back_us}}
+
+    self.logger.info("Input sensor data: {}".format(str(sensor_data)))
+
+    result = self.Nav.addDirsToSensors(sensor_data)
+
+    self.logger.info("Result sensor data: {}".format(str(result)))
+
+    self.assertTrue("us_dir" in result, "Ultrasonic direction dict wasn't in result dict")
+    self.assertEqual(result["us_dir"][front_dir], front_us, "Front dir wrong, expected {} to be {} but was {}".format( \
+                                                            front_dir, front_us, result["us_dir"][front_dir]))
+    self.assertEqual(result["us_dir"][left_dir], left_us, "Left dir wrong, expected {} to be {} but was {}".format( \
+                                                            left_dir, left_us, result["us_dir"][left_dir]))
+    self.assertEqual(result["us_dir"][back_dir], back_us, "Back dir wrong, expected {} to be {} but was {}".format( \
+                                                            back_dir, back_us, result["us_dir"][back_dir]))
+    self.assertEqual(result["us_dir"][right_dir], right_us, "Right dir wrong, expected {} to be {} but was {}".format( \
+                                                            right_dir, right_us, result["us_dir"][right_dir]))
+
+  def test_addDirsToSensors_heading90(self):
+
+    heading = radians(90)
+    front_dir = "south"
+    left_dir = "east"
+    back_dir = "north"
+    right_dir = "west"
+    left_us = randint(0, 100)
+    right_us = randint(0, 100)
+    front_us = randint(0, 100)
+    back_us = randint(0, 100)
+
+    sensor_data = { "result" : True, "msg" : "This is fake", "id" : 0, "heading" : heading, 
+                    "accel" : {"x" : nav.config["default_accel_x"], "y" : nav.config["default_accel_y"], 
+                               "z" : nav.config["default_accel_z"]},
+                    "ultrasonic" : {"left" : left_us, "right" : right_us, 
+                                    "front" : front_us, "back" : back_us}}
+
+    self.logger.info("Input sensor data: {}".format(str(sensor_data)))
+
+    result = self.Nav.addDirsToSensors(sensor_data)
+
+    self.logger.info("Result sensor data: {}".format(str(result)))
+
+    self.assertTrue("us_dir" in result, "Ultrasonic direction dict wasn't in result dict")
+    self.assertEqual(result["us_dir"][front_dir], front_us, "Front dir wrong, expected {} to be {} but was {}".format( \
+                                                            front_dir, front_us, result["us_dir"][front_dir]))
+    self.assertEqual(result["us_dir"][left_dir], left_us, "Left dir wrong, expected {} to be {} but was {}".format( \
+                                                            left_dir, left_us, result["us_dir"][left_dir]))
+    self.assertEqual(result["us_dir"][back_dir], back_us, "Back dir wrong, expected {} to be {} but was {}".format( \
+                                                            back_dir, back_us, result["us_dir"][back_dir]))
+    self.assertEqual(result["us_dir"][right_dir], right_us, "Right dir wrong, expected {} to be {} but was {}".format( \
+                                                            right_dir, right_us, result["us_dir"][right_dir]))
+
+  def test_addDirsToSensors_heading45dot1(self):
+
+    heading = radians(45.1)
+    front_dir = "south"
+    left_dir = "east"
+    back_dir = "north"
+    right_dir = "west"
+    left_us = randint(0, 100)
+    right_us = randint(0, 100)
+    front_us = randint(0, 100)
+    back_us = randint(0, 100)
+
+    sensor_data = { "result" : True, "msg" : "This is fake", "id" : 0, "heading" : heading, 
+                    "accel" : {"x" : nav.config["default_accel_x"], "y" : nav.config["default_accel_y"], 
+                               "z" : nav.config["default_accel_z"]},
+                    "ultrasonic" : {"left" : left_us, "right" : right_us, 
+                                    "front" : front_us, "back" : back_us}}
+
+    self.logger.info("Input sensor data: {}".format(str(sensor_data)))
+
+    result = self.Nav.addDirsToSensors(sensor_data)
+
+    self.logger.info("Result sensor data: {}".format(str(result)))
+
+    self.assertTrue("us_dir" in result, "Ultrasonic direction dict wasn't in result dict")
+    self.assertEqual(result["us_dir"][front_dir], front_us, "Front dir wrong, expected {} to be {} but was {}".format( \
+                                                            front_dir, front_us, result["us_dir"][front_dir]))
+    self.assertEqual(result["us_dir"][left_dir], left_us, "Left dir wrong, expected {} to be {} but was {}".format( \
+                                                            left_dir, left_us, result["us_dir"][left_dir]))
+    self.assertEqual(result["us_dir"][back_dir], back_us, "Back dir wrong, expected {} to be {} but was {}".format( \
+                                                            back_dir, back_us, result["us_dir"][back_dir]))
+    self.assertEqual(result["us_dir"][right_dir], right_us, "Right dir wrong, expected {} to be {} but was {}".format( \
+                                                            right_dir, right_us, result["us_dir"][right_dir]))
+
+  def test_addDirsToSensors_heading134dot9(self):
+
+    heading = radians(134.9)
+    front_dir = "south"
+    left_dir = "east"
+    back_dir = "north"
+    right_dir = "west"
+    left_us = randint(0, 100)
+    right_us = randint(0, 100)
+    front_us = randint(0, 100)
+    back_us = randint(0, 100)
+
+    sensor_data = { "result" : True, "msg" : "This is fake", "id" : 0, "heading" : heading, 
+                    "accel" : {"x" : nav.config["default_accel_x"], "y" : nav.config["default_accel_y"], 
+                               "z" : nav.config["default_accel_z"]},
+                    "ultrasonic" : {"left" : left_us, "right" : right_us, 
+                                    "front" : front_us, "back" : back_us}}
+
+    self.logger.info("Input sensor data: {}".format(str(sensor_data)))
+
+    result = self.Nav.addDirsToSensors(sensor_data)
+
+    self.logger.info("Result sensor data: {}".format(str(result)))
+
+    self.assertTrue("us_dir" in result, "Ultrasonic direction dict wasn't in result dict")
+    self.assertEqual(result["us_dir"][front_dir], front_us, "Front dir wrong, expected {} to be {} but was {}".format( \
+                                                            front_dir, front_us, result["us_dir"][front_dir]))
+    self.assertEqual(result["us_dir"][left_dir], left_us, "Left dir wrong, expected {} to be {} but was {}".format( \
+                                                            left_dir, left_us, result["us_dir"][left_dir]))
+    self.assertEqual(result["us_dir"][back_dir], back_us, "Back dir wrong, expected {} to be {} but was {}".format( \
+                                                            back_dir, back_us, result["us_dir"][back_dir]))
+    self.assertEqual(result["us_dir"][right_dir], right_us, "Right dir wrong, expected {} to be {} but was {}".format( \
+                                                            right_dir, right_us, result["us_dir"][right_dir]))
+
+  def test_addDirsToSensors_heading87(self):
+
+    heading = radians(87)
+    front_dir = "south"
+    left_dir = "east"
+    back_dir = "north"
+    right_dir = "west"
+    left_us = randint(0, 100)
+    right_us = randint(0, 100)
+    front_us = randint(0, 100)
+    back_us = randint(0, 100)
+
+    sensor_data = { "result" : True, "msg" : "This is fake", "id" : 0, "heading" : heading, 
+                    "accel" : {"x" : nav.config["default_accel_x"], "y" : nav.config["default_accel_y"], 
+                               "z" : nav.config["default_accel_z"]},
+                    "ultrasonic" : {"left" : left_us, "right" : right_us, 
+                                    "front" : front_us, "back" : back_us}}
+
+    self.logger.info("Input sensor data: {}".format(str(sensor_data)))
+
+    result = self.Nav.addDirsToSensors(sensor_data)
+
+    self.logger.info("Result sensor data: {}".format(str(result)))
+
+    self.assertTrue("us_dir" in result, "Ultrasonic direction dict wasn't in result dict")
+    self.assertEqual(result["us_dir"][front_dir], front_us, "Front dir wrong, expected {} to be {} but was {}".format( \
+                                                            front_dir, front_us, result["us_dir"][front_dir]))
+    self.assertEqual(result["us_dir"][left_dir], left_us, "Left dir wrong, expected {} to be {} but was {}".format( \
+                                                            left_dir, left_us, result["us_dir"][left_dir]))
+    self.assertEqual(result["us_dir"][back_dir], back_us, "Back dir wrong, expected {} to be {} but was {}".format( \
+                                                            back_dir, back_us, result["us_dir"][back_dir]))
+    self.assertEqual(result["us_dir"][right_dir], right_us, "Right dir wrong, expected {} to be {} but was {}".format( \
+                                                            right_dir, right_us, result["us_dir"][right_dir]))
+
+  def test_addDirsToSensors_heading120(self):
+
+    heading = radians(120)
+    front_dir = "south"
+    left_dir = "east"
+    back_dir = "north"
+    right_dir = "west"
+    left_us = randint(0, 100)
+    right_us = randint(0, 100)
+    front_us = randint(0, 100)
+    back_us = randint(0, 100)
+
+    sensor_data = { "result" : True, "msg" : "This is fake", "id" : 0, "heading" : heading, 
+                    "accel" : {"x" : nav.config["default_accel_x"], "y" : nav.config["default_accel_y"], 
+                               "z" : nav.config["default_accel_z"]},
+                    "ultrasonic" : {"left" : left_us, "right" : right_us, 
+                                    "front" : front_us, "back" : back_us}}
+
+    self.logger.info("Input sensor data: {}".format(str(sensor_data)))
+
+    result = self.Nav.addDirsToSensors(sensor_data)
+
+    self.logger.info("Result sensor data: {}".format(str(result)))
+
+    self.assertTrue("us_dir" in result, "Ultrasonic direction dict wasn't in result dict")
+    self.assertEqual(result["us_dir"][front_dir], front_us, "Front dir wrong, expected {} to be {} but was {}".format( \
+                                                            front_dir, front_us, result["us_dir"][front_dir]))
+    self.assertEqual(result["us_dir"][left_dir], left_us, "Left dir wrong, expected {} to be {} but was {}".format( \
+                                                            left_dir, left_us, result["us_dir"][left_dir]))
+    self.assertEqual(result["us_dir"][back_dir], back_us, "Back dir wrong, expected {} to be {} but was {}".format( \
+                                                            back_dir, back_us, result["us_dir"][back_dir]))
+    self.assertEqual(result["us_dir"][right_dir], right_us, "Right dir wrong, expected {} to be {} but was {}".format( \
+                                                            right_dir, right_us, result["us_dir"][right_dir]))
 
 class TestSBPL(unittest.TestCase):
 
