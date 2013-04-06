@@ -235,7 +235,8 @@ class TrackFollower:
     # * Spin up a separate thread for moving and implement pickup/dropoff strategy
     follow = edge.props.get('follow', None)
     #self.move(edge.fromNode.loc, edge.toNode.loc)
-    self.moveThread = threading.Thread(target=self.move, name="MOVE", args=(edge.fromNode.loc, edge.toNode.loc, follow))
+    #self.moveThread = threading.Thread(target=self.move, name="MOVE", args=(edge.fromNode.loc, edge.toNode.loc, follow))
+    self.moveThread = threading.Thread(target=self.move, name="MOVE", args=(self.bot.loc, edge.toNode.loc, follow))  # always start from current bot loc
     self.bot_state['naving'] = True
     self.moveThread.start()
     sleep(0.05)  # let move thread execute some
@@ -262,7 +263,7 @@ class TrackFollower:
         
           # TODO pickup the block
           self.logd("traverse", "Picking up block with {name} arm...".format(name=arm.name))
-          #self.sc.armPick(arm)
+          self.sc.armPick(arm)
         
           break
       elif isDropoff and (not self.bot.isEmptyLeft or not self.bot.isEmptyRight):
