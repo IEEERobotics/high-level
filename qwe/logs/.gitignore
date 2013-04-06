@@ -2,3 +2,4 @@
 !get_guesses.sh
 !clean_logs.sh
 !arch/
+!mk_tracked_path.sh
