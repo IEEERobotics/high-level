@@ -165,6 +165,281 @@ class TestFileGeneration(unittest.TestCase):
     # Confirm that env file was generated
     self.assertTrue(os.path.isfile(path_to_env), "Env file not found at " + path_to_env)
 
+class TestDirs(unittest.TestCase):
+
+  def setUp(self):
+    """Create nav object and feed it appropriate data"""
+    
+    # Create file and stream handlers
+    self.file_handler = logging.handlers.RotatingFileHandler(path_to_qwe + "logs/unittests.log", maxBytes=512000, backupCount=50)
+    self.file_handler.setLevel(logging.DEBUG)
+    self.stream_handler = logging.StreamHandler()
+    self.stream_handler.setLevel(logging.WARN)
+
+    # Create formatter and add to handlers
+    formatter = logging.Formatter('%(asctime)s | %(levelname)s | %(filename)s | %(funcName)s | %(lineno)d | %(message)s')
+    self.file_handler.setFormatter(formatter)
+    self.stream_handler.setFormatter(formatter)
+
+    # Create logger and add handlers
+    self.logger = logging.getLogger("unittest")
+    self.logger.setLevel(logging.DEBUG)
+    self.logger.addHandler(self.file_handler)
+    self.logger.addHandler(self.stream_handler)
+    self.logger.debug("Logger is set up")
+     
+    # Start serial communication to low-level board
+    self.si = comm.SerialInterface(timeout=config["si_timeout"])
+    self.si.start() # Displays an error if port not found (not running on Pandaboard)
+    self.logger.info("Serial interface set up")
+
+    # Build Queue objects for IPC. Name shows producer_consumer.
+    self.qNav_loc = Queue()
+    self.qMove_nav = Queue()
+    self.logger.debug("Queue objects created")
+
+    # Get map, waypoints and map properties
+    self.course_map = mapper.unpickle_map(path_to_qwe + "mapping/map.pkl")
+    self.logger.info("Map unpickled")
+    self.waypoints = mapper.unpickle_waypoints(path_to_qwe + "mapping/waypoints.pkl")
+    self.logger.info("Waypoints unpickled")
+    self.map_properties = mapper.unpickle_map_prop_vars(path_to_qwe + "mapping/map_prop_vars.pkl")
+    self.logger.debug("Map properties unpickled")
+
+    # Find start location
+    self.start_x = self.waypoints["start"][1][0]
+    self.start_y = self.waypoints["start"][1][1]
+    self.start_theta = self.waypoints["start"][2]
+    self.logger.debug("Start waypoint is {}, {}, {}".format(self.start_x, self.start_y, self.start_theta))
+
+    # Build shared data structures
+    self.manager = Manager()
+    self.bot_loc = self.manager.dict(x=self.start_x, y=self.start_y, theta=self.start_theta, dirty=False)
+    self.bot_state = self.manager.dict(nav_type=None, action_type=None, naving=False) #nav_type is "micro" or "macro"
+    self.zones = self.manager.dict()
+    self.logger.debug("Shared data structures created")
+    self.bot_state["zone_change"] = 1
+
+    # Build nav object
+    self.scNav = comm.SerialCommand(self.si.commands, self.si.responses)
+    self.scNav.compassReset()
+    self.Nav = nav.Nav(self.bot_loc, self.qNav_loc, self.scNav, self.bot_state, self.qMove_nav, self.logger)
+    self.logger.info("Nav object instantiated")
+
+    self.Nav.start(doLoop=False)
+    self.logger.info("Started nav object")
+
+  def tearDown(self):
+    """Close serial interface threads"""
+
+    # Join serial interface process
+    self.scNav.quit()
+    self.si.join()
+    self.logger.info("Joined serial interface process")
+
+    # Remove loggers. Not doing this results in the same log entry being written many times.
+    self.logger.removeHandler(self.file_handler)
+    self.logger.removeHandler(self.stream_handler)
+
+  def test_getDir_0(self):
+
+    degs_in = 0
+    dir_out = "east"
+
+    result = self.Nav.getDir(radians(degs_in))
+
+    self.assertEqual(dir_out, result, "Failed to convert {} radians to {}, got {}".format(degs_in, dir_out, result))
+
+  def test_getDir_45(self):
+
+    degs_in = 45
+    dir_out = "east"
+
+    result = self.Nav.getDir(radians(degs_in))
+
+    self.assertEqual(dir_out, result, "Failed to convert {} radians to {}, got {}".format(degs_in, dir_out, result))
+
+  def test_getDir_315(self):
+
+    degs_in = 315
+    dir_out = "east"
+
+    result = self.Nav.getDir(radians(degs_in))
+
+    self.assertEqual(dir_out, result, "Failed to convert {} radians to {}, got {}".format(degs_in, dir_out, result))
+
+  def test_getDir_30(self):
+
+    degs_in = 30
+    dir_out = "east"
+
+    result = self.Nav.getDir(radians(degs_in))
+
+    self.assertEqual(dir_out, result, "Failed to convert {} radians to {}, got {}".format(degs_in, dir_out, result))
+
+  def test_getDir_340(self):
+
+    degs_in = 340
+    dir_out = "east"
+
+    result = self.Nav.getDir(radians(degs_in))
+
+    self.assertEqual(dir_out, result, "Failed to convert {} radians to {}, got {}".format(degs_in, dir_out, result))
+
+  def test_getDir_270(self):
+
+    degs_in = 270
+    dir_out = "north"
+
+    result = self.Nav.getDir(radians(degs_in))
+
+    self.assertEqual(dir_out, result, "Failed to convert {} radians to {}, got {}".format(degs_in, dir_out, result))
+
+  def test_getDir_225(self):
+
+    degs_in = 225
+    dir_out = "north"
+
+    result = self.Nav.getDir(radians(degs_in))
+
+    self.assertEqual(dir_out, result, "Failed to convert {} radians to {}, got {}".format(degs_in, dir_out, result))
+
+  def test_getDir_314dot9(self):
+
+    degs_in = 314.9
+    dir_out = "north"
+
+    result = self.Nav.getDir(radians(degs_in))
+
+    self.assertEqual(dir_out, result, "Failed to convert {} radians to {}, got {}".format(degs_in, dir_out, result))
+
+  def test_getDir_300(self):
+
+    degs_in = 300
+    dir_out = "north"
+
+    result = self.Nav.getDir(radians(degs_in))
+
+    self.assertEqual(dir_out, result, "Failed to convert {} radians to {}, got {}".format(degs_in, dir_out, result))
+
+  def test_getDir_250(self):
+
+    degs_in = 250
+    dir_out = "north"
+
+    result = self.Nav.getDir(radians(degs_in))
+
+    self.assertEqual(dir_out, result, "Failed to convert {} radians to {}, got {}".format(degs_in, dir_out, result))
+
+  def test_getDir_180(self):
+
+    degs_in = 180
+    dir_out = "west"
+
+    result = self.Nav.getDir(radians(degs_in))
+
+    self.assertEqual(dir_out, result, "Failed to convert {} radians to {}, got {}".format(degs_in, dir_out, result))
+
+  def test_getDir_135(self):
+
+    degs_in = 180
+    dir_out = "west"
+
+    result = self.Nav.getDir(radians(degs_in))
+
+    self.assertEqual(dir_out, result, "Failed to convert {} radians to {}, got {}".format(degs_in, dir_out, result))
+
+  def test_getDir_224dot9(self):
+
+    degs_in = 224.9
+    dir_out = "west"
+
+    result = self.Nav.getDir(radians(degs_in))
+
+    self.assertEqual(dir_out, result, "Failed to convert {} radians to {}, got {}".format(degs_in, dir_out, result))
+
+  def test_getDir_160(self):
+
+    degs_in = 160
+    dir_out = "west"
+
+    result = self.Nav.getDir(radians(degs_in))
+
+    self.assertEqual(dir_out, result, "Failed to convert {} radians to {}, got {}".format(degs_in, dir_out, result))
+
+  def test_getDir_200(self):
+
+    degs_in = 200
+    dir_out = "west"
+
+    result = self.Nav.getDir(radians(degs_in))
+
+    self.assertEqual(dir_out, result, "Failed to convert {} radians to {}, got {}".format(degs_in, dir_out, result))
+
+  def test_getDir_90(self):
+
+    degs_in = 90
+    dir_out = "south"
+
+    result = self.Nav.getDir(radians(degs_in))
+
+    self.assertEqual(dir_out, result, "Failed to convert {} radians to {}, got {}".format(degs_in, dir_out, result))
+
+  def test_getDir_45dot1(self):
+
+    degs_in = 45.1
+    dir_out = "south"
+
+    result = self.Nav.getDir(radians(degs_in))
+
+    self.assertEqual(dir_out, result, "Failed to convert {} radians to {}, got {}".format(degs_in, dir_out, result))
+
+  def test_getDir_134dot9(self):
+
+    degs_in = 134.9
+    dir_out = "south"
+
+    result = self.Nav.getDir(radians(degs_in))
+
+    self.assertEqual(dir_out, result, "Failed to convert {} radians to {}, got {}".format(degs_in, dir_out, result))
+
+  def test_getDir_60(self):
+
+    degs_in = 60
+    dir_out = "south"
+
+    result = self.Nav.getDir(radians(degs_in))
+
+    self.assertEqual(dir_out, result, "Failed to convert {} radians to {}, got {}".format(degs_in, dir_out, result))
+
+  def test_getDir_130(self):
+
+    degs_in = 130
+    dir_out = "south"
+
+    result = self.Nav.getDir(radians(degs_in))
+
+    self.assertEqual(dir_out, result, "Failed to convert {} radians to {}, got {}".format(degs_in, dir_out, result))
+
+  def test_getDir_neg(self):
+
+    degs_in = -90
+    dir_out = nav.errors["BAD_INPUT"]
+
+    result = self.Nav.getDir(radians(degs_in))
+
+    self.assertEqual(dir_out, result, "Failed to convert {} radians to {}, got {}".format(degs_in, dir_out, result))
+
+  def test_getDir_large(self):
+
+    degs_in = 400
+    dir_out = nav.errors["BAD_INPUT"]
+
+    result = self.Nav.getDir(radians(degs_in))
+
+    self.assertEqual(dir_out, result, "Failed to convert {} radians to {}, got {}".format(degs_in, dir_out, result))
+
+
 class TestSBPL(unittest.TestCase):
 
   def setUp(self):

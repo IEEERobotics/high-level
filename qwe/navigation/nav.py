@@ -29,7 +29,7 @@ micro_move_XYTheta = namedtuple("micro_move_XYTheta", ["distance", "speed", "ang
 # Dict of error codes and their human-readable names
 errors = { 100 : "ERROR_BAD_CWD",  101 : "ERROR_SBPL_BUILD", 102 : "ERROR_SBPL_RUN", 103 : "ERROR_BUILD_ENV", 
   104 : "ERROR_BAD_RESOLUTION", 105 : "WARNING_SHORT_SOL", 106 : "ERROR_ARCS_DISALLOWED", 107 : "ERROR_DYNAMIC_DEM_UNKN", 108 :
-  "ERROR_NO_CHANGE", 109 : "ERROR_FAILED_MOVE", 110 : "NO_SOL", 111 : "UNKNOWN_ERROR", 112 : "ERROR_SENSORS" }
+  "ERROR_NO_CHANGE", 109 : "ERROR_FAILED_MOVE", 110 : "NO_SOL", 111 : "UNKNOWN_ERROR", 112 : "ERROR_SENSORS", 113 : "BAD_INPUT" }
 errors.update(dict((v,k) for k,v in errors.iteritems())) # Converts errors to a two-way dict
 
 # TODO These need to be calibrated
@@ -665,6 +665,51 @@ class Nav:
     # Acc unites in mm/sec**2 going to leave them that way for now
 
     return sensor_data
+
+  def getDir(self, angle):
+    """Take an angle in math.radians(degrees from 0 to 359.9) and return a cardinal direction for that angle."""
+
+    self.logger.info("Input angle is {}".format(angle))
+
+    if angle < 0:
+      self.logger.error("Don't know to handle negative value: {}".format(angle))
+      return errors["BAD_INPUT"]
+    elif angle > radians(360):
+      self.logger.error("Don't know to handle input larger than 2*pi: {}".format(angle))
+      return errors["BAD_INPUT"]
+
+    if angle >= radians(360-45) and angle <= radians(360) or angle >= radians(0) and angle <= radians(45):
+      return "east"
+    elif angle >= radians(270-45) and angle <= radians(270+45):
+      return "north"
+    elif angle >= radians(180-45) and angle <= radians(180+45):
+      return "west"
+    elif angle >= radians(90-45) and angle <= radians(90+45):
+      return "south"
+    else:
+      self.logger.error("Angle was not converted to any cardinal direction, which doesn't make sense.")
+      return errors["UNKNOWN_ERROR"]
+
+  def addDirsToSensors(self, sensor_data):
+
+    dirs = { "north" : 0, "west" : 1, "south" : 2, "east" : 3 }
+    dirs.update(dict((v,k) for k,v in dirs.iteritems())) # Converts dirs to a two-way dict
+
+    us_dir={}
+
+    front_dir = self.getDir(sensor_data["heading"])
+    us_dir[front_dir] = sensor_data["ultrasonic"]["front"]
+
+    left_dir = dirs[(dirs[front_dir] + 1) % 4]
+    us_dir[left_dir] = sensor_data["ultrasonic"]["left"]
+
+    back_dir = dirs[(dirs[left_dir] + 1) % 4]
+    us_dir[back_dir] = sensor_data["ultrasonic"]["back"]
+
+    right_dir = dirs[(dirs[back_dir] + 1) % 4]
+    us_dir[right_dir] = sensor_data["ultrasonic"]["right"]
+
+    sensor_data["us_dir"] = us_dir
 
   def getSensorData(self):
 
