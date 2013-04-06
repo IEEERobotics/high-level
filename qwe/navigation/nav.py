@@ -679,12 +679,16 @@ class Nav:
       return errors["BAD_INPUT"]
 
     if angle >= radians(360-45) and angle <= radians(360) or angle >= radians(0) and angle <= radians(45):
+      self.logger.debug("Converted {} to east".format(angle))
       return "east"
     elif angle >= radians(270-45) and angle <= radians(270+45):
+      self.logger.debug("Converted {} to nort".format(angle))
       return "north"
     elif angle >= radians(180-45) and angle <= radians(180+45):
+      self.logger.debug("Converted {} to west".format(angle))
       return "west"
     elif angle >= radians(90-45) and angle <= radians(90+45):
+      self.logger.debug("Converted {} to south".format(angle))
       return "south"
     else:
       self.logger.error("Angle was not converted to any cardinal direction, which doesn't make sense.")
@@ -710,6 +714,8 @@ class Nav:
     us_dir[right_dir] = sensor_data["ultrasonic"]["right"]
 
     sensor_data["us_dir"] = us_dir
+
+    return sensor_data
 
   def getSensorData(self):
 
