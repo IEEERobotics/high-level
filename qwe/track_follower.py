@@ -13,7 +13,7 @@ from collections import namedtuple
 from math import sqrt, hypot, atan2, degrees, radians, sin, cos, pi
 from multiprocessing import Process, Manager, Queue
 
-default_speed = 300
+default_speed = 200
 waypoints_file = "mapping/waypoints.pkl"
 #inchesToMeters = 0.0254
 
@@ -107,7 +107,7 @@ class TrackFollower:
     self.graph.nodes['celta'] = Node('celta', Point(64, 34), pi)  # point beside ramp
     self.graph.nodes['pickup'] = Node('pickup', Point(58, 34), pi)  # point near start of pickup
     self.graph.nodes['delta'] = Node('delta', Point(12, 34), pi)  # point past end of pickup
-    self.graph.nodes['sea'] = Node('sea', Point(12, 34), 3*pi/2)  # point near start of sea
+    self.graph.nodes['sea'] = Node('sea', Point(12, 33), 3*pi/2)  # point near start of sea
     self.graph.nodes['eps'] = Node('eps', Point(12, 12), 0)  # point past end of sea
     
     self.graph.edges[('start', 'alpha')] = Edge(self.graph.nodes['start'], self.graph.nodes['alpha'])
@@ -166,7 +166,7 @@ class TrackFollower:
   
   def traverse(self, edge):
     # TODO move from edge.fromNode to edge.toNode, ensuring bot sensors indicate expected values
-    self.logd("traverse", "Moving from {fromName} to {toName} ...".format(fromName=edge.fromNode.name, toName=edge.toNode.name))
+    self.logd("traverse", "Moving from {fromNode} to {toNode} ...".format(fromNode=edge.fromNode, toNode=edge.toNode))
     self.move(edge.fromNode.loc, edge.toNode.loc)
   
   def move(self, fromPoint, toPoint, speed=default_speed):
@@ -177,7 +177,8 @@ class TrackFollower:
     delta = Offset(toPoint.x - fromPoint.x, toPoint.y - fromPoint.y)
     distance_inches = hypot(delta.x, delta.y)
     #angle_radians = atan2(delta.y, delta.x) % (2 * pi)  # absolute angle
-    angle_radians = (atan2(delta.y, delta.x) - self.bot.heading) % (2 * pi)  # relative angle
+    angle_radians = atan2(delta.y, delta.x) % (2 * pi) - self.bot.heading  # relative angle
+    self.logd("move", "fromPoint: {}, toPoint: {}, distance_inches: {}, angle_radians: {}".format(fromPoint, toPoint, distance_inches, angle_radians))
     
     distance = int(distance_inches * (1633 / 9.89))
     angle = int(degrees(angle_radians)) * 10
