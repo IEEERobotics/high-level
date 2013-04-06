@@ -247,10 +247,10 @@ class TrackFollower:
       # * Pickup/drop-off logic
       isPickup = edge.props.get('isPickup', False)
       isDropoff = edge.props.get('isDropoff', False)
-      self.logd("traverse", "isPickup? {}, isDropoff? {}".format(isPickup, isDropoff))
+      #self.logd("traverse", "isPickup? {}, isDropoff? {}".format(isPickup, isDropoff))
       if isPickup and (self.bot.isEmptyLeft or self.bot.isEmptyRight):
         # ** Pickup
-        self.logd("traverse", "Requesting vision for blobs...")
+        #self.logd("traverse", "Requesting vision for blobs...")
         self.bot_state['cv_blobTrack'] = True
         # Which arm should I use?
         arm = comm.left_arm if self.bot.isEmptyLeft else self.bot.isEmptyRight
@@ -261,8 +261,9 @@ class TrackFollower:
           self.stop()
           traversalComplete = False
         
-          # TODO pickup the block
-          self.logd("traverse", "Picking up block with {name} arm...".format(name=arm.name))
+          # Pickup the block
+          blob = self.blobs[0]  # TODO look for the one closest to the center
+          self.logd("traverse", "Picking up {color} block with {name} arm...".format(color=blob.tag, name=arm.name))
           self.sc.armPick(arm)
         
           break
