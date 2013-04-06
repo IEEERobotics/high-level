@@ -61,11 +61,11 @@ class SimRobot(Robot):
 
   # simulate sensor readings, based on map we we're given
   #   currently a very simple model -- straightline distance to closest wall
-  def sense(self, map):
+  def sense(self, map, noisy = True):
     #print "SimRobot: Robot sense:"
     sensed = {}
     for name,sensor in self.sensors.items():
-      val = sensor.sense(self.pose, map, noisy = True)
+      val = sensor.sense(self.pose, map, noisy = noisy)
       sensed[name] = val
     return sensed
 

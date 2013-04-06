@@ -12,7 +12,7 @@ class Sensor(object):
     self.name = name
 
 class Ultrasonic(Sensor):
-  def __init__(self, name, rel_pose, noise = 0.0, cone = False):  # better to use *args, **kwargs??
+  def __init__(self, name, rel_pose, noise = 0.0, cone = False, failure = 0.2):  # better to use *args, **kwargs??
     Sensor.__init__(self, name)
     self.rel_pose = rel_pose # relative to robot center (inches)
     self.noise = noise # 1st std deviation, so 2*noise is 95%
@@ -21,6 +21,7 @@ class Ultrasonic(Sensor):
     self.resolution = 0.1  # inches, from datasheet (0.3cm)
     self.cone = cone
     self.gauss_var = 3.0
+    self.failure = failure
 
   def sense(self, pose, map, noisy = False):
     if self.cone:  # 15 degree cone
@@ -39,10 +40,12 @@ class Ultrasonic(Sensor):
     ----------
     pose -- robot absolute coordinates and angle (inches)
     """
-    sense_pose = pose + self.rel_pose
-    #print "Sense1 pose: ", sense_pose
-    # TODO: ultrasonic sense should be a +/-15 degree cone - calc 3 times and take closest?
-    #wx,wy = raycast.wall(sense_pose.x, sense_pose.y, sense_pose.theta, map, self.max)
+
+    sense_pose = pose.offset(self.rel_pose.x, self.rel_pose.y, self.rel_pose.theta)
+    #sense_pose.theta = self.rel_pose.theta
+
+    #print "Sensor: ", self.name
+    #print "Pose: ", sense_pose
     wx,wy = raycast.find_wall(sense_pose.x, sense_pose.y, sense_pose.theta, self.max, map)
     #print "Wall sense: ", wx, wy
     if wx <0:  # no wall seen
@@ -52,10 +55,9 @@ class Ultrasonic(Sensor):
       val = norm( [sense_pose.x-wx, sense_pose.y-wy] )
       if noisy:
         val += random.normal(0, self.noise)
-        if random.random() < 0.2:
+        if random.random() < self.failure:
           return -0.14
-    # TODO: figure out if particles should use dirty sensors (guess: no?)
-    #print "Sense1 val: ", val
+    #print
     return val
 
 class Compass(Sensor):

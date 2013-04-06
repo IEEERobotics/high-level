@@ -7,6 +7,9 @@ from pose import Pose
 ultra_noise = 0.05  # 2 std devs = resolution, so 95% of readings within resolution
 compass_noise = 0.017  # roughly 0.1 degrees
 
+compass_only = {}
+compass_only['heading'] = Compass('heading', compass_noise)
+
 centered_str = {}
 centered_str['front'] = Ultrasonic('front', Pose(0.0,0,0.0), ultra_noise)
 centered_str['left'] = Ultrasonic('left', Pose(0.0,0.0,pi/2), ultra_noise)
@@ -21,20 +24,11 @@ centered_cone['right'] = Ultrasonic('right', Pose(0.0,0.0,-pi/2), ultra_noise, c
 centered_cone['back'] = Ultrasonic('back', Pose(0.0,0.0,-pi), ultra_noise, cone=True)
 
 offset_str = {}
-offset_str['front'] = Ultrasonic('front', Pose(0.0,8.4,0.0), ultra_noise)
-offset_str['left'] = Ultrasonic('left', Pose(-5.0,3.4,pi/2), ultra_noise)
-offset_str['right'] = Ultrasonic('right', Pose(5.0,3.4,-pi/2), ultra_noise)
-offset_str['back'] = Ultrasonic('back', Pose(0.0,-1.6,-pi), ultra_noise)
+offset_str['front'] = Ultrasonic('front', Pose(+8.4,0.0,0.0), ultra_noise, failure = 0)
+offset_str['left'] = Ultrasonic('left', Pose(+3.4,5.0,pi/2), ultra_noise, failure = 0)
+offset_str['right'] = Ultrasonic('right', Pose(+3.4,-5.0,-pi/2), ultra_noise, failure = 0)
+offset_str['back'] = Ultrasonic('back', Pose(-1.6,0.0,-pi), ultra_noise, failure = 0)
 offset_str['heading'] = Compass('heading', compass_noise)
-
-offset_cone = {}
-offset_cone['front'] = Ultrasonic('front', Pose(0.0,8.4,0.0), ultra_noise, cone=True)
-offset_cone['left'] = Ultrasonic('left', Pose(-5.0,3.4,pi/2), ultra_noise, cone=True)
-offset_cone['right'] = Ultrasonic('right', Pose(5.0,3.4,-pi/2), ultra_noise, cone=True)
-offset_cone['back'] = Ultrasonic('back', Pose(0.0,-1.6,-pi), ultra_noise, cone=True)
-
-compass_only = {}
-compass_only['heading'] = Compass('heading', compass_noise)
 
 default = offset_str
 #default = compass_only
