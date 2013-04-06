@@ -146,7 +146,7 @@ class VisionManager:
     frameCount = 0
     timeLast = timeNow = 0.0
     timeStart = cv2.getTickCount() / cv2.getTickFrequency()
-    while self.isOkay:
+    while self.isOkay and not self.bot_state.get('die', False):
       # ** [timing] Obtain relative timestamp for this loop iteration
       timeNow = (cv2.getTickCount() / cv2.getTickFrequency()) - timeStart
       

@@ -235,11 +235,11 @@ class SerialInterface(Process):
     try:
       responseStr = self.device.readline()  # NOTE response must be \n terminated
       responseStr = responseStr.strip()  # strip EOL
-      #print "[RECV] {0}".format(responseStr)  # [debug]
       if len(responseStr) == 0:
         #print "[RECV] Warning: Blank response (timeout?)"
         return { }  # return a blank dict
       else:
+        print "[RECV] {0}".format(responseStr)  # [debug]
         response = json.loads(responseStr)
         return response  # return dict representation of JSON object
     except Exception as e:
