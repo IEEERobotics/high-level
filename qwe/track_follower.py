@@ -75,6 +75,9 @@ class Bot:
   
   def __str__(self):
     return "<Bot loc: {self.loc}, heading: {self.heading}>".format(self=self)
+  
+  def dump(self):
+    return "Bot {self.loc.x} {self.loc.y} {self.heading}".format(self=self)
 
 
 class TrackFollower:
@@ -167,7 +170,8 @@ class TrackFollower:
     self.move(edge.fromNode.loc, edge.toNode.loc)
   
   def move(self, fromPoint, toPoint, speed=default_speed):
-    self.logd("move", "Bot: {}".format(self.bot))  # report current state
+    #self.logd("move", "Bot: {}".format(self.bot))  # report current state
+    self.logd("move", self.bot.dump())  # dump current state
     
     # * Compute angle and distance
     delta = Offset(toPoint.x - fromPoint.x, toPoint.y - fromPoint.y)
@@ -194,7 +198,8 @@ class TrackFollower:
     # * Update bot heading
     #self.bot.heading = radians(actual_heading / 10.0)  # absolute angle
     self.bot.heading = self.bot.heading + radians(actual_heading_rel / 10.0)  # relative angle
-    self.logd("move", "Bot: {}".format(self.bot))
+    #self.logd("move", "Bot: {}".format(self.bot))
+    self.logd("move", self.bot.dump())  # dump current state
     
     # * Move in a straight line while maintaining known heading (absolute)
     # ** Option 1: Use botSet()
@@ -214,7 +219,8 @@ class TrackFollower:
     actual_distance_inches = actual_distance * (9.89 / 1633)
     self.bot.loc = Point(self.bot.loc.x + actual_distance_inches * cos(self.bot.heading), self.bot.loc.y + actual_distance_inches * sin(self.bot.heading))
     #self.bot.heading = radians(actual_heading / 10.0)  # only needed if botSet() was used
-    self.logd("move", "Bot: {}".format(self.bot))
+    #self.logd("move", "Bot: {}".format(self.bot))
+    #self.logd("move", self.bot.dump())  # dump current state
   
   def turn(self, angle_radians):
     # * Compute angle
