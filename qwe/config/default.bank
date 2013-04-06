@@ -1,0 +1,93 @@
+{
+  "blue": {
+    "upper": [
+      160, 
+      255, 
+      255
+    ], 
+    "lower": [
+      96, 
+      20, 
+      92
+    ], 
+    "__class__": "HSVFilter"
+  }, 
+  "brown": {
+    "upper": [
+      9, 
+      255, 
+      194
+    ], 
+    "lower": [
+      0, 
+      122, 
+      46
+    ], 
+    "__class__": "HSVFilter"
+  }, 
+  "yellow": {
+    "upper": [
+      31, 
+      255, 
+      255
+    ], 
+    "lower": [
+      24, 
+      46, 
+      100
+    ], 
+    "__class__": "HSVFilter"
+  }, 
+  "green": {
+    "upper": [
+      35, 
+      255, 
+      168
+    ], 
+    "lower": [
+      16, 
+      70, 
+      37
+    ], 
+    "__class__": "HSVFilter"
+  }, 
+  "orange": {
+    "upper": [
+      26, 
+      255, 
+      255
+    ], 
+    "lower": [
+      6, 
+      97, 
+      100
+    ], 
+    "__class__": "HSVFilter"
+  }, 
+  "white": {
+    "upper": [
+      179, 
+      100, 
+      255
+    ], 
+    "lower": [
+      0, 
+      0, 
+      200
+    ], 
+    "__class__": "HSVFilter"
+  }, 
+  "red": {
+    "upper": [
+      4, 
+      255, 
+      255
+    ], 
+    "lower": [
+      175, 
+      97, 
+      100
+    ], 
+    "__class__": "HSVFilter"
+  }
+}

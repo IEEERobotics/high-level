@@ -126,14 +126,15 @@ class VisionManager:
     #pipeline = FrameProcessorPipeline(self.options, [CMYKBlobDetector])  # CMYK blob detection
     #pipeline = FrameProcessorPipeline(self.options, [ColorFilterProcessor, BlobTracker])  # blob tracking pipeline
     #pipeline = FrameProcessorPipeline(self.options, [ColorFilterProcessor, LineDetector, LineWalker, BlobTracker])  # combined pipeline
-    pipeline = FrameProcessorPipeline(self.options, [ColorPaletteDetector, LineDetector, LineWalker, CMYKBlobDetector])  # CMYK blob detection + line walking pipeline
+    #pipeline = FrameProcessorPipeline(self.options, [ColorPaletteDetector, LineDetector, LineWalker, CMYKBlobDetector])  # CMYK blob detection + line walking pipeline
+    pipeline = FrameProcessorPipeline(self.options, [ColorFilterProcessor, LineDetector, LineWalker, BlobTracker, CMYKBlobDetector])  # combined pipeline: line walking + blob tracking + CMYK blob detection
     # ** Get references to specific processors for fast access
     #colorFilter = pipeline.getProcessorByType(ColorFilterProcessor)
     colorPaletteDetector = pipeline.getProcessorByType(ColorPaletteDetector)
     lineDetector = pipeline.getProcessorByType(LineDetector)
     lineWalker = pipeline.getProcessorByType(LineWalker)
     blobDetector = pipeline.getProcessorByType(CMYKBlobDetector)
-    #blobTracker = pipeline.getProcessorByType(BlobTracker)
+    blobTracker = pipeline.getProcessorByType(BlobTracker)
     
     # * Set signal handler before starting vision loop (NOTE must be done in the main thread of this process)
     signal.signal(signal.SIGTERM, self.handleSignal)
@@ -195,6 +196,12 @@ class VisionManager:
       if lineWalker is not None:
         lineWalker.active = cv_lineTrack
       
+      cv_blobTrack = self.bot_state.get("cv_blobTrack", False)
+      #self.logd("start", "[LOOP] cv_blobTrack? {0}".format(cv_blobTrack))  # [debug]
+      #pipeline.activateProcessors([BlobTracker], cv_blobTrack)
+      if blobTracker is not None:
+        blobTracker.active = cv_blobTrack
+      
       cv_blockDetect = self.bot_state.get("cv_blockDetect", False)
       #self.logd("start", "[LOOP] cv_blockDetect? {0}".format(cv_blockDetect))  # [debug]
       #pipeline.activateProcessors([CMYKBlobDetector], cv_blockDetect)
@@ -232,7 +239,7 @@ class VisionManager:
             self.heading -= 0.1 * lineWalker.headingError
       
       # ** Show output image
-      if showOutput and imageOut is not None:
+      if showOutput and not self.debug and imageOut is not None:  # no need to display when debug is True because pipeline then shows individual outputs
         cv2.imshow("Output", imageOut)  # output image from last processor
       
       # ** Check if GUI is available
@@ -322,7 +329,7 @@ class VisionManager:
       self.logger.debug(outStr)
 
 
-def run(bot_loc=dict(), blobs=list(), blocks=dict(), zones=dict(), corners=list(), waypoints=dict(), sc=None, bot_state=dict(cv_lineTrack=False, cv_blockDetect=False), options=None, standalone=False):
+def run(bot_loc=dict(), blobs=list(), blocks=dict(), zones=dict(), corners=list(), waypoints=dict(), sc=None, bot_state=dict(cv_lineTrack=True, cv_blockDetect=False, cv_blobTrack=True), options=None, standalone=False):
   """Entry point for vision process: Create VisionManager to handle shared data and start vision loop."""
   visManager = VisionManager(bot_loc=bot_loc, blobs=blobs, blocks=blocks, zones=zones, corners=corners, waypoints=waypoints, sc=sc, bot_state=bot_state, options=options, standalone=standalone)  # passing in shared data, options dict and stand-alone flag; use named arguments to avoid positional errors
   visManager.start()  # start vision loop

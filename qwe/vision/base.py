@@ -66,6 +66,10 @@ class FrameProcessorPipeline(FrameProcessorPool):
   
   def __init__(self, options, processorTypes):
     """Create a list of FrameProcessors given appropriate types."""
+    self.options = options
+    self.gui = self.options['gui']
+    self.debug = self.options['debug']
+    
     self.processors = []
     for processorType in processorTypes:
       if issubclass(processorType, FrameProcessor):
@@ -85,6 +89,8 @@ class FrameProcessorPipeline(FrameProcessorPool):
     for processor in self.processors:
       if processor.active:
         keepRunning, imageOut = processor.process(imageIn, timeNow)
+        if self.gui and self.debug and imageOut is not None:  # show individual processor outputs only if gui and debug are true
+        	cv2.imshow("Output: {}".format(processor.__class__.__name__), imageOut)
         if not keepRunning:
           break  # break out of this for loop (no further processors get to process this image)
     return keepRunning, imageOut

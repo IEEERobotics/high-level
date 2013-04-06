@@ -243,7 +243,8 @@ def main():
   
   # Start vision process, pass it shared data
   scVision = comm.SerialCommand(si.commands, si.responses)
-  pVision = Process(target=vision.run, args=(bot_loc, blobs, blocks, zones, corners, waypoints, scVision, bot_state))
+  options = dict(filename=None, gui=False, debug=True)
+  pVision = Process(target=vision.run, args=(bot_loc, blobs, blocks, zones, corners, waypoints, scVision, bot_state, options))
   pVision.start()
   
   # Zero compass heading
