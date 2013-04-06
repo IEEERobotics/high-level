@@ -178,8 +178,8 @@ class TrackFollower:
     # Start vision process, pass it shared data
     scVision = comm.SerialCommand(self.si.commands, self.si.responses)
     options = dict(filename=None, gui=False, debug=True)
-    pVision = Process(target=vision.run, args=(self.bot_loc, self.blobs, self.blocks, self.zones, self.corners, self.waypoints, scVision, self.bot_state, options))
-    pVision.start()
+    self.pVision = Process(target=vision.run, args=(self.bot_loc, self.blobs, self.blocks, self.zones, self.corners, self.waypoints, scVision, self.bot_state, options))
+    self.pVision.start()
     
     # Zero compass heading
     self.sc.compassReset()
@@ -217,7 +217,7 @@ class TrackFollower:
     
     # Wait for child processes to join
     self.bot_state['die'] = True
-    pVision.join()
+    self.pVision.join()
     
     self.sc.quit()
     self.si.join()
@@ -240,7 +240,8 @@ class TrackFollower:
       # Which arm should I use?
       arm = comm.left_arm if self.bot.isEmptyLeft else self.bot.isEmptyRight
       # Do I see a block?
-      # TODO
+      if self.blobs is not None:
+        self.logd("run", "Vision reported {} blobs".format(len(self.blobs)))
     
     # ** Drop-off
     # TODO

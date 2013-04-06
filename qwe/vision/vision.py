@@ -222,7 +222,11 @@ class VisionManager:
         else:
           self.loge("start", "[LOOP] camera_offset not available!")
       
-      if blobDetector is not None and blobDetector.active:
+      if blobTracker is not None and blobTracker.active:
+        del self.blobs[:]
+        self.blobs.extend(blobTracker.blobs)
+        self.logd("start", "[LOOP] Got {0} blob(s) from blob tracker".format(len(self.blobs)))
+      elif blobDetector is not None and blobDetector.active:
         del self.blobs[:]
         self.blobs.extend(blobDetector.blobs)
         self.logd("start", "[LOOP] Got {0} blob(s) from blob detector".format(len(self.blobs)))
