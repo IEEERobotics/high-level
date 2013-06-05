@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/evn bash
 # Posts current IP address as a *message* to a specified URL (PHP script):
 #   http://people.engr.ncsu.edu/achakra/apps/message/post.php
 # Posted messages can be viewed at:
